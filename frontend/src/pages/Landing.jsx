@@ -638,7 +638,7 @@ function AppSection() {
                 </li>
               ))}
             </ul>
-            <a href="/autolink-pro.apk" download
+            <a href="https://github.com/Steveghost237/autolink-pro/releases/download/v1.0.0/autolink-pro.apk" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-white text-teal-700 font-bold py-4 px-8 rounded-sm hover:bg-teal-50 transition-colors shadow-xl text-sm uppercase tracking-wide">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>

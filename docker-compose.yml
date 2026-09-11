@@ -1,0 +1,9 @@
+services:
+  autolink-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autolink-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"

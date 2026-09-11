@@ -1,0 +1,13 @@
+node_modules
+frontend/node_modules
+frontend/build
+mobile/node_modules
+mobile/android
+mobile/.expo
+backend/venv
+.git
+*.apk
+*.docx
+__pycache__
+*.pyc
+.env
