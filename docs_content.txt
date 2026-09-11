@@ -1,0 +1,256 @@
+=== AutoLink_Cahier_de_Charges.docx ===
+AutoLink Pro
+CAHIER DE CHARGES
+Exigences g├®n├®rales, p├®rim├¿tre & mod├¿le ├®conomique ÔÇö v1.1
+Version 1.1  ┬À  07 September 2026  ┬À  CONFIDENTIEL
+"Votre mobilit├®, notre mission ÔÇö Douala & Yaound├®, Cameroun"
+Table des mati├¿res
+1. Pr├®sentation & Contexte
+2. Opportunit├® de March├® ÔÇö Cameroun
+3. Vision & Objectifs Strat├®giques
+4. Acteurs & R├┤les
+5. P├®rim├¿tre Fonctionnel ÔÇö MVP
+6. Types de Location
+7. Mod├¿le ├ëconomique & Syst├¿me Agent
+8. Contraintes & Exigences
+9. Roadmap
+1. Pr├®sentation & Contexte
+AutoLink Pro est une plateforme de transport urbain, interurbain et m├¬me nationale. Cette plateforme num├®rique met en relation les propri├®taires ou gestionnaires de v├®hicules avec les clients d├®sireux de louer un v├®hicule de qualit├®, r├®cent, pour leurs d├®placements dans des zones urbaines ou rurales.
+Le projet est con├ºu pour le march├® camerounais ÔÇö fuseau horaire Africa/Douala (UTC+1), devise XAF (FCFA BEAC), paiement mobile via Orange Money et MTN MoMo.
+Contexte & Gen├¿se
+March├® cible : Cameroun
+Constat : aucune plateforme digitale de location de v├®hicules n'existe au Cameroun
+Positionnement : first mover sur un march├® vierge et porteur
+AutoLink Pro n'est PAS une application de courses (Ôëá Yango) ÔÇö c'est de la location ├á la dur├®e (heures / jours)
+Devise : Franc CFA BEAC (XAF) ÔÇö indicatif t├®l├®phonique +237
+2. Opportunit├® de March├® ÔÇö Cameroun
+2.2 Segments de client├¿le vis├®s
+Voyageurs d'affaires : v├®hicule avec chauffeur pour la journ├®e ou quelques heures
+Touristes & visiteurs : d├®placements interurbains ou d├®couverte de la ville
+Particuliers : ├®v├¿nements (mariage, bapt├¬me, c├®r├®monie), sorties, transfert a├®roport
+Entreprises : flotte externalis├®e pour d├®placements de collaborateurs
+3. Vision & Objectifs Strat├®giques
+3.1 Vision
+Devenir la r├®f├®rence incontournable de la location de v├®hicules avec chauffeur en Afrique Centrale, en commen├ºant par le Cameroun, gr├óce ├á une plateforme simple, fiable et ancr├®e dans le contexte local.
+3.2 Objectifs
+Simplifier la mise en relation entre gestionnaires de v├®hicules et clients via le digital
+Offrir 3 types de location adapt├®s au contexte camerounais : urbain, interurbain, longue ligne
+Assurer la s├®curit├® des transactions via des paiements mobiles int├®gr├®s
+Certifier les chauffeurs et inspecter les v├®hicules (contr├┤le qualit├® syst├®matique)
+G├®n├®rer des revenus durables via une commission sur chaque transaction (20ÔÇô25 %)
+Fournir un tableau de bord de pilotage complet ├á l'op├®rateur AutoLink
+4. Acteurs & R├┤les
+4.1 Clarification : Gestionnaire vs Propri├®taire
+Le terme "propri├®taire" est insuffisant pour le contexte camerounais. Un propri├®taire peut confier son v├®hicule ├á un tiers qui le g├¿re au quotidien. On distingue :
+Gestionnaire-propri├®taire : le propri├®taire g├¿re lui-m├¬me son v├®hicule sur la plateforme
+Gestionnaire-mandataire : une personne de confiance (ex : Marcel) g├¿re le v├®hicule pour le compte du propri├®taire
+Dans les deux cas, le gestionnaire est l'unique interlocuteur de la plateforme AutoLink.
+5. P├®rim├¿tre Fonctionnel ÔÇö MVP
+6. Types de Location
+6.1 Location Urbaine (court terme, en ville)
+Dur├®es : 3 heures ┬À 4 heures ┬À 8 heures ┬À 12 heures ┬À 24 heures
+Usage : d├®placements en ville, courses, rendez-vous pro, a├®roport, ├®v├¿nements
+Chauffeur : obligatoire (recommand├® pour le contexte s├®curitaire camerounais)
+Forfait km : inclus selon la dur├®e, surcharge au-del├á (voir tableau 6.4)
+6.2 Location Interurbaine
+Trajet entre deux villes : Douala ÔåÆ Yaound├®, Douala ÔåÆ Bafoussam, Yaound├® ÔåÆ Kribi, etc.
+Dur├®e minimale : 1 journ├®e ÔÇö option aller simple ou aller-retour
+Forfait km plus ├®tendu, adapt├® aux longues distances
+6.3 Location Longue Dur├®e (plusieurs jours)
+Location sur 2 jours, 3 jours, 1 semaine et plus
+Forfait kilom├®trique journalier ├ù nombre de jours
+D├®p├┤t de garantie obligatoire pour locations > 3 jours
+6.4 Forfait Kilom├®trique ÔÇö R├®f├®rentiel tarifaire
+
+=== AutoLink_Cahier_Fonctionnel.docx ===
+AutoLink Pro
+CAHIER FONCTIONNEL
+Sp├®cifications fonctionnelles d├®taill├®es ÔÇö Parcours, r├¿gles de gestion & cas d'utilisation ÔÇö v1.1
+Version 1.1  ┬À  07 September 2026  ┬À  CONFIDENTIEL
+"Votre mobilit├®, notre mission ÔÇö Douala & Yaound├®, Cameroun"
+Table des mati├¿res
+1. Processus m├®tier global
+2. Parcours Client
+3. Parcours Gestionnaire de v├®hicule
+4. Parcours Chauffeur
+5. Parcours Administrateur
+6. Parcours Contr├┤leur
+7. R├¿gles de gestion
+8. Syst├¿me Agent Affili├® ÔÇö R├¿gles d├®taill├®es
+9. Gestion des paiements
+10. Notifications & Communications
+1. Processus M├®tier Global
+AutoLink Pro orchestre le cycle complet d'une location de v├®hicule avec chauffeur en 10 ├®tapes :
+2. Parcours Client
+2.1 Inscription & Connexion
+Inscription : email, mot de passe (ÔëÑ 8 caract├¿res), num├®ro +237, photo de profil (optionnel)
+V├®rification : code ├á 6 chiffres envoy├® par SMS au num├®ro camerounais
+Connexion : email + mot de passe ÔåÆ JWT stock├® localement (AsyncStorage mobile, contexte React web)
+2.2 Recherche & S├®lection de v├®hicule
+Filtres disponibles : type de location, dur├®e, cat├®gorie (Berline / SUV / Pickup / Minibus / Luxe), budget max XAF
+R├®sultats : liste avec photo, tarif calcul├® (XAF), note moyenne, disponibilit├® imm├®diate
+Fiche d├®taill├®e : photos, caract├®ristiques, forfait km inclus, tarif km supp., score qualit├®, avis clients
+2.3 R├®servation
+Choix du type : Urbain (dur├®e) ┬À Interurbain (trajet) ┬À Longue dur├®e (jours)
+Saisie : date et heure de d├®part, adresse de prise en charge, destination / adresse de retour
+Option chauffeur : avec chauffeur (recommand├® & par d├®faut) ou sans chauffeur (d├®p├┤t de garantie requis)
+Code agent : champ optionnel ÔÇö le client entre le code de l'agent qui lui a recommand├® la plateforme
+R├®capitulatif : tarif de base + forfait km + options ÔåÆ montant total avant paiement
+2.4 Paiement
+Client choisit : Orange Money ou MTN Mobile Money
+Notification push envoy├®e sur son t├®l├®phone par l'op├®rateur mobile
+Confirmation de paiement en temps r├®el ÔåÆ statut r├®servation passe ├á "confirm├®e"
+Re├ºu PDF t├®l├®chargeable + SMS de confirmation envoy├® au +237
+2.5 Statuts de r├®servation
+3. Parcours Gestionnaire de V├®hicule
+3.1 Inscription & Validation KYC
+Informations : nom complet, num├®ro +237, adresse (quartier / ville : Douala ou Yaound├®)
+Documents KYC : CNI ou Passeport camerounais + Carte grise du ou des v├®hicules
+Validation par admin AutoLink sous 24ÔÇô48h ouvrables
+3.2 Ajout d'un V├®hicule
+Informations : marque, mod├¿le, ann├®e, immatriculation (format camerounais : LT-xxxx-x, CE-xxxx-x)
+Photos : minimum 4 (avant ┬À arri├¿re ┬À int├®rieur ┬À tableau de bord)
+Tarif : d├®finition du tarif journalier de base en XAF
+Forfait km : km inclus par jour + tarif par km suppl├®mentaire (configurable par le gestionnaire)
+Mode de mise ├á disposition : Confi├® ├á AutoLink (plateforme affecte un chauffeur) ou ├Ç la demande (le gestionnaire organise)
+Statut initial : en attente d'approbation admin
+3.3 Tableau de Bord & Suivi
+KPIs : revenus bruts, commission AutoLink d├®duite, montant net per├ºu
+D├®tail par r├®servation : client, dates, km parcourus, km suppl├®mentaires factur├®s
+Historique des versements avec r├®f├®rence de transaction Orange Money / MTN
+Score moyen de ses v├®hicules issu des inspections et notations clients
+4. Parcours Chauffeur
+4.1 Candidature & Certification
+Dossier requis : permis de conduire valide, casier judiciaire (< 3 mois), certificat m├®dical, visite technique v├®hicule
+Test de conduite organis├® par AutoLink
+Formation obligatoire : accueil client, s├®curit├®, protocole inspection, propret├®
+Score de conformit├® calcul├® automatiquement (0ÔÇô100) ÔÇö seuil minimum 70 pour validation
+4.2 Activit├® quotidienne
+Statut en ligne / hors ligne (Toggle switch dans l'app)
+V├®hicule assign├® : mod├¿le, immatriculation, niveau carburant, kilom├®trage
+Courses du jour : liste avec adresses de prise en charge, horaires, nom du client
+Historique de toutes les courses avec notes re├ºues et revenus indicatifs
+4.3 Performance
+Taux d'acceptation, ponctualit├®, note moyenne clients (affich├®s dans le profil)
+Seuil d'alerte : taux acceptation < 85 % ou note < 3.5 ÔåÆ avertissement admin
+
+=== AutoLink_Cahier_Technique.docx ===
+AutoLink Pro
+CAHIER TECHNIQUE
+Sp├®cifications d'architecture, stack, mod├¿le de donn├®es & API ÔÇö v1.1
+Version 1.1  ┬À  07 September 2026  ┬À  CONFIDENTIEL
+"Votre mobilit├®, notre mission ÔÇö Douala & Yaound├®, Cameroun"
+Table des mati├¿res
+1. Architecture g├®n├®rale
+2. Stack technologique
+3. Structure du projet
+4. Mod├¿le de donn├®es
+5. API REST ÔÇö Endpoints complets
+6. Authentification & S├®curit├®
+7. Int├®gration paiement mobile (Orange / MTN)
+8. Application mobile Android
+9. H├®bergement & Infrastructure
+10. Qualit├® & Tests
+1. Architecture G├®n├®rale
+AutoLink Pro adopte une architecture 3-tiers avec s├®paration stricte des responsabilit├®s et une API REST centrale :
+Tier 1 ÔÇö Pr├®sentation : React SPA (web) + Expo React Native (Android mobile)
+Tier 2 ÔÇö Logique m├®tier : Django REST Framework (API JSON) ÔÇö centralise toutes les r├¿gles de gestion
+Tier 3 ÔÇö Donn├®es : SQLite (dev/MVP) ÔåÆ PostgreSQL 15 (production)
+2. Stack Technologique
+2.1 Frontend Web (React)
+2.2 Backend API (Django)
+2.3 Application Mobile
+3. Structure du Projet
+4. Mod├¿le de Donn├®es
+4.1 Utilisateur (User ÔÇö AbstractUser)
+4.2 V├®hicule (Vehicle)
+4.3 R├®servation (Booking)
+5. API REST ÔÇö Endpoints Complets
+5.1 Authentification (/api/auth/)
+5.2 V├®hicules (/api/vehicles/)
+5.3 R├®servations (/api/bookings/)
+5.4 Paiements & Versements (/api/payments/)
+5.5 Inspections (/api/inspections/)
+6. Authentification & S├®curit├®
+6.1 JWT ÔÇö JSON Web Tokens
+Access Token : dur├®e 24h ÔÇö transmis dans l'en-t├¬te HTTP : Authorization: Bearer <token>
+Refresh Token : dur├®e 30 jours ÔÇö utilis├® pour renouveler l'access token sans reconnexion
+Blacklist : le refresh token est blacklist├® ├á la d├®connexion (via SimpleJWT)
+6.2 Matrice des permissions par r├┤le
+6.3 Bonnes pratiques de s├®curit├®
+SECRET_KEY Django et cl├®s API paiement stock├®es dans .env (jamais dans Git)
+CORS configur├® pour autoriser uniquement les origines d├®clar├®es (frontend + mobile)
+Toutes les communications en production chiffr├®es via HTTPS / TLS 1.3
+Validation c├┤t├® serveur de toutes les entr├®es (s├®rialiseurs DRF ÔÇö jamais faire confiance au client)
+Rate limiting ├á impl├®menter en production (django-ratelimit ou Nginx)
+Webhooks paiement v├®rifi├®s via signature HMAC de l'op├®rateur
+7. Int├®gration Paiement Mobile
+7.1 Orange Money Cameroun
+API : Orange Money Developer API (developer.orange.com/cameroon)
+Flow : Client initie ÔåÆ Notification push sur son t├®l├®phone Orange ÔåÆ Confirmation PIN ÔåÆ Webhook ÔåÆ AutoLink valide r├®servation
+Cl├®s de configuration : ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET (dans .env)
+Environnement : sandbox disponible pour tests ÔÇö production apr├¿s certification
+
+=== AutoLink_Etude_de_Marche_Cameroun.docx ===
+AutoLink Pro
+├ëTUDE DE MARCH├ë
+Analyse compl├¿te du march├® de la location de v├®hicules au Cameroun
+Tous les angles : ├®conomique ┬À d├®mographique ┬À technologique ┬À concurrentiel ┬À r├®glementaire ┬À SWOT
+Version 1.0  ┬À  07 September 2026  ┬À  CONFIDENTIEL
+"Premier sur un march├® vierge ÔÇö Douala ┬À Yaound├® ┬À Cameroun"
+Table des mati├¿res
+1.  R├®sum├® ex├®cutif
+2.  Analyse macro├®conomique du Cameroun
+3.  Analyse d├®mographique & urbaine
+4.  P├®n├®tration technologique & num├®rique
+5.  Analyse du march├® du transport & de la mobilit├®
+6.  Analyse concurrentielle
+7.  Analyse de la demande & des comportements clients
+8.  Analyse r├®glementaire & juridique
+9.  Analyse du potentiel de revenus
+10. Analyse des risques
+11. Analyse SWOT compl├¿te
+12. Positionnement strat├®gique & recommandations
+13. Conclusion
+1. R├®sum├® Ex├®cutif
+Le Cameroun, avec pr├¿s de 29 millions d'habitants, deux m├®tropoles de plus de 3 millions d'habitants chacune (Douala et Yaound├®), un taux d'urbanisation en forte croissance et une adoption massive du Mobile Money, repr├®sente un terrain extr├¬mement favorable pour une plateforme de location de v├®hicules comme AutoLink Pro.
+Cette ├®tude analyse le march├® sous 11 angles distincts et conclut que :
+Le march├® de la mobilit├® urbaine et interurbaine camerounaise est en pleine expansion.
+Aucune plateforme digitale de location de v├®hicules ├á la dur├®e n'existe au Cameroun (premier entrant).
+Le Mobile Money (Orange Money + MTN MoMo) est d├®j├á massivement adopt├® ÔÇö le frein paiement est lev├®.
+La demande existe : entreprises, touristes, occasions (mariages, c├®r├®monies), d├®placements professionnels.
+Le risque r├®glementaire est g├®rable avec une structure juridique appropri├®e.
+2. Analyse Macro├®conomique du Cameroun
+2.1 Vue d'ensemble ├®conomique
+Le Cameroun est la premi├¿re ├®conomie d'Afrique Centrale et le moteur ├®conomique de la CEMAC (Communaut├® ├ëconomique et Mon├®taire de l'Afrique Centrale). Son ├®conomie diversifi├®e ÔÇö p├®trole, agriculture, services, BTP ÔÇö lui conf├¿re une relative stabilit├® macro├®conomique.
+2.2 Secteur des transports dans l'├®conomie camerounaise
+Le secteur du transport repr├®sente environ 8 ├á 12 % du PIB camerounais. Il est domin├® par :
+Transport informel (moto-taxis "bendskins", taxis brousse, clandos) : 70ÔÇô80 % des d├®placements
+Agences de voyages interurbaines classiques (G├®n├®ral Express, Buca Voyages, Vatican Express, etc.)
+Taxis officiels urbains (peu digitalis├®s, tarification non transparente)
+Yango et InDrive : apparus r├®cemment sur la course ├á la demande
+La location de v├®hicule ├á la dur├®e (heures / jours) reste quasi inexistante sous forme digitale. Ce segment repr├®sente une lacune majeure que AutoLink Pro peut combler.
+3. Analyse D├®mographique & Urbaine
+3.1 Structure de la population
+3.2 Pyramide des ├óges & profil du client potentiel
+Le Cameroun est un pays jeune : l'├óge m├®dian est d'environ 18 ans. La tranche 18ÔÇô45 ans repr├®sente environ 40 % de la population, soit Ôëê 11,6 millions de personnes. C'est exactement le coeur de cible d'AutoLink Pro.
+3.3 Urbanisation et flux de mobilit├®
+Douala Ôåö Yaound├® : 240 km ÔÇö le trajet le plus emprunt├® du Cameroun (plusieurs milliers de voyageurs/jour)
+Douala Ôåö Bafoussam : 360 km ÔÇö corridor commercial Littoral-Ouest tr├¿s actif
+Douala Ôåö Kribi : 160 km ÔÇö tourisme baln├®aire en essor (port en eau profonde)
+Yaound├® Ôåö Mbalmayo / Ebolowa : corridors de d├®veloppement sud
+D├®placements urbains quotidiens : Douala = 4 ├á 6 millions de d├®placements/jour estim├®s
+4. P├®n├®tration Technologique & Num├®rique
+4.1 Connectivit├® Internet & mobile
+4.2 Mobile Money ÔÇö LE facteur cl├®
+Le Mobile Money est d├®j├á utilis├® pour payer les factures d'eau, d'├®lectricit├®, les billets d'avion, les commandes e-commerce, les frais de scolarit├®. AutoLink Pro s'inscrit naturellement dans cet ├®cosyst├¿me.
+4.3 Adoption des applications mobiles
+Yango : pr├®sent depuis 2019 ÔÇö a d├®montr├® qu'une app de transport peut s'imposer rapidement ├á Douala/Yaound├®
+InDrive : arriv├® en 2022 ÔÇö second acteur course ├á la demande
+Jumia (e-commerce) : adopt├® par les consommateurs camerounais ÔÇö la commande mobile est normalis├®e
+Moov Money, PayD, YUP : nombreuses fintech locales prouvent l'app├®tit pour le digital financier
+Conclusion : l'├®cosyst├¿me applicatif mobile est mature ├á Douala et Yaound├®. Le consommateur camerounais est pr├¬t ├á utiliser une app pour r├®server un v├®hicule.
+5. Analyse du March├® du Transport & de la Mobilit├®
+5.1 Cartographie des segments de mobilit├®
+5.2 Taille du march├® addressable (TAM / SAM / SOM)
+

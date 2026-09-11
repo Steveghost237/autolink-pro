@@ -1,0 +1,51 @@
+<svg width="512" height="512" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#134e4a"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="sh" x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <rect width="64" height="40" rx="16" fill="url(#sh)"/>
+  <!-- Link nodes -->
+  <circle cx="20" cy="13" r="5.5" fill="#f97316"/>
+  <circle cx="20" cy="13" r="3"   fill="#ea580c"/>
+  <circle cx="18.5" cy="11.5" r="1" fill="white" opacity="0.4"/>
+  <circle cx="44" cy="13" r="5.5" fill="#f97316"/>
+  <circle cx="44" cy="13" r="3"   fill="#ea580c"/>
+  <circle cx="42.5" cy="11.5" r="1" fill="white" opacity="0.4"/>
+  <rect x="25" y="11" width="14" height="4" rx="2" fill="#f97316"/>
+  <!-- Car body -->
+  <path d="M8 45 Q7 42 8 40 Q10 37 14 35 L18 28 Q21 26 25 26 L39 26 Q43 26 46 28 L50 35 Q54 37 56 40 Q57 42 56 45 L8 45 Z" fill="white" opacity="0.95"/>
+  <!-- Windows -->
+  <path d="M25 26 L22 35 L42 35 L39 26 Z" fill="#14b8a6" opacity="0.45"/>
+  <line x1="25" y1="26" x2="22" y2="35" stroke="white" stroke-width="1.2" opacity="0.5"/>
+  <line x1="39" y1="26" x2="42" y2="35" stroke="white" stroke-width="1.2" opacity="0.5"/>
+  <line x1="32" y1="26" x2="32" y2="35" stroke="white" stroke-width="0.8" opacity="0.3"/>
+  <!-- Wheel wells -->
+  <circle cx="18" cy="46" r="9.5" fill="url(#bg)"/>
+  <circle cx="46" cy="46" r="9.5" fill="url(#bg)"/>
+  <!-- Wheels -->
+  <circle cx="18" cy="46" r="8"   fill="#0f172a"/>
+  <circle cx="18" cy="46" r="5.5" fill="#1e293b"/>
+  <circle cx="18" cy="46" r="3"   fill="#475569"/>
+  <circle cx="18" cy="46" r="1.2" fill="#94a3b8"/>
+  <circle cx="46" cy="46" r="8"   fill="#0f172a"/>
+  <circle cx="46" cy="46" r="5.5" fill="#1e293b"/>
+  <circle cx="46" cy="46" r="3"   fill="#475569"/>
+  <circle cx="46" cy="46" r="1.2" fill="#94a3b8"/>
+  <!-- Lights -->
+  <rect x="53" y="39.5" width="4" height="2" rx="1" fill="#fef3c7" opacity="0.95"/>
+  <rect x="7"  y="39.5" width="4" height="2" rx="1" fill="#fca5a5" opacity="0.9"/>
+  <!-- Door line -->
+  <line x1="32" y1="35" x2="32" y2="45" stroke="white" stroke-width="0.5" opacity="0.2"/>
+  <!-- Road -->
+  <rect x="4"    y="57"   width="56" height="3"  rx="1.5" fill="white" opacity="0.1"/>
+  <rect x="9"    y="57.5" width="7"  height="2"  rx="1"   fill="white" opacity="0.15"/>
+  <rect x="28.5" y="57.5" width="7"  height="2"  rx="1"   fill="white" opacity="0.15"/>
+  <rect x="48"   y="57.5" width="7"  height="2"  rx="1"   fill="white" opacity="0.15"/>
+</svg>
