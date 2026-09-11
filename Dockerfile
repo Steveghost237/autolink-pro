@@ -14,6 +14,10 @@ COPY frontend/public ./public
 COPY frontend/src ./src
 COPY frontend/tailwind.config.js frontend/postcss.config.js ./
 
+# Variables d'environnement de build (remplace frontend/.env non versionné)
+ENV DISABLE_ESLINT_PLUGIN=true
+ENV CI=false
+
 # Build production
 RUN npm run build
 
@@ -25,10 +29,6 @@ COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copier la config Nginx SPA
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost/ || exit 1
 
 EXPOSE 80
 
