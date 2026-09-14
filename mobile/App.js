@@ -5,10 +5,11 @@
 import React, { useState, useEffect, useContext, createContext, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList,
-  TextInput, StatusBar, SafeAreaView, ActivityIndicator, Alert,
+  TextInput, StatusBar, ActivityIndicator, Alert,
   Platform, Dimensions, Animated, Modal, Switch, Image, ImageBackground,
   KeyboardAvoidingView, RefreshControl,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -151,7 +152,7 @@ function VehicleCard({ v, onPress }) {
         shadowColor:'#000', shadowOpacity:0.08, shadowRadius:10, elevation:4, opacity:avail?1:0.65 }}>
       <View style={{ height:155, backgroundColor:'#CBD5E1' }}>
         <Image source={{ uri:v.image }} style={{ width:'100%', height:'100%' }} resizeMode="cover" />
-        <View style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,0.1)' }} />
+        <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.1)' }} />
         <View style={{ position:'absolute', top:10, left:10, backgroundColor:C.primary,
           borderRadius:20, paddingHorizontal:10, paddingVertical:4 }}>
           <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.cat}</Text>
@@ -162,7 +163,7 @@ function VehicleCard({ v, onPress }) {
           <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.rating}</Text>
         </View>
         {!avail && (
-          <View style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,0.5)',
+          <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.5)',
             alignItems:'center', justifyContent:'center' }}>
             <Text style={{ color:'#fff', fontWeight:'800', fontSize:14 }}>En location</Text>
           </View>
@@ -173,7 +174,7 @@ function VehicleCard({ v, onPress }) {
         </View>
       </View>
       <View style={{ padding:14 }}>
-        <Text style={{ fontSize:15, fontWeight:'800', color:C.text, marginBottom:2 }}>{v.name}</Text>
+        <Text numberOfLines={1} style={{ fontSize:15, fontWeight:'800', color:C.text, marginBottom:2 }}>{v.name}</Text>
         <Text style={{ fontSize:12, color:C.muted, marginBottom:8 }}>
           {v.fuel} · {v.seats} places · Score {v.score}/100
         </Text>
@@ -183,7 +184,7 @@ function VehicleCard({ v, onPress }) {
           </Text>
         </View>
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <Text style={{ fontSize:19, fontWeight:'900', color:C.primary }}>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:19, fontWeight:'900', color:C.primary, flexShrink:1, marginRight:8 }}>
             {v.rate.toLocaleString()}<Text style={{ fontSize:12, fontWeight:'400', color:C.muted }}> F/j</Text>
           </Text>
           <View style={{ backgroundColor:avail?C.primary:'#94A3B8', borderRadius:12,
@@ -265,8 +266,8 @@ function LoginScreen() {
         {/* Hero image */}
         <View style={{ height:200, backgroundColor:C.dark, overflow:'hidden' }}>
           <Image source={{ uri:IMG.hero }} style={{ width:'100%', height:'100%' }} resizeMode="cover" />
-          <View style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,0.5)' }} />
-          <View style={{ position:'absolute', inset:0, justifyContent:'center', alignItems:'center' }}>
+          <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.5)' }} />
+          <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, justifyContent:'center', alignItems:'center' }}>
             <View style={{ width:72, height:72, borderRadius:20, backgroundColor:'rgba(255,255,255,0.2)',
               alignItems:'center', justifyContent:'center', marginBottom:12 }}>
               <Ionicons name="car-sport" size={38} color="#fff" />
@@ -332,16 +333,16 @@ function ClientDash({ user, logout }) {
     { id:'profile',  label:'Profil',    icon:'person' },
   ];
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.bg }}>
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
       <View style={{ flex:1 }}>
         {tab === 'home' && (
           <ScrollView stickyHeaderIndices={[0]}>
-            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30 }}>
-              <StatusBar barStyle="light-content" />
+            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
+              <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
               <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-                <View>
+                <View style={{ flex:1, marginRight:10 }}>
                   <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Bienvenue,</Text>
-                  <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+                  <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
                 </View>
                 <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
                   <View style={{ width:36, height:36, borderRadius:18, backgroundColor:'rgba(255,255,255,0.2)', alignItems:'center', justifyContent:'center' }}>
@@ -356,9 +357,9 @@ function ClientDash({ user, logout }) {
             <View style={{ padding:16 }}>
               <TouchableOpacity onPress={() => setTab('search')} activeOpacity={0.9} style={{ borderRadius:18, overflow:'hidden', marginBottom:16 }}>
                 <Image source={{ uri:IMG.hero }} style={{ width:'100%', height:150 }} resizeMode="cover" />
-                <View style={{ position:'absolute', inset:0, backgroundColor:'rgba(0,0,0,0.42)' }} />
-                <View style={{ position:'absolute', bottom:14, left:14 }}>
-                  <Text style={{ color:'#fff', fontWeight:'900', fontSize:17, marginBottom:8 }}>Reservez votre vehicule</Text>
+                <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.42)' }} />
+                <View style={{ position:'absolute', bottom:14, left:14, right:14 }}>
+                  <Text numberOfLines={2} style={{ color:'#fff', fontWeight:'900', fontSize:17, marginBottom:8 }}>Reservez votre vehicule</Text>
                   <View style={{ backgroundColor:C.primary, borderRadius:10, paddingHorizontal:12, paddingVertical:7, flexDirection:'row', alignItems:'center', gap:6, alignSelf:'flex-start' }}>
                     <Ionicons name="car-sport" size={15} color="#fff" />
                     <Text style={{ color:'#fff', fontWeight:'700', fontSize:13 }}>Voir catalogue</Text>
@@ -379,7 +380,7 @@ function ClientDash({ user, logout }) {
               <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
                 {[{l:'Reservations',v:user.bookings||3,c:C.info},{l:'Depense',v:`${fmtNum(user.spent||0)}`,c:C.primary},{l:'Note',v:'4.8/5',c:'#F59E0B'}].map(s => (
                   <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-                    <Text style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+                    <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
                     <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
                   </View>
                 ))}
@@ -391,8 +392,8 @@ function ClientDash({ user, logout }) {
                     <Ionicons name="car" size={20} color={C.primary} />
                   </View>
                   <View style={{ flex:1 }}>
-                    <Text style={{ fontWeight:'700', color:C.text, fontSize:13 }}>{b.vehicle}</Text>
-                    <Text style={{ color:C.muted, fontSize:11 }}>{b.type} · {b.date}</Text>
+                    <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text, fontSize:13 }}>{b.vehicle}</Text>
+                    <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{b.type} · {b.date}</Text>
                   </View>
                   <View style={{ alignItems:'flex-end' }}>
                     <Text style={{ fontWeight:'800', color:C.text }}>{fmtNum(b.amount)}</Text>
@@ -407,8 +408,8 @@ function ClientDash({ user, logout }) {
         )}
         {tab === 'search' && (
           <View style={{ flex:1 }}>
-            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30, paddingBottom:14 }}>
-              <StatusBar barStyle="light-content" />
+            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:14 }}>
+              <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
               <Text style={{ color:'#fff', fontWeight:'900', fontSize:18, marginBottom:10 }}>Catalogue vehicules</Text>
               <View style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12, flexDirection:'row', alignItems:'center', paddingHorizontal:12 }}>
                 <Ionicons name="search" size={18} color="rgba(255,255,255,0.7)" />
@@ -424,8 +425,8 @@ function ClientDash({ user, logout }) {
         )}
         {tab === 'bookings' && (
           <View style={{ flex:1 }}>
-            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30, paddingBottom:20 }}>
-              <StatusBar barStyle="light-content" />
+            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:20 }}>
+              <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
               <Text style={{ color:'#fff', fontWeight:'900', fontSize:18 }}>Mes reservations</Text>
             </LinearGradient>
             <ScrollView style={{ padding:16 }}>
@@ -436,8 +437,8 @@ function ClientDash({ user, logout }) {
                       <Ionicons name="car-sport" size={20} color={C.primary} />
                     </View>
                     <View style={{ flex:1 }}>
-                      <Text style={{ fontWeight:'800', color:C.text }}>{b.vehicle}</Text>
-                      <Text style={{ color:C.muted, fontSize:11 }}>{b.id} · {b.type}</Text>
+                      <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text }}>{b.vehicle}</Text>
+                      <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{b.id} · {b.type}</Text>
                     </View>
                     <View style={{ backgroundColor:(b.status==='completed'?C.success:C.warning)+'20', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
                       <Text style={{ color:b.status==='completed'?C.success:C.warning, fontSize:11, fontWeight:'700' }}>{b.status==='completed'?'Termine':'Attente'}</Text>
@@ -456,19 +457,19 @@ function ClientDash({ user, logout }) {
         )}
         {tab === 'profile' && (
           <ScrollView>
-            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:30, paddingTop:Platform.OS==='ios'?60:40, alignItems:'center' }}>
-              <StatusBar barStyle="light-content" />
+            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:30, paddingTop:20, alignItems:'center' }}>
+              <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
               <View style={{ width:76, height:76, borderRadius:38, backgroundColor:'rgba(255,255,255,0.2)', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
                 <Text style={{ color:'#fff', fontWeight:'900', fontSize:24 }}>{av}</Text>
               </View>
-              <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+              <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
               <Text style={{ color:'rgba(255,255,255,0.75)', marginTop:4 }}>Client AutoLink</Text>
             </LinearGradient>
             <View style={{ padding:16 }}>
               {[['Telephone',user.phone],['Ville','Douala, Cameroun'],['Email',user.email]].map(([k,v]) => (
                 <View key={k} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, flexDirection:'row', justifyContent:'space-between', shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
-                  <Text style={{ color:C.muted }}>{k}</Text>
-                  <Text style={{ color:C.text, fontWeight:'600' }}>{v}</Text>
+                  <Text style={{ color:C.muted, flexShrink:0, marginRight:12 }}>{k}</Text>
+                  <Text numberOfLines={1} style={{ color:C.text, fontWeight:'600', flexShrink:1, textAlign:'right' }}>{v}</Text>
                 </View>
               ))}
               <TouchableOpacity onPress={logout} style={{ borderWidth:2, borderColor:C.error, borderRadius:14, paddingVertical:14, alignItems:'center', marginTop:8, flexDirection:'row', justifyContent:'center', gap:8 }}>
@@ -493,13 +494,13 @@ function OwnerDash({ user, logout }) {
     { id:2, name:'Hyundai Tucson 2023', plate:'LT-5678-B', image:IMG.tucson,  rate:45000, status:'rented',    earned:1544400, km:12880, score:97 },
   ];
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.bg }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30 }}>
-        <StatusBar barStyle="light-content" />
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View>
+          <View style={{ flex:1, marginRight:10 }}>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Gestionnaire de parc</Text>
-            <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
           </View>
           <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
             <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -510,7 +511,7 @@ function OwnerDash({ user, logout }) {
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
           {[{l:'Vehicules',v:myV.length,c:C.info},{l:'Revenus nets',v:`${fmtNum(myV.reduce((s,v)=>s+v.earned,0))} `,c:C.primary},{l:'Km total',v:`${myV.reduce((s,v)=>s+v.km,0).toLocaleString()}`,c:C.success}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
             </View>
           ))}
@@ -524,9 +525,9 @@ function OwnerDash({ user, logout }) {
           <View key={v.id} style={{ backgroundColor:C.card, borderRadius:16, overflow:'hidden', marginBottom:12, shadowColor:'#000', shadowOpacity:0.06, elevation:3 }}>
             <Image source={{ uri:v.image }} style={{ width:'100%', height:130 }} resizeMode="cover" />
             <View style={{ padding:14, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-              <View>
-                <Text style={{ fontWeight:'800', color:C.text, fontSize:14 }}>{v.name}</Text>
-                <Text style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace' }}>{v.plate}</Text>
+              <View style={{ flex:1, marginRight:10 }}>
+                <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:14 }}>{v.name}</Text>
+                <Text numberOfLines={1} style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace' }}>{v.plate}</Text>
               </View>
               <View style={{ alignItems:'flex-end' }}>
                 <Badge label={v.status==='available'?'Disponible':'En location'} color={v.status==='available'?C.success:C.info} />
@@ -543,13 +544,13 @@ function OwnerDash({ user, logout }) {
 function DriverDash({ user, logout }) {
   const [online, setOnline] = useState(false);
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.bg }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30 }}>
-        <StatusBar barStyle="light-content" />
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View>
+          <View style={{ flex:1, marginRight:10 }}>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Chauffeur certifie</Text>
-            <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
           </View>
           <View style={{ alignItems:'center', gap:4 }}>
             <Switch value={online} onValueChange={setOnline} trackColor={{ false:'#94A3B8', true:C.success }} thumbColor="#fff" />
@@ -558,14 +559,14 @@ function DriverDash({ user, logout }) {
         </View>
         <View style={{ marginTop:14, backgroundColor:online?C.success+'30':'rgba(255,255,255,0.1)', borderRadius:12, padding:12, flexDirection:'row', alignItems:'center', gap:8 }}>
           <View style={{ width:10, height:10, borderRadius:5, backgroundColor:online?C.success:'#94A3B8' }} />
-          <Text style={{ color:'#fff', fontWeight:'600', fontSize:13 }}>{online?'Vous recevez des demandes':'Activez-vous pour recevoir des courses'}</Text>
+          <Text style={{ color:'#fff', fontWeight:'600', fontSize:13, flex:1 }}>{online?'Vous recevez des demandes':'Activez-vous pour recevoir des courses'}</Text>
         </View>
       </LinearGradient>
       <ScrollView style={{ padding:16 }}>
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
           {[{l:'Courses',v:user.trips||312,c:C.primary},{l:'Note',v:`${user.rating||4.8}/5`,c:'#F59E0B'},{l:'Revenus',v:`${fmtNum(user.earned||2450000)}`,c:C.success}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
             </View>
           ))}
@@ -585,8 +586,8 @@ function DriverDash({ user, logout }) {
               <Image source={{ uri:t.photo }} style={{ width:44, height:44 }} resizeMode="cover" />
             </View>
             <View style={{ flex:1 }}>
-              <Text style={{ fontWeight:'700', color:C.text }}>{t.client}</Text>
-              <Text style={{ color:C.muted, fontSize:11 }}>{t.from} → {t.to} · {t.km}</Text>
+              <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text }}>{t.client}</Text>
+              <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{t.from} → {t.to} · {t.km}</Text>
             </View>
             <View style={{ alignItems:'flex-end' }}>
               <Text style={{ fontWeight:'900', color:C.primary }}>{t.amount.toLocaleString()} F</Text>
@@ -605,13 +606,13 @@ function DriverDash({ user, logout }) {
 
 function AdminDash({ user, logout }) {
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.bg }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30, paddingBottom:20 }}>
-        <StatusBar barStyle="light-content" />
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:20 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View>
+          <View style={{ flex:1, marginRight:10 }}>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Administration</Text>
-            <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>AutoLink Pro</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>AutoLink Pro</Text>
           </View>
           <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
             <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -622,20 +623,20 @@ function AdminDash({ user, logout }) {
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
           {[{l:'Utilisateurs',v:'5 247',c:C.info},{l:'Vehicules',v:'523',c:C.primary},{l:'Commission',v:'11.9 M',c:C.success}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
             </View>
           ))}
         </View>
         <View style={{ backgroundColor:'#FEF3C7', borderRadius:14, padding:14, marginBottom:14, flexDirection:'row', alignItems:'center', gap:10 }}>
           <Ionicons name="warning" size={22} color="#D97706" />
-          <Text style={{ color:'#92400E', fontWeight:'600', fontSize:13 }}>12 candidatures chauffeurs en attente de validation</Text>
+          <Text style={{ color:'#92400E', fontWeight:'600', fontSize:13, flex:1 }}>12 candidatures chauffeurs en attente de validation</Text>
         </View>
         <SectionTitle title="Agents affilies" />
         {[{code:'AGT-DBL-001',name:'Moise Kamga',conv:28,comm:217000},{code:'AGT-YDE-002',name:'Rachel Biyong',conv:14,comm:94500},{code:'AGT-DBL-003',name:'Serge Ndoumbe',conv:42,comm:399000}].map(a=>(
           <View key={a.code} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
             <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-              <Text style={{ fontWeight:'800', color:C.text }}>{a.name}</Text>
+              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, flex:1, marginRight:10 }}>{a.name}</Text>
               <Badge label={a.code} color={C.primary} />
             </View>
             <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
@@ -651,13 +652,13 @@ function AdminDash({ user, logout }) {
 
 function ControllerDash({ user, logout }) {
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.bg }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:Platform.OS==='ios'?50:30, paddingBottom:20 }}>
-        <StatusBar barStyle="light-content" />
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:20 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View>
+          <View style={{ flex:1, marginRight:10 }}>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Controleur</Text>
-            <Text style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
           </View>
           <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
             <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -668,7 +669,7 @@ function ControllerDash({ user, logout }) {
         <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
           {[{l:'Inspections',v:user.inspections||247,c:C.primary},{l:'Ce mois',v:'18',c:C.success},{l:'Litiges',v:'3',c:C.warning}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
             </View>
           ))}
@@ -677,15 +678,15 @@ function ControllerDash({ user, logout }) {
         {INSPECTIONS.map(i => (
           <View key={i.id} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
             <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-              <Text style={{ fontWeight:'800', color:C.text, fontSize:14 }}>{i.vehicle}</Text>
+              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:14, flex:1, marginRight:10 }}>{i.vehicle}</Text>
               <View style={{ backgroundColor:(i.score>=90?C.success:C.warning)+'20', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
                 <Text style={{ color:i.score>=90?C.success:C.warning, fontWeight:'700', fontSize:12 }}>{i.score}/100</Text>
               </View>
             </View>
             <Text style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace', marginBottom:4 }}>{i.plate}</Text>
             <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
-              <Text style={{ color:C.muted, fontSize:12 }}>{i.type} · {i.date}</Text>
-              <Text style={{ color:C.muted, fontSize:12 }}>{i.km.toLocaleString()} km · Carbu: {i.fuel}%</Text>
+              <Text numberOfLines={1} style={{ color:C.muted, fontSize:12, flex:1, marginRight:8 }}>{i.type} · {i.date}</Text>
+              <Text numberOfLines={1} style={{ color:C.muted, fontSize:12 }}>{i.km.toLocaleString()} km · Carbu: {i.fuel}%</Text>
             </View>
           </View>
         ))}
@@ -746,9 +747,9 @@ function BookingModal({ vehicle, onClose }) {
         <View style={{ backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24, maxHeight:SH*0.9 }}>
           <View style={{ width:40, height:4, backgroundColor:C.border, borderRadius:2, alignSelf:'center', marginTop:12, marginBottom:6 }} />
           <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:20, paddingBottom:10, borderBottomWidth:1, borderBottomColor:C.border }}>
-            <View>
-              <Text style={{ fontWeight:'800', fontSize:15, color:C.text }}>{vehicle.name}</Text>
-              <Text style={{ color:C.muted, fontSize:11 }}>{vehicle.cat} · {vehicle.fuel} · {vehicle.seats} places</Text>
+            <View style={{ flex:1, marginRight:10 }}>
+              <Text numberOfLines={1} style={{ fontWeight:'800', fontSize:15, color:C.text }}>{vehicle.name}</Text>
+              <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{vehicle.cat} · {vehicle.fuel} · {vehicle.seats} places</Text>
             </View>
             <TouchableOpacity onPress={onClose}><Ionicons name="close-circle" size={26} color={C.muted} /></TouchableOpacity>
           </View>
@@ -808,8 +809,8 @@ function BookingModal({ vehicle, onClose }) {
                   <Text style={{ fontWeight:'700', color:C.text, marginBottom:8 }}>Recapitulatif</Text>
                   {[['Type',rt.label],['Prise en charge',pickup||'—'],['Agent',agentOk?agentCode:'—']].map(([k,v])=>(
                     <View key={k} style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:5 }}>
-                      <Text style={{ color:C.muted, fontSize:12 }}>{k}</Text>
-                      <Text style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{v}</Text>
+                      <Text style={{ color:C.muted, fontSize:12, flexShrink:0, marginRight:10 }}>{k}</Text>
+                      <Text numberOfLines={1} style={{ color:C.text, fontSize:12, fontWeight:'600', flexShrink:1, textAlign:'right' }}>{v}</Text>
                     </View>
                   ))}
                   <View style={{ borderTopWidth:1, borderTopColor:C.border, paddingTop:8, marginTop:4, flexDirection:'row', justifyContent:'space-between' }}>
@@ -827,7 +828,7 @@ function BookingModal({ vehicle, onClose }) {
                 {[{id:'mtn',label:'MTN Mobile Money',dot:'#FCD34D'},{id:'orange',label:'Orange Money',dot:'#FB923C'},{id:'bank',label:'Depot bancaire',dot:'#60A5FA'}].map(pm=>(
                   <TouchableOpacity key={pm.id} onPress={()=>setPay(pm.id)} style={{ borderWidth:2, borderColor:pay===pm.id?pm.dot:C.border, borderRadius:14, padding:12, marginBottom:8, flexDirection:'row', alignItems:'center', gap:12, backgroundColor:pay===pm.id?pm.dot+'15':C.card }}>
                     <View style={{ width:28,height:28,borderRadius:8,backgroundColor:pm.dot+'50' }} />
-                    <Text style={{ fontWeight:'700', color:C.text, flex:1 }}>{pm.label}</Text>
+                    <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text, flex:1 }}>{pm.label}</Text>
                     {pay===pm.id && <Ionicons name="checkmark-circle" size={22} color={pm.dot} />}
                   </TouchableOpacity>
                 ))}
@@ -909,5 +910,9 @@ function AppInner() {
 }
 
 export default function App() {
-  return <AppInner />;
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
 }
