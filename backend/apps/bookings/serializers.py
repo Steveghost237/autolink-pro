@@ -4,13 +4,17 @@ from .models import Booking
 
 class BookingSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
+    client_email = serializers.CharField(source='client.email', read_only=True)
+    client_phone = serializers.CharField(source='client.phone', read_only=True)
     vehicle_name = serializers.SerializerMethodField()
+    vehicle_plate = serializers.CharField(source='vehicle.plate', read_only=True)
     driver_name = serializers.SerializerMethodField()
+    driver_phone = serializers.CharField(source='driver.phone', read_only=True)
 
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ['client', 'days', 'subtotal', 'commission_amount', 'owner_amount', 'created_at', 'updated_at']
+        read_only_fields = ['client', 'daily_rate', 'days', 'subtotal', 'commission_amount', 'owner_amount', 'created_at', 'updated_at']
 
     def get_client_name(self, obj): return obj.client.get_full_name()
     def get_vehicle_name(self, obj): return str(obj.vehicle)

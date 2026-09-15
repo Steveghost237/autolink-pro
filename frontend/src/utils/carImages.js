@@ -59,15 +59,120 @@ export function getVehicleImage(category) {
   return VEHICLE_IMAGES[category?.toLowerCase()] || VEHICLE_IMAGES.default;
 }
 
+// Tiers tarifaires AutoLink : basic / standard / premium / gold
+export const TIERS = [
+  { id: 'basic',    label: 'Basic',    desc: 'Économique',      maxPrice: 25000 },
+  { id: 'standard', label: 'Standard', desc: 'Confort',         maxPrice: 55000 },
+  { id: 'premium',  label: 'Premium',  desc: 'Haut de gamme',   maxPrice: 90000 },
+  { id: 'gold',     label: 'Gold',     desc: 'Luxe & prestige', maxPrice: 999999 },
+];
+
+const OWNERS = ['Jean Kouassi', 'Alice Bah', 'Pierre Yao', 'Fatou Camara', 'Awa Diallo', 'Paul Bamba', "Robert N'Goran", 'Serge Etame', 'Claudine Mbappe', 'Innocent Fouda'];
+
+// 60+ véhicules réels — les modèles les plus courants au Cameroun
+const V = (id, name, category, tier, image, price, opts = {}) => ({
+  id, name, category, tier, image, price,
+  kmIncluded: tier === 'gold' || tier === 'premium' ? 500 : 300,
+  kmRate: tier === 'gold' ? 150 : tier === 'premium' ? 120 : 100,
+  rating: opts.rating ?? 4.6, reviews: opts.reviews ?? 15,
+  available: opts.available ?? true,
+  plate: opts.plate ?? `LT-${1000 + id}-A`,
+  seats: opts.seats ?? 5, fuel: opts.fuel ?? 'Essence',
+  year: opts.year ?? 2021,
+  gestionnaire: opts.gestionnaire ?? OWNERS[id % OWNERS.length],
+  score: opts.score ?? 90,
+});
+
 export const CATALOG_VEHICLES = [
-  { id: 1, name: 'Toyota Corolla 2022',    category: 'Berline',  image: SPECIFIC_CARS.corolla,     price: 25000,  kmIncluded: 300, kmRate: 120, rating: 4.8, reviews: 47, available: true,  plate: 'LT-1234-A', seats: 5, fuel: 'Essence', year: 2022, gestionnaire: 'Jean Kouassi', score: 94 },
-  { id: 2, name: 'Hyundai Tucson 2023',    category: 'SUV',      image: SPECIFIC_CARS.tucson,      price: 45000,  kmIncluded: 300, kmRate: 120, rating: 4.7, reviews: 31, available: true,  plate: 'LT-5678-B', seats: 5, fuel: 'Diesel',  year: 2023, gestionnaire: 'Jean Kouassi', score: 97 },
-  { id: 3, name: 'BMW Série 5 2022',       category: 'Luxe',     image: SPECIFIC_CARS.bmw5,        price: 80000,  kmIncluded: 300, kmRate: 150, rating: 5.0, reviews: 18, available: false, plate: 'CE-9012-C', seats: 5, fuel: 'Essence', year: 2022, gestionnaire: 'Alice Bah',    score: 99 },
-  { id: 4, name: 'Mercedes GLE 350',       category: 'SUV',      image: SPECIFIC_CARS.mercedesGLE, price: 95000,  kmIncluded: 500, kmRate: 100, rating: 4.9, reviews: 22, available: true,  plate: 'CE-3456-D', seats: 7, fuel: 'Diesel',  year: 2021, gestionnaire: 'Pierre Yao',   score: 91 },
-  { id: 5, name: 'Kia Sportage 2023',      category: 'SUV',      image: SPECIFIC_CARS.sportage,    price: 38000,  kmIncluded: 300, kmRate: 120, rating: 4.6, reviews: 29, available: true,  plate: 'LT-7890-E', seats: 5, fuel: 'Hybride', year: 2023, gestionnaire: 'Fatou Camara', score: 88 },
-  { id: 6, name: 'Mercedes Sprinter 2021', category: 'Van',      image: SPECIFIC_CARS.sprinter,    price: 55000,  kmIncluded: 400, kmRate: 120, rating: 4.9, reviews: 28, available: true,  plate: 'LT-2345-F', seats: 8, fuel: 'Diesel',  year: 2021, gestionnaire: 'Awa Diallo',   score: 95 },
-  { id: 7, name: 'Toyota HiAce 2020',      category: 'Minibus',  image: SPECIFIC_CARS.hiace,       price: 60000,  kmIncluded: 400, kmRate: 100, rating: 4.6, reviews: 19, available: true,  plate: 'CE-6789-G', seats: 12, fuel: 'Diesel', year: 2020, gestionnaire: 'Paul Bamba',   score: 85 },
-  { id: 8, name: 'Range Rover Evoque 2022',category: 'Luxe',     image: SPECIFIC_CARS.rangeRover,  price: 110000, kmIncluded: 500, kmRate: 150, rating: 4.9, reviews: 11, available: true,  plate: 'LT-9012-H', seats: 5, fuel: 'Essence', year: 2022, gestionnaire: "Robert N'Goran", score: 98 },
+  // ── BASIC — économique ──
+  V(1,  'Toyota Yaris 2019',        'Citadine', 'basic', VEHICLE_IMAGES.berline,  18000, { rating: 4.5, reviews: 52 }),
+  V(2,  'Toyota Corolla 2016',      'Berline',  'basic', SPECIFIC_CARS.corolla,   20000, { rating: 4.6, reviews: 88 }),
+  V(3,  'Toyota Camry 2015',        'Berline',  'basic', VEHICLE_IMAGES.berline,  22000, { rating: 4.4, reviews: 61 }),
+  V(4,  'Toyota Avensis 2014',      'Berline',  'basic', VEHICLE_IMAGES.berline,  20000, { rating: 4.3, reviews: 34 }),
+  V(5,  'Toyota Starlet 2021',      'Citadine', 'basic', VEHICLE_IMAGES.berline,  19000, { rating: 4.7, reviews: 28 }),
+  V(6,  'Honda Civic 2017',         'Berline',  'basic', VEHICLE_IMAGES.berline,  21000, { rating: 4.5, reviews: 41 }),
+  V(7,  'Honda Accord 2015',        'Berline',  'basic', VEHICLE_IMAGES.berline,  23000, { rating: 4.4, reviews: 37 }),
+  V(8,  'Hyundai Accent 2019',      'Citadine', 'basic', VEHICLE_IMAGES.berline,  17000, { rating: 4.3, reviews: 45 }),
+  V(9,  'Hyundai Elantra 2018',     'Berline',  'basic', VEHICLE_IMAGES.berline,  20000, { rating: 4.5, reviews: 39 }),
+  V(10, 'Kia Rio 2019',             'Citadine', 'basic', VEHICLE_IMAGES.berline,  17000, { rating: 4.4, reviews: 33 }),
+  V(11, 'Kia Picanto 2021',         'Citadine', 'basic', VEHICLE_IMAGES.berline,  15000, { rating: 4.6, reviews: 57 }),
+  V(12, 'Kia Cerato 2017',          'Berline',  'basic', VEHICLE_IMAGES.berline,  19000, { rating: 4.4, reviews: 29 }),
+  V(13, 'Nissan Almera 2018',       'Berline',  'basic', VEHICLE_IMAGES.berline,  18000, { rating: 4.3, reviews: 26 }),
+  V(14, 'Nissan Micra 2019',        'Citadine', 'basic', VEHICLE_IMAGES.berline,  15000, { rating: 4.2, reviews: 31 }),
+  V(15, 'Suzuki Swift 2020',        'Citadine', 'basic', VEHICLE_IMAGES.berline,  17000, { rating: 4.6, reviews: 44 }),
+  V(16, 'Peugeot 301 2018',         'Berline',  'basic', VEHICLE_IMAGES.berline,  19000, { rating: 4.4, reviews: 48 }),
+  V(17, 'Peugeot 208 2020',         'Citadine', 'basic', VEHICLE_IMAGES.berline,  20000, { rating: 4.5, reviews: 36 }),
+  V(18, 'Renault Logan 2017',       'Berline',  'basic', VEHICLE_IMAGES.berline,  16000, { rating: 4.2, reviews: 42 }),
+  V(19, 'Renault Clio 2019',        'Citadine', 'basic', VEHICLE_IMAGES.berline,  17000, { rating: 4.4, reviews: 35 }),
+  V(20, 'Volkswagen Golf 7 2017',   'Citadine', 'basic', VEHICLE_IMAGES.berline,  22000, { rating: 4.6, reviews: 51 }),
+  V(21, 'Volkswagen Polo 2019',     'Citadine', 'basic', VEHICLE_IMAGES.berline,  19000, { rating: 4.5, reviews: 38 }),
+  V(22, 'Mazda 3 2018',             'Berline',  'basic', VEHICLE_IMAGES.berline,  21000, { rating: 4.5, reviews: 27 }),
+  V(23, 'Ford Fiesta 2018',         'Citadine', 'basic', VEHICLE_IMAGES.berline,  17000, { rating: 4.3, reviews: 24 }),
+  V(24, 'Dacia Logan 2019',         'Berline',  'basic', VEHICLE_IMAGES.berline,  16000, { rating: 4.3, reviews: 40 }),
+
+  // ── STANDARD — confort & polyvalence ──
+  V(25, 'Toyota Corolla 2022',      'Berline',  'standard', SPECIFIC_CARS.corolla,  25000, { rating: 4.8, reviews: 47 }),
+  V(26, 'Toyota RAV4 2021',         'SUV',      'standard', VEHICLE_IMAGES.suv,     42000, { rating: 4.7, reviews: 33, fuel: 'Hybride' }),
+  V(27, 'Toyota Camry 2021',        'Berline',  'standard', VEHICLE_IMAGES.berline, 35000, { rating: 4.7, reviews: 29, fuel: 'Hybride' }),
+  V(28, 'Toyota Hilux 2020',        'Pickup',   'standard', VEHICLE_IMAGES.pickup,  50000, { rating: 4.8, reviews: 55, fuel: 'Diesel' }),
+  V(29, 'Toyota Fortuner 2019',     'SUV',      'standard', VEHICLE_IMAGES.suv,     52000, { rating: 4.6, reviews: 31, fuel: 'Diesel', seats: 7 }),
+  V(30, 'Toyota HiAce 2020',        'Minibus',  'standard', SPECIFIC_CARS.hiace,    55000, { rating: 4.6, reviews: 19, fuel: 'Diesel', seats: 14 }),
+  V(31, 'Hyundai Tucson 2023',      'SUV',      'standard', SPECIFIC_CARS.tucson,   45000, { rating: 4.7, reviews: 31, fuel: 'Diesel' }),
+  V(32, 'Hyundai Santa Fe 2021',    'SUV',      'standard', VEHICLE_IMAGES.suv,     50000, { rating: 4.6, reviews: 23, fuel: 'Diesel', seats: 7 }),
+  V(33, 'Hyundai H-1 2019',         'Van',      'standard', VEHICLE_IMAGES.van,     45000, { rating: 4.5, reviews: 21, fuel: 'Diesel', seats: 9 }),
+  V(34, 'Kia Sportage 2023',        'SUV',      'standard', SPECIFIC_CARS.sportage, 38000, { rating: 4.6, reviews: 29, fuel: 'Hybride' }),
+  V(35, 'Kia Sorento 2021',         'SUV',      'standard', VEHICLE_IMAGES.suv,     48000, { rating: 4.6, reviews: 18, fuel: 'Diesel', seats: 7 }),
+  V(36, 'Nissan Qashqai 2021',      'SUV',      'standard', VEHICLE_IMAGES.suv,     35000, { rating: 4.5, reviews: 26 }),
+  V(37, 'Nissan X-Trail 2020',      'SUV',      'standard', VEHICLE_IMAGES.suv,     42000, { rating: 4.5, reviews: 22, fuel: 'Diesel', seats: 7 }),
+  V(38, 'Nissan Navara 2021',       'Pickup',   'standard', VEHICLE_IMAGES.pickup,  48000, { rating: 4.6, reviews: 30, fuel: 'Diesel' }),
+  V(39, 'Honda CR-V 2021',          'SUV',      'standard', VEHICLE_IMAGES.suv,     40000, { rating: 4.7, reviews: 34 }),
+  V(40, 'Mazda CX-5 2022',          'SUV',      'standard', VEHICLE_IMAGES.suv,     43000, { rating: 4.7, reviews: 28 }),
+  V(41, 'Mitsubishi Outlander 2020','SUV',      'standard', VEHICLE_IMAGES.suv,     38000, { rating: 4.4, reviews: 20, seats: 7 }),
+  V(42, 'Mitsubishi L200 2021',     'Pickup',   'standard', VEHICLE_IMAGES.pickup,  46000, { rating: 4.5, reviews: 33, fuel: 'Diesel' }),
+  V(43, 'Mitsubishi Pajero 2018',   'SUV',      'standard', VEHICLE_IMAGES.suv,     50000, { rating: 4.5, reviews: 37, fuel: 'Diesel', seats: 7 }),
+  V(44, 'Suzuki Vitara 2021',       'SUV',      'standard', VEHICLE_IMAGES.suv,     32000, { rating: 4.4, reviews: 19 }),
+  V(45, 'Peugeot 3008 2021',        'SUV',      'standard', VEHICLE_IMAGES.suv,     45000, { rating: 4.6, reviews: 25, fuel: 'Diesel' }),
+  V(46, 'Peugeot 508 2020',         'Berline',  'standard', VEHICLE_IMAGES.berline, 38000, { rating: 4.6, reviews: 21, fuel: 'Diesel' }),
+  V(47, 'Volkswagen Tiguan 2021',   'SUV',      'standard', VEHICLE_IMAGES.suv,     44000, { rating: 4.6, reviews: 24, fuel: 'Diesel' }),
+  V(48, 'Isuzu D-Max 2022',         'Pickup',   'standard', VEHICLE_IMAGES.pickup,  47000, { rating: 4.6, reviews: 32, fuel: 'Diesel' }),
+  V(49, 'Ford Ranger 2021',         'Pickup',   'standard', VEHICLE_IMAGES.pickup,  49000, { rating: 4.7, reviews: 41, fuel: 'Diesel' }),
+  V(50, 'Ford Everest 2020',        'SUV',      'standard', VEHICLE_IMAGES.suv,     53000, { rating: 4.5, reviews: 17, fuel: 'Diesel', seats: 7 }),
+  V(51, 'Mercedes Sprinter 2021',   'Van',      'standard', SPECIFIC_CARS.sprinter, 55000, { rating: 4.9, reviews: 28, fuel: 'Diesel', seats: 9 }),
+  V(52, 'Dacia Duster 2021',        'SUV',      'standard', VEHICLE_IMAGES.suv,     28000, { rating: 4.4, reviews: 46, fuel: 'Diesel' }),
+
+  // ── PREMIUM — haut de gamme ──
+  V(53, 'Toyota Land Cruiser Prado 2022', 'SUV', 'premium', VEHICLE_IMAGES.suv,  75000,  { rating: 4.9, reviews: 43, fuel: 'Diesel', seats: 7 }),
+  V(54, 'Toyota Land Cruiser 2020',       'SUV', 'premium', VEHICLE_IMAGES.suv,  85000,  { rating: 4.9, reviews: 38, fuel: 'Diesel', seats: 7 }),
+  V(55, 'Toyota Highlander 2022',         'SUV', 'premium', VEHICLE_IMAGES.suv,  68000,  { rating: 4.7, reviews: 19, fuel: 'Hybride', seats: 7 }),
+  V(56, 'Toyota Sienna 2022',             'Van', 'premium', VEHICLE_IMAGES.van,  65000,  { rating: 4.8, reviews: 16, fuel: 'Hybride', seats: 8 }),
+  V(57, 'Mercedes Classe C 300 2022',     'Berline', 'premium', VEHICLE_IMAGES.luxe, 70000, { rating: 4.8, reviews: 27 }),
+  V(58, 'Mercedes Classe E 350 2021',     'Berline', 'premium', VEHICLE_IMAGES.luxe, 78000, { rating: 4.9, reviews: 24, fuel: 'Diesel' }),
+  V(59, 'Mercedes GLC 300 2022',          'SUV', 'premium', VEHICLE_IMAGES.luxe, 80000,  { rating: 4.8, reviews: 22 }),
+  V(60, 'BMW Série 5 2022',               'Berline', 'premium', SPECIFIC_CARS.bmw5, 80000, { rating: 5.0, reviews: 18, available: false }),
+  V(61, 'BMW X3 2021',                    'SUV', 'premium', VEHICLE_IMAGES.luxe, 72000,  { rating: 4.7, reviews: 20, fuel: 'Diesel' }),
+  V(62, 'BMW X5 2022',                    'SUV', 'premium', VEHICLE_IMAGES.luxe, 88000,  { rating: 4.9, reviews: 25, fuel: 'Diesel', seats: 7 }),
+  V(63, 'Audi Q5 2022',                   'SUV', 'premium', VEHICLE_IMAGES.luxe, 75000,  { rating: 4.8, reviews: 21, fuel: 'Diesel' }),
+  V(64, 'Audi A6 2021',                   'Berline', 'premium', VEHICLE_IMAGES.luxe, 70000, { rating: 4.7, reviews: 17, fuel: 'Diesel' }),
+  V(65, 'Lexus RX 350 2021',              'SUV', 'premium', VEHICLE_IMAGES.luxe, 78000,  { rating: 4.8, reviews: 23, fuel: 'Hybride' }),
+  V(66, 'Lexus GX 460 2020',              'SUV', 'premium', VEHICLE_IMAGES.luxe, 82000,  { rating: 4.7, reviews: 15, seats: 7 }),
+  V(67, 'Nissan Patrol 2020',             'SUV', 'premium', VEHICLE_IMAGES.suv,  85000,  { rating: 4.8, reviews: 29, seats: 7 }),
+  V(68, 'Volkswagen Touareg 2021',        'SUV', 'premium', VEHICLE_IMAGES.luxe, 76000,  { rating: 4.7, reviews: 14, fuel: 'Diesel' }),
+
+  // ── GOLD — luxe & prestige ──
+  V(69, 'Mercedes GLE 350 2023',          'SUV', 'gold', SPECIFIC_CARS.mercedesGLE, 95000,  { rating: 4.9, reviews: 22, fuel: 'Diesel', seats: 7 }),
+  V(70, 'Mercedes GLS 450 2022',          'SUV', 'gold', VEHICLE_IMAGES.luxe,    120000, { rating: 4.9, reviews: 13, seats: 7 }),
+  V(71, 'Mercedes Classe S 500 2023',     'Berline', 'gold', VEHICLE_IMAGES.luxe, 150000, { rating: 5.0, reviews: 11, fuel: 'Hybride' }),
+  V(72, 'Mercedes Classe G 63 2022',      'SUV', 'gold', VEHICLE_IMAGES.luxe,    200000, { rating: 4.9, reviews: 9 }),
+  V(73, 'BMW X7 2023',                    'SUV', 'gold', VEHICLE_IMAGES.luxe,    130000, { rating: 4.9, reviews: 12, seats: 7 }),
+  V(74, 'BMW Série 7 2022',               'Berline', 'gold', VEHICLE_IMAGES.luxe, 125000, { rating: 4.8, reviews: 10, fuel: 'Hybride' }),
+  V(75, 'Lexus LX 570 2021',              'SUV', 'gold', VEHICLE_IMAGES.luxe,    110000, { rating: 4.8, reviews: 16, seats: 7 }),
+  V(76, 'Range Rover Evoque 2022',        'SUV', 'gold', SPECIFIC_CARS.rangeRover, 110000, { rating: 4.9, reviews: 11 }),
+  V(77, 'Range Rover Sport 2023',         'SUV', 'gold', VEHICLE_IMAGES.luxe,    140000, { rating: 5.0, reviews: 8, fuel: 'Diesel' }),
+  V(78, 'Range Rover Velar 2022',         'SUV', 'gold', VEHICLE_IMAGES.luxe,    105000, { rating: 4.8, reviews: 13 }),
+  V(79, 'Toyota Land Cruiser V8 VXR 2023','SUV', 'gold', VEHICLE_IMAGES.suv,     100000, { rating: 4.9, reviews: 26, fuel: 'Diesel', seats: 7 }),
+  V(80, 'Porsche Cayenne 2022',           'SUV', 'gold', VEHICLE_IMAGES.luxe,    160000, { rating: 4.9, reviews: 7 }),
+  V(81, 'Audi Q7 2022',                   'SUV', 'gold', VEHICLE_IMAGES.luxe,    98000,  { rating: 4.8, reviews: 15, fuel: 'Diesel', seats: 7 }),
+  V(82, 'Audi Q8 2023',                   'SUV', 'gold', VEHICLE_IMAGES.luxe,    135000, { rating: 4.9, reviews: 9 }),
 ];
 
 export const RENTAL_TYPES = [

@@ -3,7 +3,32 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
     container_name: autolink-web
     restart: unless-stopped
     ports:
       - "8080:80"
+    depends_on:
+      - autolink-api
+
+  autolink-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autolink-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      COMMISSION_RATE: "0.25"
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}   # postgres://... en prod
+    volumes:
+      - autolink-db:/app/data
+
+volumes:
+  autolink-db:

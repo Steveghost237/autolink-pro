@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import GoogleAuthButton from '../../components/GoogleAuthButton';
 
 const ROLES = [
-  { value: 'CLIENT', label: 'Client', desc: 'Je veux louer un véhicule', emoji: '🧑' },
-  { value: 'OWNER', label: 'Propriétaire', desc: 'Je veux proposer mon véhicule', emoji: '🔑' },
-  { value: 'DRIVER', label: 'Chauffeur', desc: 'Je veux conduire pour AutoLink', emoji: '🚗' },
+  { value: 'CLIENT', label: 'Client', desc: 'Je veux louer un véhicule', icon: User },
+  { value: 'OWNER', label: 'Propriétaire', desc: 'Je veux proposer mon véhicule', icon: KeyRound },
+  { value: 'DRIVER', label: 'Chauffeur', desc: 'Je veux conduire pour AutoLink', icon: Briefcase },
 ];
 
 export default function Register() {
@@ -70,10 +71,12 @@ export default function Register() {
             <form onSubmit={handleStep1}>
               <p className="text-slate-600 font-medium mb-4">Je suis :</p>
               <div className="space-y-3 mb-6">
-                {ROLES.map(({ value, label, desc, emoji }) => (
+                {ROLES.map(({ value, label, desc, icon: RoleIcon }) => (
                   <label key={value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.role === value ? 'border-primary-500 bg-primary-50' : 'border-slate-200 hover:border-slate-300'}`}>
                     <input type="radio" name="role" value={value} className="sr-only" onChange={() => set('role', value)} />
-                    <span className="text-2xl">{emoji}</span>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${form.role === value ? 'bg-primary-600' : 'bg-slate-100'}`}>
+                      <RoleIcon size={18} className={form.role === value ? 'text-white' : 'text-slate-500'} />
+                    </div>
                     <div className="flex-1">
                       <div className="font-semibold text-slate-900">{label}</div>
                       <div className="text-sm text-slate-500">{desc}</div>
@@ -88,6 +91,12 @@ export default function Register() {
                 </div>
               )}
               <button type="submit" className="btn-primary w-full">Continuer →</button>
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs text-slate-400 font-medium">OU</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+              <GoogleAuthButton label="S'inscrire avec Google" />
             </form>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +116,7 @@ export default function Register() {
               </div>
               <div>
                 <label className="label">Téléphone</label>
-                <input type="tel" required className="input-field" placeholder="+225 07 00 00 00" value={form.phone} onChange={e => set('phone', e.target.value)} />
+                <input type="tel" required className="input-field" placeholder="+237 6XX XX XX XX" value={form.phone} onChange={e => set('phone', e.target.value)} />
               </div>
               <div>
                 <label className="label">Mot de passe</label>

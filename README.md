@@ -33,9 +33,8 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
-cp .env.example .env
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py seed_demo    # crée les comptes demo + 82 véhicules + réservations
 python manage.py runserver
 # → http://localhost:8000
 # Admin Django → http://localhost:8000/admin
@@ -102,27 +101,84 @@ Le tarif est calculé selon :
 ## API Endpoints principaux
 
 ```
-POST   /api/auth/token/              → Login (JWT)
+GET    /api/health/                  → Healthcheck
+POST   /api/auth/token/              → Login JWT (email + password)
 POST   /api/auth/token/refresh/      → Refresh token
+POST   /api/users/login/             → Login → { user, access, refresh }
+POST   /api/users/google/            → Connexion/inscription Google (Gmail)
 POST   /api/users/register/          → Inscription
 GET    /api/users/me/                → Profil utilisateur
+GET    /api/users/                   → Tous les comptes (ADMIN)
+PATCH  /api/users/{id}/              → Activer/suspendre/changer rôle (ADMIN)
 
-GET    /api/vehicles/                → Liste véhicules disponibles
+GET    /api/vehicles/                → Liste véhicules (+ ?tier=basic|standard|premium|gold)
 POST   /api/vehicles/                → Ajouter un véhicule (OWNER)
-GET    /api/vehicles/{id}/           → Détail véhicule
+PATCH  /api/vehicles/{id}/           → Approuver/suspendre (ADMIN)
 
 POST   /api/bookings/                → Créer une réservation (CLIENT)
-GET    /api/bookings/                → Mes réservations
+GET    /api/bookings/                → Réservations (filtrées par rôle)
+PATCH  /api/bookings/{id}/           → Statut (admin: tout · client: annuler · chauffeur: active/completed)
+GET    /api/bookings/stats/          → Statistiques globales (ADMIN/CONTROLLER)
 
+GET    /api/payments/wallet/         → Solde + transactions
+POST   /api/payments/wallet/topup/   → Recharger (mtn, orange, senbid, paybid, paypal, stripe)
 POST   /api/payments/payments/       → Initier un paiement
 GET    /api/payments/payouts/        → Mes versements
 
 GET    /api/drivers/applications/    → Candidatures chauffeurs
-POST   /api/drivers/applications/    → Soumettre une candidature
-
 GET    /api/inspections/             → Fiches d'inspection
-POST   /api/inspections/             → Créer une fiche (CONTROLLER/ADMIN)
 ```
+
+## Gammes de véhicules
+
+| Gamme | Tarif/jour | Exemples |
+|-------|-----------|----------|
+| **Basic** | < 25 000 F | Yaris, Picanto, Logan, Swift |
+| **Standard** | 25–55 000 F | RAV4, Tucson, Hilux, Sportage |
+| **Premium** | 55–90 000 F | Prado, Classe E, X5, RX 350 |
+| **Gold** | > 90 000 F | Classe S, G63, Range Rover, X7 |
+
+Un véhicule dont la location se termine (`completed`/`cancelled`) redevient
+**immédiatement disponible** (`approved`) — il peut être reloué sans intervention.
+
+## Déploiement Dokploy (2 services)
+
+### Service 1 — Frontend web
+| Champ | Valeur |
+|-------|--------|
+| Provider | GitHub → `Steveghost237/autolink-pro` |
+| Branch | `master` |
+| Build type | Dockerfile |
+| Dockerfile | `Dockerfile` |
+| Context | `.` |
+| Build arg | `REACT_APP_API_URL=https://<domaine-api>/api` |
+| Domain | `autolink-pro.worldwide-international.business` |
+| Container port | `80` |
+
+### Service 2 — Backend API
+| Champ | Valeur |
+|-------|--------|
+| Provider | GitHub → `Steveghost237/autolink-pro` |
+| Branch | `master` |
+| Build type | Dockerfile |
+| Dockerfile | `backend/Dockerfile` |
+| Context | `backend` |
+| Domain | `api-autolink-pro.worldwide-international.business` |
+| Container port | `8000` |
+
+**Variables d'environnement du backend (Dokploy → Environment) :**
+```env
+DEBUG=False
+SECRET_KEY=<chaine-aleatoire-longue>
+ALLOWED_HOSTS=api-autolink-pro.worldwide-international.business
+CORS_ALLOWED_ORIGINS=https://autolink-pro.worldwide-international.business
+COMMISSION_RATE=0.25
+DATABASE_URL=sqlite:////app/data/db.sqlite3
+```
+Montez un volume persistant sur `/app/data` pour conserver SQLite,
+ou utilisez `DATABASE_URL=postgres://user:pass@host:5432/autolink` pour PostgreSQL.
+
+Le container migre la base, seed les comptes demo et lance gunicorn au démarrage.
 
 ---
 

@@ -15,8 +15,10 @@ COPY frontend/src ./src
 COPY frontend/tailwind.config.js frontend/postcss.config.js ./
 
 # Variables d'environnement de build (remplace frontend/.env non versionné)
+ARG REACT_APP_API_URL=http://localhost:8000/api
 ENV DISABLE_ESLINT_PLUGIN=true
 ENV CI=false
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # Build production
 RUN npm run build

@@ -1,5 +1,8 @@
+from decimal import Decimal
 from rest_framework import serializers
-from .models import Payment, Payout
+from .models import Payment, Payout, WalletTransaction
+
+TOPUP_METHODS = ['mtn', 'orange', 'senbid', 'paybid', 'paypal', 'stripe']
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -21,3 +24,15 @@ class PayoutSerializer(serializers.ModelSerializer):
         model = Payout
         fields = '__all__'
         read_only_fields = ['processed_at', 'created_at']
+
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note', 'created_at']
+
+
+class TopUpSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('500'))
+    method = serializers.ChoiceField(choices=TOPUP_METHODS)
+    phone = serializers.CharField(required=False, allow_blank=True)

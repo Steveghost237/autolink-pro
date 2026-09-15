@@ -14,6 +14,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_verified = models.BooleanField(default=False)
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     id_document = models.ImageField(upload_to='kyc/', null=True, blank=True)
     id_document_verified = models.BooleanField(default=False)
     date_of_birth = models.DateField(null=True, blank=True)

@@ -1,13 +1,24 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'created_at']
-        read_only_fields = ['id', 'is_verified', 'created_at']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'balance', 'created_at']
+        read_only_fields = ['id', 'is_verified', 'balance', 'created_at']
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Réservé à l'admin — permet d'activer/suspendre/vérifier/changer le rôle."""
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'balance',
+                  'is_active', 'is_verified', 'id_document_verified', 'is_staff', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -25,3 +36,62 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+
+class LoginSerializer(serializers.Serializer):
+    """Login par email — retourne tokens JWT + profil utilisateur."""
+
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        try:
+            user = User.objects.get(email__iexact=attrs['email'].strip())
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Email ou mot de passe incorrect.')
+        if not user.check_password(attrs['password']) or not user.is_active:
+            raise serializers.ValidationError('Email ou mot de passe incorrect.')
+        refresh = RefreshToken.for_user(user)
+        return {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+        }
+
+
+class GoogleAuthSerializer(serializers.Serializer):
+    """Connexion / inscription via compte Google (Gmail)."""
+
+    email = serializers.EmailField()
+    first_name = serializers.CharField(required=False, allow_blank=True, default='')
+    last_name = serializers.CharField(required=False, allow_blank=True, default='')
+    google_id = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, attrs):
+        email = attrs['email'].strip().lower()
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            base = email.split('@')[0]
+            username = base
+            i = 1
+            while User.objects.filter(username=username).exists():
+                i += 1
+                username = f'{base}{i}'
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=attrs.get('first_name', ''),
+                last_name=attrs.get('last_name', ''),
+                role='CLIENT',
+                is_verified=True,
+            )
+            user.set_unusable_password()
+            user.save()
+        if not user.is_active:
+            raise serializers.ValidationError('Ce compte a été suspendu.')
+        refresh = RefreshToken.for_user(user)
+        return {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+        }

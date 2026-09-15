@@ -1,7 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock } from 'lucide-react';
+import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
-import { CATALOG_VEHICLES, RENTAL_TYPES } from '../../utils/carImages';
+import { CATALOG_VEHICLES, RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
+import { vehiclesAPI, bookingsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { TIERS } from '../../utils/carImages';
+
+const TIER_STYLE = {
+  basic:    { label: 'Basic',    cls: 'bg-slate-600' },
+  standard: { label: 'Standard', cls: 'bg-blue-600' },
+  premium:  { label: 'Premium',  cls: 'bg-purple-600' },
+  gold:     { label: 'Gold',     cls: 'bg-amber-500' },
+};
+
+// Mappe un véhicule API vers le format affiché par les cartes
+const mapApiVehicle = (v) => {
+  const model = (v.model || '').toLowerCase();
+  let image = getVehicleImage(v.category);
+  if (model.includes('corolla')) image = SPECIFIC_CARS.corolla;
+  else if (model.includes('tucson')) image = SPECIFIC_CARS.tucson;
+  else if (model.includes('serie') || model.includes('série')) image = SPECIFIC_CARS.bmw5;
+  else if (model.includes('gle')) image = SPECIFIC_CARS.mercedesGLE;
+  else if (model.includes('sportage')) image = SPECIFIC_CARS.sportage;
+  else if (model.includes('evoque')) image = SPECIFIC_CARS.rangeRover;
+  else if (model.includes('sprinter')) image = SPECIFIC_CARS.sprinter;
+  else if (model.includes('hiace')) image = SPECIFIC_CARS.hiace;
+  return {
+    id: v.id,
+    name: `${v.brand} ${v.model} ${v.year}`,
+    category: v.category,
+    tier: v.tier || 'standard',
+    image,
+    price: Number(v.computed_rate || v.daily_rate),
+    kmIncluded: 300, kmRate: 120,
+    rating: Number(v.rating) || 4.7,
+    reviews: v.rating_count || 0,
+    available: v.status === 'approved',
+    plate: v.plate, seats: v.seats, fuel: v.fuel, year: v.year,
+    gestionnaire: v.owner_name || 'AutoLink',
+    score: v.condition_score,
+    fromApi: true,
+  };
+};
 
 const CATEGORIES = ['Tous', 'Berline', 'SUV', 'Van', 'Minibus', 'Luxe'];
 
@@ -12,11 +52,45 @@ const PAYMENT_METHODS = [
 ];
 
 function BookingModal({ vehicle, onClose }) {
+  const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [rentalType, setRentalType] = useState(RENTAL_TYPES[2]);
   const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: 1, agentCode: '', withDriver: true, paymentMethod: 'mtn', phone: '' });
   const [agentValid, setAgentValid] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [saved, setSaved] = useState(false);
   const VALID_CODES = ['AGT-DBL-001', 'AGT-YDE-002', 'AGT-DBL-003'];
+
+  const submitBooking = async () => {
+    setSubmitting(true);
+    setApiError(null);
+    try {
+      const end = new Date(form.date);
+      end.setDate(end.getDate() + (rentalType.id === 'long_haul' ? form.days : 1));
+      await bookingsAPI.create({
+        vehicle: vehicle.id,
+        start_date: form.date,
+        end_date: end.toISOString().split('T')[0],
+        pickup_address: form.pickup,
+        dropoff_address: form.destination,
+        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Paiement: ${form.paymentMethod} | Tel: ${form.phone} | Chauffeur: ${form.withDriver ? 'oui' : 'non'}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
+      });
+      setSaved(true);
+      setStep(3);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setApiError('Session expirée — reconnectez-vous.');
+      } else if (!err.response) {
+        // API injoignable : confirmation locale quand même
+        setSaved(false);
+        setStep(3);
+      } else {
+        setApiError('Erreur lors de la réservation — réessayez.');
+      }
+    }
+    setSubmitting(false);
+  };
 
   const computePrice = () => {
     let base = 0;
@@ -45,12 +119,16 @@ function BookingModal({ vehicle, onClose }) {
         <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
           <CheckCircle size={40} className="text-emerald-500" />
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Réservation confirmée</h3>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Réservation {saved ? 'envoyée' : 'confirmée'}</h3>
         <p className="text-slate-500 dark:text-slate-400 mb-1">{vehicle.name} — {rentalType.label}</p>
         <p className="text-slate-500 dark:text-slate-400 mb-1 text-sm">Prise en charge : {form.pickup || 'Non précisé'}</p>
         {agentValid === true && <p className="text-xs text-emerald-600 font-medium mb-1">Code agent {form.agentCode} appliqué</p>}
         <p className="text-xl font-black text-primary-600 my-3">{basePrice.toLocaleString()} FCFA</p>
-        <p className="text-xs text-slate-400 mb-6">Un SMS de confirmation sera envoyé au {form.phone}</p>
+        {saved ? (
+          <p className="text-xs text-emerald-600 font-medium mb-6">Votre réservation est enregistrée — visible dans le tableau de bord admin.</p>
+        ) : (
+          <p className="text-xs text-slate-400 mb-6">Un SMS de confirmation sera envoyé au {form.phone}</p>
+        )}
         <button onClick={onClose} className="btn-primary w-full">Retour au catalogue</button>
       </div>
     </div>
@@ -232,11 +310,17 @@ function BookingModal({ vehicle, onClose }) {
                   </label>
                 ))}
               </div>
+              {apiError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+                  <AlertCircle size={16} /> {apiError}
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="btn-outline px-5 py-3">Retour</button>
-                <button onClick={() => setStep(3)} disabled={!form.phone}
+                <button onClick={submitBooking} disabled={!form.phone || submitting}
                   className="btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2 font-bold">
-                  Confirmer et payer — {basePrice.toLocaleString()} FCFA
+                  {submitting && <Loader size={16} className="animate-spin" />}
+                  {submitting ? 'Envoi en cours...' : `Confirmer et payer — ${basePrice.toLocaleString()} FCFA`}
                 </button>
               </div>
             </div>
@@ -250,10 +334,13 @@ function BookingModal({ vehicle, onClose }) {
 export default function SearchVehicles() {
   const [search, setSearch]           = useState('');
   const [category, setCategory]       = useState('Tous');
-  const [maxPrice, setMaxPrice]       = useState(120000);
+  const [maxPrice, setMaxPrice]       = useState(200000);
   const [onlyAvailable, setOnly]      = useState(true);
   const [selectedVehicle, setSelected] = useState(null);
   const [selectedType, setType]       = useState('');
+  const [selectedTier, setTier]       = useState('');
+  const [vehicles, setVehicles]       = useState(CATALOG_VEHICLES);
+  const [live, setLive]               = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -261,8 +348,21 @@ export default function SearchVehicles() {
     if (t) setType(t);
   }, []);
 
-  const filtered = CATALOG_VEHICLES.filter(v =>
+  useEffect(() => {
+    let mounted = true;
+    vehiclesAPI.getAll()
+      .then(res => {
+        if (!mounted) return;
+        const list = (res.data.results || res.data || []).map(mapApiVehicle);
+        if (list.length) { setVehicles(list); setLive(true); }
+      })
+      .catch(() => {}); // repli sur le catalogue démo
+    return () => { mounted = false; };
+  }, []);
+
+  const filtered = vehicles.filter(v =>
     (category === 'Tous' || v.category === category) &&
+    (selectedTier === '' || v.tier === selectedTier) &&
     v.price <= maxPrice &&
     (!onlyAvailable || v.available) &&
     (v.name.toLowerCase().includes(search.toLowerCase()) || v.category.toLowerCase().includes(search.toLowerCase()))
@@ -285,6 +385,20 @@ export default function SearchVehicles() {
           </div>
         </div>
 
+        {/* Tier selector */}
+        <div>
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">Gamme du véhicule</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[{ id: '', label: 'Toutes les gammes', desc: 'Basic à Gold' }, ...TIERS].map(t => (
+              <button key={t.id} onClick={() => setTier(t.id)}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${selectedTier === t.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-primary-200'}`}>
+                <div className="font-bold text-sm text-slate-900 dark:text-white">{t.label}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Search & filters */}
         <div className="card">
           <div className="flex flex-wrap gap-4 items-center">
@@ -296,7 +410,7 @@ export default function SearchVehicles() {
             <div className="flex items-center gap-2">
               <Filter size={15} className="text-slate-400" />
               <span className="text-sm text-slate-600 dark:text-slate-400">Prix max :</span>
-              <input type="range" min={15000} max={120000} step={5000} value={maxPrice}
+              <input type="range" min={15000} max={200000} step={5000} value={maxPrice}
                 onChange={e => setMaxPrice(Number(e.target.value))} className="w-28 accent-primary-600" />
               <span className="text-sm font-bold text-primary-600 whitespace-nowrap">{maxPrice.toLocaleString()} F</span>
             </div>
@@ -334,8 +448,11 @@ export default function SearchVehicles() {
                     <span className="bg-red-500 text-white text-sm font-bold px-4 py-1.5 rounded-full">Indisponible</span>
                   </div>
                 )}
-                <div className="absolute top-2 left-2">
+                <div className="absolute top-2 left-2 flex gap-1.5">
                   <span className="bg-primary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{v.category}</span>
+                  <span className={`${TIER_STYLE[v.tier]?.cls || 'bg-slate-600'} text-white text-xs font-bold px-2.5 py-1 rounded-full`}>
+                    {TIER_STYLE[v.tier]?.label || 'Standard'}
+                  </span>
                 </div>
                 <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
                   <Star size={10} className="fill-amber-400 text-amber-400" />{v.rating}

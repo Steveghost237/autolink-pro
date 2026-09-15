@@ -33,6 +33,57 @@ const STATUS_LABEL = {
   completed: 'Termine', active: 'En cours', confirmed: 'Confirme', cancelled: 'Annule',
 };
 
+// ─── API — backend partage web + mobile ────────────────────────────────────────
+// En production : domaine de l'API Dokploy. En local : http://<IP-PC>:8000/api
+const API_URL = 'https://api-autolink-pro.worldwide-international.business/api';
+
+const apiFetch = async (path, { method = 'GET', body, auth = true } = {}) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth) {
+    const t = await AsyncStorage.getItem('al_access');
+    if (t) headers.Authorization = `Bearer ${t}`;
+  }
+  const res = await fetch(`${API_URL}${path}`, {
+    method, headers, body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401 && auth) throw Object.assign(new Error('unauthorized'), { status: 401 });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error('api_error'), { status: res.status, data });
+  return data;
+};
+
+const api = {
+  login:      (email, password) => apiFetch('/users/login/', { method: 'POST', body: { email, password }, auth: false }),
+  google:     (profile)         => apiFetch('/users/google/', { method: 'POST', body: profile, auth: false }),
+  register:   (payload)         => apiFetch('/users/register/', { method: 'POST', body: payload, auth: false }),
+  me:         ()                => apiFetch('/users/me/'),
+  vehicles:   ()                => apiFetch('/vehicles/?page_size=100', { auth: false }),
+  bookings:   ()                => apiFetch('/bookings/?page_size=100'),
+  newBooking: (payload)         => apiFetch('/bookings/', { method: 'POST', body: payload }),
+  setStatus:  (id, status)      => apiFetch(`/bookings/${id}/`, { method: 'PATCH', body: { status } }),
+  stats:      ()                => apiFetch('/bookings/stats/'),
+  users:      ()                => apiFetch('/users/?page_size=100'),
+  setUser:    (id, payload)     => apiFetch(`/users/${id}/`, { method: 'PATCH', body: payload }),
+  wallet:     ()                => apiFetch('/payments/wallet/'),
+  topup:      (amount, method, phone) => apiFetch('/payments/wallet/topup/', { method: 'POST', body: { amount, method, phone } }),
+};
+
+const TIER_STYLE = {
+  basic:    { label: 'Basic',    color: '#475569' },
+  standard: { label: 'Standard', color: '#2563EB' },
+  premium:  { label: 'Premium',  color: '#7C3AED' },
+  gold:     { label: 'Gold',     color: '#D97706' },
+};
+
+const TOPUP_METHODS = [
+  { id: 'mtn',    label: 'MTN MoMo',     color: '#FCD34D', icon: 'phone-portrait' },
+  { id: 'orange', label: 'Orange Money', color: '#FB923C', icon: 'phone-portrait' },
+  { id: 'senbid', label: 'SenBid',       color: '#14B8A6', icon: 'card' },
+  { id: 'paybid', label: 'PayBid',       color: '#6366F1', icon: 'card' },
+  { id: 'paypal', label: 'PayPal',       color: '#1D4ED8', icon: 'globe' },
+  { id: 'stripe', label: 'Stripe',       color: '#7C3AED', icon: 'card' },
+];
+
 const IMG = {
   hero:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80',
   corolla: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
@@ -41,6 +92,8 @@ const IMG = {
   merGLE:  'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=500&q=80',
   sportage:'https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=500&q=80',
   evoque:  'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?w=500&q=80',
+  sprinter:'https://images.unsplash.com/photo-1567818735868-e71b99932e29?w=500&q=80',
+  van:     'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=500&q=80',
   d1:      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
   d2:      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80',
   d3:      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80',
@@ -72,19 +125,104 @@ const DEMO_USERS = [
     firstName:'Paul', lastName:'Diallo', phone:'+237 6 54 44 55 66', inspections:247 },
 ];
 
+// 60+ véhicules réels les plus utilisés au Cameroun — gammes basic/standard/premium/gold
+const _mv = (id, name, cat, tier, rate, fuel, seats, extra = {}) => ({
+  id, name, cat, tier, rate, fuel, seats,
+  plate: `LT-${1000 + id}-A`,
+  image: tier === 'gold' || tier === 'premium' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla,
+  kmIncluded: tier === 'gold' || tier === 'premium' ? 500 : 300,
+  kmRate: tier === 'gold' ? 150 : 120,
+  rating: extra.rating ?? 4.6, reviews: extra.reviews ?? 15,
+  status: extra.status ?? 'approved', score: extra.score ?? 90,
+});
+
 const VEHICLES = [
-  { id:1, name:'Toyota Corolla 2022', cat:'Berline', plate:'LT-1234-A', image:IMG.corolla,
-    rate:25000, kmIncluded:300, kmRate:120, rating:4.8, reviews:47, fuel:'Essence', seats:5, status:'approved', score:94 },
-  { id:2, name:'Hyundai Tucson 2023', cat:'SUV',     plate:'LT-5678-B', image:IMG.tucson,
-    rate:45000, kmIncluded:300, kmRate:120, rating:4.7, reviews:31, fuel:'Diesel',  seats:5, status:'approved', score:97 },
-  { id:3, name:'BMW Serie 5 2022',    cat:'Luxe',    plate:'CE-9012-C', image:IMG.bmw5,
-    rate:80000, kmIncluded:300, kmRate:150, rating:5.0, reviews:18, fuel:'Essence', seats:5, status:'rented',   score:99 },
-  { id:4, name:'Mercedes GLE 350',    cat:'SUV',     plate:'CE-3456-D', image:IMG.merGLE,
-    rate:95000, kmIncluded:500, kmRate:100, rating:4.9, reviews:22, fuel:'Diesel',  seats:7, status:'approved', score:91 },
-  { id:5, name:'Kia Sportage 2023',   cat:'SUV',     plate:'LT-7890-E', image:IMG.sportage,
-    rate:38000, kmIncluded:300, kmRate:120, rating:4.6, reviews:29, fuel:'Hybride', seats:5, status:'approved', score:88 },
-  { id:6, name:'Range Rover Evoque',  cat:'Luxe',    plate:'LT-9012-F', image:IMG.evoque,
-    rate:110000,kmIncluded:500, kmRate:150, rating:4.9, reviews:11, fuel:'Essence', seats:5, status:'approved', score:98 },
+  // BASIC
+  _mv(1, 'Toyota Yaris 2019', 'Citadine', 'basic', 18000, 'Essence', 5, { rating: 4.5 }),
+  _mv(2, 'Toyota Corolla 2016', 'Berline', 'basic', 20000, 'Essence', 5, { rating: 4.6 }),
+  _mv(3, 'Toyota Camry 2015', 'Berline', 'basic', 22000, 'Essence', 5, { rating: 4.4 }),
+  _mv(4, 'Toyota Avensis 2014', 'Berline', 'basic', 20000, 'Diesel', 5, { rating: 4.3 }),
+  _mv(5, 'Toyota Starlet 2021', 'Citadine', 'basic', 19000, 'Essence', 5, { rating: 4.7 }),
+  _mv(6, 'Honda Civic 2017', 'Berline', 'basic', 21000, 'Essence', 5, { rating: 4.5 }),
+  _mv(7, 'Honda Accord 2015', 'Berline', 'basic', 23000, 'Essence', 5, { rating: 4.4 }),
+  _mv(8, 'Hyundai Accent 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.3 }),
+  _mv(9, 'Hyundai Elantra 2018', 'Berline', 'basic', 20000, 'Essence', 5, { rating: 4.5 }),
+  _mv(10, 'Kia Rio 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.4 }),
+  _mv(11, 'Kia Picanto 2021', 'Citadine', 'basic', 15000, 'Essence', 5, { rating: 4.6 }),
+  _mv(12, 'Kia Cerato 2017', 'Berline', 'basic', 19000, 'Essence', 5, { rating: 4.4 }),
+  _mv(13, 'Nissan Almera 2018', 'Berline', 'basic', 18000, 'Essence', 5, { rating: 4.3 }),
+  _mv(14, 'Nissan Micra 2019', 'Citadine', 'basic', 15000, 'Essence', 5, { rating: 4.2 }),
+  _mv(15, 'Suzuki Swift 2020', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.6 }),
+  _mv(16, 'Peugeot 301 2018', 'Berline', 'basic', 19000, 'Diesel', 5, { rating: 4.4 }),
+  _mv(17, 'Peugeot 208 2020', 'Citadine', 'basic', 20000, 'Essence', 5, { rating: 4.5 }),
+  _mv(18, 'Renault Logan 2017', 'Berline', 'basic', 16000, 'Diesel', 5, { rating: 4.2 }),
+  _mv(19, 'Renault Clio 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.4 }),
+  _mv(20, 'Volkswagen Golf 7 2017', 'Citadine', 'basic', 22000, 'Essence', 5, { rating: 4.6 }),
+  _mv(21, 'Volkswagen Polo 2019', 'Citadine', 'basic', 19000, 'Essence', 5, { rating: 4.5 }),
+  _mv(22, 'Mazda 3 2018', 'Berline', 'basic', 21000, 'Essence', 5, { rating: 4.5 }),
+  _mv(23, 'Ford Fiesta 2018', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.3 }),
+  _mv(24, 'Dacia Logan 2019', 'Berline', 'basic', 16000, 'Diesel', 5, { rating: 4.3 }),
+  // STANDARD
+  _mv(25, 'Toyota Corolla 2022', 'Berline', 'standard', 25000, 'Essence', 5, { rating: 4.8, image: IMG.corolla }),
+  _mv(26, 'Toyota RAV4 2021', 'SUV', 'standard', 42000, 'Hybride', 5, { rating: 4.7 }),
+  _mv(27, 'Toyota Camry 2021', 'Berline', 'standard', 35000, 'Hybride', 5, { rating: 4.7 }),
+  _mv(28, 'Toyota Hilux 2020', 'Pickup', 'standard', 50000, 'Diesel', 5, { rating: 4.8 }),
+  _mv(29, 'Toyota Fortuner 2019', 'SUV', 'standard', 52000, 'Diesel', 7, { rating: 4.6 }),
+  _mv(30, 'Toyota HiAce 2020', 'Minibus', 'standard', 55000, 'Diesel', 14, { rating: 4.6 }),
+  _mv(31, 'Hyundai Tucson 2023', 'SUV', 'standard', 45000, 'Diesel', 5, { rating: 4.7, image: IMG.tucson }),
+  _mv(32, 'Hyundai Santa Fe 2021', 'SUV', 'standard', 50000, 'Diesel', 7, { rating: 4.6 }),
+  _mv(33, 'Hyundai H-1 2019', 'Van', 'standard', 45000, 'Diesel', 9, { rating: 4.5 }),
+  _mv(34, 'Kia Sportage 2023', 'SUV', 'standard', 38000, 'Hybride', 5, { rating: 4.6, image: IMG.sportage }),
+  _mv(35, 'Kia Sorento 2021', 'SUV', 'standard', 48000, 'Diesel', 7, { rating: 4.6 }),
+  _mv(36, 'Nissan Qashqai 2021', 'SUV', 'standard', 35000, 'Essence', 5, { rating: 4.5 }),
+  _mv(37, 'Nissan X-Trail 2020', 'SUV', 'standard', 42000, 'Diesel', 7, { rating: 4.5 }),
+  _mv(38, 'Nissan Navara 2021', 'Pickup', 'standard', 48000, 'Diesel', 5, { rating: 4.6 }),
+  _mv(39, 'Honda CR-V 2021', 'SUV', 'standard', 40000, 'Essence', 5, { rating: 4.7 }),
+  _mv(40, 'Mazda CX-5 2022', 'SUV', 'standard', 43000, 'Essence', 5, { rating: 4.7 }),
+  _mv(41, 'Mitsubishi Outlander 2020', 'SUV', 'standard', 38000, 'Essence', 7, { rating: 4.4 }),
+  _mv(42, 'Mitsubishi L200 2021', 'Pickup', 'standard', 46000, 'Diesel', 5, { rating: 4.5 }),
+  _mv(43, 'Mitsubishi Pajero 2018', 'SUV', 'standard', 50000, 'Diesel', 7, { rating: 4.5 }),
+  _mv(44, 'Suzuki Vitara 2021', 'SUV', 'standard', 32000, 'Essence', 5, { rating: 4.4 }),
+  _mv(45, 'Peugeot 3008 2021', 'SUV', 'standard', 45000, 'Diesel', 5, { rating: 4.6 }),
+  _mv(46, 'Peugeot 508 2020', 'Berline', 'standard', 38000, 'Diesel', 5, { rating: 4.6 }),
+  _mv(47, 'Volkswagen Tiguan 2021', 'SUV', 'standard', 44000, 'Diesel', 5, { rating: 4.6 }),
+  _mv(48, 'Isuzu D-Max 2022', 'Pickup', 'standard', 47000, 'Diesel', 5, { rating: 4.6 }),
+  _mv(49, 'Ford Ranger 2021', 'Pickup', 'standard', 49000, 'Diesel', 5, { rating: 4.7 }),
+  _mv(50, 'Ford Everest 2020', 'SUV', 'standard', 53000, 'Diesel', 7, { rating: 4.5 }),
+  _mv(51, 'Mercedes Sprinter 2021', 'Van', 'standard', 55000, 'Diesel', 9, { rating: 4.9 }),
+  _mv(52, 'Dacia Duster 2021', 'SUV', 'standard', 28000, 'Diesel', 5, { rating: 4.4 }),
+  // PREMIUM
+  _mv(53, 'Toyota Land Cruiser Prado 2022', 'SUV', 'premium', 75000, 'Diesel', 7, { rating: 4.9 }),
+  _mv(54, 'Toyota Land Cruiser 2020', 'SUV', 'premium', 85000, 'Diesel', 7, { rating: 4.9 }),
+  _mv(55, 'Toyota Highlander 2022', 'SUV', 'premium', 68000, 'Hybride', 7, { rating: 4.7 }),
+  _mv(56, 'Toyota Sienna 2022', 'Van', 'premium', 65000, 'Hybride', 8, { rating: 4.8 }),
+  _mv(57, 'Mercedes Classe C 300 2022', 'Berline', 'premium', 70000, 'Essence', 5, { rating: 4.8 }),
+  _mv(58, 'Mercedes Classe E 350 2021', 'Berline', 'premium', 78000, 'Diesel', 5, { rating: 4.9 }),
+  _mv(59, 'Mercedes GLC 300 2022', 'SUV', 'premium', 80000, 'Essence', 5, { rating: 4.8 }),
+  _mv(60, 'BMW Serie 5 2022', 'Berline', 'premium', 80000, 'Essence', 5, { rating: 5.0, status: 'rented', image: IMG.bmw5 }),
+  _mv(61, 'BMW X3 2021', 'SUV', 'premium', 72000, 'Diesel', 5, { rating: 4.7 }),
+  _mv(62, 'BMW X5 2022', 'SUV', 'premium', 88000, 'Diesel', 7, { rating: 4.9 }),
+  _mv(63, 'Audi Q5 2022', 'SUV', 'premium', 75000, 'Diesel', 5, { rating: 4.8 }),
+  _mv(64, 'Audi A6 2021', 'Berline', 'premium', 70000, 'Diesel', 5, { rating: 4.7 }),
+  _mv(65, 'Lexus RX 350 2021', 'SUV', 'premium', 78000, 'Hybride', 5, { rating: 4.8 }),
+  _mv(66, 'Lexus GX 460 2020', 'SUV', 'premium', 82000, 'Essence', 7, { rating: 4.7 }),
+  _mv(67, 'Nissan Patrol 2020', 'SUV', 'premium', 85000, 'Essence', 7, { rating: 4.8 }),
+  _mv(68, 'Volkswagen Touareg 2021', 'SUV', 'premium', 76000, 'Diesel', 5, { rating: 4.7 }),
+  // GOLD
+  _mv(69, 'Mercedes GLE 350 2023', 'SUV', 'gold', 95000, 'Diesel', 7, { rating: 4.9, image: IMG.merGLE }),
+  _mv(70, 'Mercedes GLS 450 2022', 'SUV', 'gold', 120000, 'Essence', 7, { rating: 4.9 }),
+  _mv(71, 'Mercedes Classe S 500 2023', 'Berline', 'gold', 150000, 'Hybride', 5, { rating: 5.0 }),
+  _mv(72, 'Mercedes Classe G 63 2022', 'SUV', 'gold', 200000, 'Essence', 5, { rating: 4.9 }),
+  _mv(73, 'BMW X7 2023', 'SUV', 'gold', 130000, 'Essence', 7, { rating: 4.9 }),
+  _mv(74, 'BMW Serie 7 2022', 'Berline', 'gold', 125000, 'Hybride', 5, { rating: 4.8 }),
+  _mv(75, 'Lexus LX 570 2021', 'SUV', 'gold', 110000, 'Essence', 7, { rating: 4.8 }),
+  _mv(76, 'Range Rover Evoque 2022', 'SUV', 'gold', 110000, 'Essence', 5, { rating: 4.9, image: IMG.evoque }),
+  _mv(77, 'Range Rover Sport 2023', 'SUV', 'gold', 140000, 'Diesel', 5, { rating: 5.0 }),
+  _mv(78, 'Range Rover Velar 2022', 'SUV', 'gold', 105000, 'Essence', 5, { rating: 4.8 }),
+  _mv(79, 'Toyota Land Cruiser V8 VXR 2023', 'SUV', 'gold', 100000, 'Diesel', 7, { rating: 4.9 }),
+  _mv(80, 'Porsche Cayenne 2022', 'SUV', 'gold', 160000, 'Essence', 5, { rating: 4.9 }),
+  _mv(81, 'Audi Q7 2022', 'SUV', 'gold', 98000, 'Diesel', 7, { rating: 4.8 }),
+  _mv(82, 'Audi Q8 2023', 'SUV', 'gold', 135000, 'Essence', 5, { rating: 4.9 }),
 ];
 
 const BOOKINGS = [
@@ -153,9 +291,15 @@ function VehicleCard({ v, onPress }) {
       <View style={{ height:155, backgroundColor:'#CBD5E1' }}>
         <Image source={{ uri:v.image }} style={{ width:'100%', height:'100%' }} resizeMode="cover" />
         <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.1)' }} />
-        <View style={{ position:'absolute', top:10, left:10, backgroundColor:C.primary,
-          borderRadius:20, paddingHorizontal:10, paddingVertical:4 }}>
-          <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.cat}</Text>
+        <View style={{ position:'absolute', top:10, left:10, flexDirection:'row', gap:6 }}>
+          <View style={{ backgroundColor:C.primary, borderRadius:20, paddingHorizontal:10, paddingVertical:4 }}>
+            <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.cat}</Text>
+          </View>
+          {v.tier && (
+            <View style={{ backgroundColor:(TIER_STYLE[v.tier]?.color || C.primary), borderRadius:20, paddingHorizontal:10, paddingVertical:4 }}>
+              <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{TIER_STYLE[v.tier]?.label || v.tier}</Text>
+            </View>
+          )}
         </View>
         <View style={{ position:'absolute', top:10, right:10, backgroundColor:'rgba(0,0,0,0.45)',
           borderRadius:20, paddingHorizontal:8, paddingVertical:3, flexDirection:'row', alignItems:'center', gap:3 }}>
@@ -237,11 +381,70 @@ function Splash({ onDone }) {
   );
 }
 
+function GoogleButton() {
+  const { googleLogin } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [gmail, setGmail] = useState('');
+  const [gname, setGname] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!gmail.includes('@')) { Alert.alert('Requis', 'Entrez une adresse Gmail valide.'); return; }
+    setBusy(true);
+    const parts = gname.trim().split(/\s+/);
+    const r = await googleLogin({ email: gmail, first_name: parts[0] || '', last_name: parts.slice(1).join(' ') || '', google_id: '' });
+    setBusy(false);
+    if (r.success) setOpen(false);
+    else Alert.alert('Erreur', r.error || 'Connexion Google impossible.');
+  };
+
+  return (
+    <>
+      <TouchableOpacity onPress={() => setOpen(true)}
+        style={{ borderWidth:1.5, borderColor:C.border, borderRadius:14, paddingVertical:13,
+          flexDirection:'row', alignItems:'center', justifyContent:'center', gap:10, backgroundColor:C.card, marginTop:14 }}>
+        <Ionicons name="logo-google" size={18} color="#DB4437" />
+        <Text style={{ color:C.text, fontWeight:'700', fontSize:14 }}>Continuer avec Google</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade">
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', padding:24 }}>
+          <View style={{ backgroundColor:C.bg, borderRadius:20, padding:20 }}>
+            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+              <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+                <Ionicons name="logo-google" size={20} color="#DB4437" />
+                <Text style={{ fontWeight:'800', color:C.text, fontSize:15 }}>Compte Google</Text>
+              </View>
+              <TouchableOpacity onPress={() => setOpen(false)}><Ionicons name="close" size={24} color={C.muted} /></TouchableOpacity>
+            </View>
+            <Text style={{ fontSize:12, fontWeight:'600', color:C.muted, marginBottom:4 }}>Adresse Gmail</Text>
+            <TextInput value={gmail} onChangeText={setGmail} placeholder="prenom.nom@gmail.com" placeholderTextColor={C.muted}
+              keyboardType="email-address" autoCapitalize="none"
+              style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, backgroundColor:C.card, color:C.text, marginBottom:10 }} />
+            <Text style={{ fontSize:12, fontWeight:'600', color:C.muted, marginBottom:4 }}>Nom complet (1ere connexion)</Text>
+            <TextInput value={gname} onChangeText={setGname} placeholder="Prenom Nom" placeholderTextColor={C.muted}
+              style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, backgroundColor:C.card, color:C.text, marginBottom:14 }} />
+            <TouchableOpacity onPress={submit} disabled={busy}
+              style={{ backgroundColor:C.primary, borderRadius:12, paddingVertical:13, alignItems:'center' }}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ color:'#fff', fontWeight:'700' }}>Continuer</Text>}
+            </TouchableOpacity>
+            <Text style={{ color:C.muted, fontSize:10, textAlign:'center', marginTop:10 }}>
+              Compte cree automatiquement si inexistant (role Client).
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [reg, setReg] = useState({ firstName: '', lastName: '', phone: '' });
+  const { register } = useAuth();
 
   const handle = async () => {
     if (!email || !pwd) { Alert.alert('Requis', 'Remplissez tous les champs.'); return; }
@@ -251,12 +454,19 @@ function LoginScreen() {
     if (!r.success) Alert.alert('Connexion echouee', r.error);
   };
 
+  const handleRegister = async () => {
+    if (!email || !pwd || !reg.firstName || !reg.lastName) { Alert.alert('Requis', 'Remplissez tous les champs.'); return; }
+    setLoading(true);
+    const r = await register({ email, password: pwd, firstName: reg.firstName, lastName: reg.lastName, phone: reg.phone });
+    setLoading(false);
+    if (!r.success) Alert.alert('Inscription echouee', r.error);
+  };
+
+  // Profils publics uniquement — admin/chauffeur/controleur se connectent par leurs
+  // identifiants (non affiches) et leurs comptes sont geres depuis l'espace Admin.
   const QUICK = [
     { label:'Client',        email:'client@autolink.com' },
-    { label:'Chauffeur',     email:'driver@autolink.com' },
     { label:'Gestionnaire',  email:'owner@autolink.com' },
-    { label:'Admin',         email:'admin@autolink.com' },
-    { label:'Controleur',    email:'controller@autolink.com' },
   ];
 
   return (
@@ -280,7 +490,30 @@ function LoginScreen() {
         {/* Form */}
         <View style={{ backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24,
           marginTop:-20, padding:24 }}>
-          <Text style={{ fontSize:20, fontWeight:'800', color:C.text, marginBottom:20 }}>Connexion</Text>
+          <Text style={{ fontSize:20, fontWeight:'800', color:C.text, marginBottom:20 }}>
+            {mode === 'login' ? 'Connexion' : 'Creer un compte'}
+          </Text>
+
+          {mode === 'register' && (
+            <>
+              <View style={{ flexDirection:'row', gap:10 }}>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Prenom</Text>
+                  <TextInput value={reg.firstName} onChangeText={v => setReg(r => ({...r, firstName: v}))} placeholder="Marie"
+                    placeholderTextColor={C.muted} style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Nom</Text>
+                  <TextInput value={reg.lastName} onChangeText={v => setReg(r => ({...r, lastName: v}))} placeholder="Mballa"
+                    placeholderTextColor={C.muted} style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
+                </View>
+              </View>
+              <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Telephone</Text>
+              <TextInput value={reg.phone} onChangeText={v => setReg(r => ({...r, phone: v}))} placeholder="+237 6XX XX XX XX"
+                placeholderTextColor={C.muted} keyboardType="phone-pad"
+                style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
+            </>
+          )}
 
           <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Email</Text>
           <TextInput value={email} onChangeText={setEmail} placeholder="votre@email.com"
@@ -294,12 +527,26 @@ function LoginScreen() {
             style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13,
               fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:20 }} />
 
-          <TouchableOpacity onPress={handle} disabled={loading}
+          <TouchableOpacity onPress={mode === 'login' ? handle : handleRegister} disabled={loading}
             style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14,
               alignItems:'center', opacity:loading?0.7:1 }}>
             {loading ? <ActivityIndicator color="#fff" />
-              : <Text style={{ color:'#fff', fontWeight:'700', fontSize:16 }}>Se connecter</Text>}
+              : <Text style={{ color:'#fff', fontWeight:'700', fontSize:16 }}>{mode === 'login' ? 'Se connecter' : "S'inscrire"}</Text>}
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setMode(m => m === 'login' ? 'register' : 'login')} style={{ marginTop:14 }}>
+            <Text style={{ color:C.primary, fontWeight:'700', fontSize:13, textAlign:'center' }}>
+              {mode === 'login' ? "Pas de compte ? S'inscrire" : 'Deja un compte ? Se connecter'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={{ flexDirection:'row', alignItems:'center', gap:10, marginTop:18 }}>
+            <View style={{ flex:1, height:1, backgroundColor:C.border }} />
+            <Text style={{ color:C.muted, fontSize:11, fontWeight:'600' }}>OU</Text>
+            <View style={{ flex:1, height:1, backgroundColor:C.border }} />
+          </View>
+
+          <GoogleButton />
 
           <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:24, marginBottom:12 }}>
             Comptes demo — mot de passe : pass123
@@ -307,7 +554,7 @@ function LoginScreen() {
           <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
             {QUICK.map(q => (
               <TouchableOpacity key={q.label}
-                onPress={() => { setEmail(q.email); setPwd('pass123'); }}
+                onPress={() => { setEmail(q.email); setPwd('pass123'); setMode('login'); }}
                 style={{ backgroundColor:C.primaryDark+'15', borderWidth:1.5, borderColor:C.primary+'40',
                   borderRadius:10, paddingVertical:7, paddingHorizontal:14 }}>
                 <Text style={{ color:C.primary, fontWeight:'700', fontSize:12 }}>{q.label}</Text>
@@ -321,11 +568,52 @@ function LoginScreen() {
 }
 
 // Role-based dashboards
+// Mappe un vehicule API vers le format des cartes mobiles
+const mapApiVehicle = (v) => {
+  const m = (v.model || '').toLowerCase();
+  let image = IMG.corolla;
+  if (v.category === 'SUV') image = IMG.tucson;
+  if (v.tier === 'gold' || v.tier === 'premium') image = IMG.merGLE;
+  if (m.includes('corolla')) image = IMG.corolla;
+  else if (m.includes('tucson')) image = IMG.tucson;
+  else if (m.includes('sportage')) image = IMG.sportage;
+  else if (m.includes('gle')) image = IMG.merGLE;
+  else if (m.includes('serie')) image = IMG.bmw5;
+  else if (m.includes('evoque')) image = IMG.evoque;
+  else if (v.category === 'Van' || v.category === 'Minibus') image = IMG.sprinter;
+  return {
+    id: v.id, name: `${v.brand} ${v.model} ${v.year}`, cat: v.category, tier: v.tier || 'standard',
+    plate: v.plate, image, rate: Number(v.computed_rate || v.daily_rate),
+    kmIncluded: 300, kmRate: 120, rating: Number(v.rating) || 4.6, reviews: v.rating_count || 0,
+    fuel: v.fuel, seats: v.seats, status: v.status, score: v.condition_score, api: true,
+  };
+};
+
 function ClientDash({ user, logout }) {
   const [tab, setTab] = useState('home');
   const [search, setSearch] = useState('');
   const [selV, setSelV] = useState(null);
-  const av = user.firstName[0] + user.lastName[0];
+  const [tier, setTier] = useState('');
+  const [vehicles, setVehicles] = useState(VEHICLES);
+  const [bookings, setBookings] = useState(BOOKINGS);
+  const [balance, setBalance] = useState(user.balance != null ? Number(user.balance) : null);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const av = (user.firstName[0] || 'A') + (user.lastName[0] || 'L');
+
+  const refresh = useCallback(async () => {
+    try { const d = await api.vehicles(); const l = (d.results || d).map(mapApiVehicle); if (l.length) setVehicles(l); } catch (_) {}
+    try {
+      const d = await api.bookings();
+      setBookings((d.results || d).map(b => ({
+        id: `BK-${String(b.id).padStart(4,'0')}`, vehicle: b.vehicle_name, type: 'Location',
+        amount: Number(b.subtotal), status: b.status, date: b.start_date,
+        driver: b.driver_name || 'En attente', rating: b.client_rating, rawId: b.id,
+      })));
+    } catch (_) {}
+    try { const d = await api.wallet(); setBalance(Number(d.balance)); } catch (_) {}
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
   const TABS = [
     { id:'home',     label:'Accueil',   icon:'home' },
     { id:'search',   label:'Catalogue', icon:'search' },
@@ -386,7 +674,7 @@ function ClientDash({ user, logout }) {
                 ))}
               </View>
               <SectionTitle title="Dernieres reservations" action="Voir tout" onAction={() => setTab('bookings')} />
-              {BOOKINGS.slice(0,2).map(b => (
+              {bookings.slice(0,2).map(b => (
                 <View key={b.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, flexDirection:'row', alignItems:'center', gap:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
                   <View style={{ width:42, height:42, borderRadius:13, backgroundColor:C.primary+'18', alignItems:'center', justifyContent:'center' }}>
                     <Ionicons name="car" size={20} color={C.primary} />
@@ -416,9 +704,21 @@ function ClientDash({ user, logout }) {
                 <TextInput value={search} onChangeText={setSearch} placeholder="Marque, modele..." placeholderTextColor="rgba(255,255,255,0.6)" style={{ flex:1, paddingVertical:10, paddingLeft:8, color:'#fff', fontSize:14 }} />
               </View>
             </LinearGradient>
-            <ScrollView style={{ padding:16 }}>
-              <Text style={{ color:C.muted, fontSize:11, marginBottom:10 }}>{VEHICLES.filter(v=>!search||v.name.toLowerCase().includes(search.toLowerCase())).length} vehicule(s) — chauffeur certifie inclus</Text>
-              {VEHICLES.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase())).map(v => <VehicleCard key={v.id} v={v} onPress={() => setSelV(v)} />)}
+            <View style={{ paddingHorizontal:16, paddingTop:12, paddingBottom:4 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {[{id:'',label:'Toutes'},{id:'basic',label:'Basic'},{id:'standard',label:'Standard'},{id:'premium',label:'Premium'},{id:'gold',label:'Gold'}].map(t => (
+                  <TouchableOpacity key={t.id} onPress={() => setTier(t.id)}
+                    style={{ backgroundColor: tier===t.id ? C.primary : C.card, borderRadius:20,
+                      paddingHorizontal:14, paddingVertical:7, marginRight:8, borderWidth:1, borderColor: tier===t.id ? C.primary : C.border }}>
+                    <Text style={{ color: tier===t.id ? '#fff' : C.text, fontWeight:'700', fontSize:12 }}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <ScrollView style={{ padding:16, paddingTop:6 }}
+              refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}>
+              <Text style={{ color:C.muted, fontSize:11, marginBottom:10 }}>{vehicles.filter(v=>(!search||v.name.toLowerCase().includes(search.toLowerCase()))&&(!tier||v.tier===tier)).length} vehicule(s) — chauffeur certifie inclus</Text>
+              {vehicles.filter(v => (!search || v.name.toLowerCase().includes(search.toLowerCase())) && (!tier || v.tier === tier)).map(v => <VehicleCard key={v.id} v={v} onPress={() => setSelV(v)} />)}
               <View style={{ height:20 }} />
             </ScrollView>
           </View>
@@ -429,8 +729,12 @@ function ClientDash({ user, logout }) {
               <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
               <Text style={{ color:'#fff', fontWeight:'900', fontSize:18 }}>Mes reservations</Text>
             </LinearGradient>
-            <ScrollView style={{ padding:16 }}>
-              {BOOKINGS.map(b => (
+            <ScrollView style={{ padding:16 }}
+              refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}>
+              {bookings.length === 0 && (
+                <Text style={{ color:C.muted, textAlign:'center', marginTop:40 }}>Aucune reservation pour le moment.</Text>
+              )}
+              {bookings.map(b => (
                 <View key={b.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
                   <View style={{ flexDirection:'row', alignItems:'center', gap:10, marginBottom:10 }}>
                     <View style={{ width:42, height:42, borderRadius:13, backgroundColor:C.primary+'15', alignItems:'center', justifyContent:'center' }}>
@@ -466,6 +770,30 @@ function ClientDash({ user, logout }) {
               <Text style={{ color:'rgba(255,255,255,0.75)', marginTop:4 }}>Client AutoLink</Text>
             </LinearGradient>
             <View style={{ padding:16 }}>
+              {/* Solde AutoLink */}
+              <View style={{ backgroundColor:C.primaryDark, borderRadius:18, padding:18, marginBottom:14 }}>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:12 }}>
+                    <View style={{ width:44, height:44, borderRadius:14, backgroundColor:'rgba(255,255,255,0.18)', alignItems:'center', justifyContent:'center' }}>
+                      <Ionicons name="wallet" size={22} color="#fff" />
+                    </View>
+                    <View>
+                      <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:11 }}>Mon solde AutoLink</Text>
+                      <Text style={{ color:'#fff', fontSize:24, fontWeight:'900' }}>
+                        {balance === null ? '—' : `${balance.toLocaleString()} FCFA`}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowTopUp(true)}
+                    style={{ backgroundColor:'#fff', borderRadius:12, paddingHorizontal:14, paddingVertical:9, flexDirection:'row', alignItems:'center', gap:5 }}>
+                    <Ionicons name="add" size={16} color={C.primaryDark} />
+                    <Text style={{ color:C.primaryDark, fontWeight:'800', fontSize:13 }}>Recharger</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ color:'rgba(255,255,255,0.6)', fontSize:10, marginTop:10 }}>
+                  MTN MoMo · Orange Money · SenBid · PayBid · PayPal · Stripe
+                </Text>
+              </View>
               {[['Telephone',user.phone],['Ville','Douala, Cameroun'],['Email',user.email]].map(([k,v]) => (
                 <View key={k} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, flexDirection:'row', justifyContent:'space-between', shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
                   <Text style={{ color:C.muted, flexShrink:0, marginRight:12 }}>{k}</Text>
@@ -481,8 +809,98 @@ function ClientDash({ user, logout }) {
         )}
       </View>
       <TabBar tabs={TABS} active={tab} onPress={setTab} />
-      {selV && <BookingModal vehicle={selV} onClose={() => setSelV(null)} />}
+      {selV && <BookingModal vehicle={selV} onClose={() => setSelV(null)} onDone={refresh} />}
+      {showTopUp && <TopUpModal onClose={() => setShowTopUp(false)} onDone={(b) => setBalance(Number(b))} />}
     </SafeAreaView>
+  );
+}
+
+// ─── TOPUP MODAL — recharge solde ───────────────────────────────────────────
+function TopUpModal({ onClose, onDone }) {
+  const [amount, setAmount] = useState('25000');
+  const [method, setMethod] = useState('mtn');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+
+  const submit = async () => {
+    const amt = parseInt(amount, 10);
+    if (!amt || amt < 500) { Alert.alert('Montant', 'Minimum 500 FCFA.'); return; }
+    setBusy(true);
+    try {
+      const d = await api.topup(amt, method, phone);
+      setDone(d);
+      onDone?.(d.balance);
+    } catch {
+      Alert.alert('Erreur', 'API injoignable — recharge impossible hors ligne.');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal visible transparent animationType="slide">
+      <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'flex-end' }}>
+        <View style={{ backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24, padding:20, maxHeight:SH*0.85 }}>
+          <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+            <Text style={{ fontWeight:'800', fontSize:16, color:C.text }}>Recharger mon solde</Text>
+            <TouchableOpacity onPress={onClose}><Ionicons name="close-circle" size={26} color={C.muted} /></TouchableOpacity>
+          </View>
+          {done ? (
+            <View style={{ alignItems:'center', paddingVertical:16 }}>
+              <Ionicons name="checkmark-circle" size={56} color={C.success} />
+              <Text style={{ fontWeight:'800', color:C.text, fontSize:17, marginTop:10 }}>Recharge effectuee</Text>
+              <Text style={{ color:C.muted, fontSize:12, marginTop:4 }}>Ref: {done.transaction?.reference}</Text>
+              <Text style={{ color:C.primary, fontWeight:'900', fontSize:22, marginTop:8 }}>{Number(done.balance).toLocaleString()} FCFA</Text>
+              <TouchableOpacity onPress={onClose} style={{ backgroundColor:C.primary, borderRadius:12, paddingVertical:12, paddingHorizontal:40, marginTop:16 }}>
+                <Text style={{ color:'#fff', fontWeight:'700' }}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={{ fontSize:12, fontWeight:'700', color:C.muted, marginBottom:6 }}>Montant (FCFA)</Text>
+              <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad"
+                style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, backgroundColor:C.card, color:C.text, fontSize:16, fontWeight:'700' }} />
+              <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:10, marginBottom:14 }}>
+                {[5000, 10000, 25000, 50000, 100000].map(a => (
+                  <TouchableOpacity key={a} onPress={() => setAmount(String(a))}
+                    style={{ borderRadius:20, paddingHorizontal:12, paddingVertical:7, borderWidth:1.5,
+                      borderColor: amount === String(a) ? C.primary : C.border,
+                      backgroundColor: amount === String(a) ? C.primary : C.card }}>
+                    <Text style={{ color: amount === String(a) ? '#fff' : C.text, fontWeight:'700', fontSize:12 }}>{a.toLocaleString()} F</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={{ fontSize:12, fontWeight:'700', color:C.muted, marginBottom:8 }}>Moyen de paiement</Text>
+              <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8, marginBottom:14 }}>
+                {TOPUP_METHODS.map(m => (
+                  <TouchableOpacity key={m.id} onPress={() => setMethod(m.id)}
+                    style={{ width:'31%', borderWidth:2, borderRadius:12, padding:10, alignItems:'center',
+                      borderColor: method === m.id ? m.color : C.border, backgroundColor: method === m.id ? m.color+'15' : C.card }}>
+                    <View style={{ width:30, height:30, borderRadius:8, backgroundColor:m.color, alignItems:'center', justifyContent:'center', marginBottom:5 }}>
+                      <Ionicons name={m.icon} size={15} color="#fff" />
+                    </View>
+                    <Text style={{ fontSize:10, fontWeight:'700', color:C.text, textAlign:'center' }}>{m.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {['mtn','orange','senbid','paybid'].includes(method) && (
+                <>
+                  <Text style={{ fontSize:12, fontWeight:'700', color:C.muted, marginBottom:6 }}>Numero de telephone</Text>
+                  <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+237 6XX XX XX XX"
+                    placeholderTextColor={C.muted}
+                    style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, backgroundColor:C.card, color:C.text, marginBottom:14 }} />
+                </>
+              )}
+              <TouchableOpacity onPress={submit} disabled={busy}
+                style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14, alignItems:'center', marginBottom:20, flexDirection:'row', justifyContent:'center', gap:8 }}>
+                {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="wallet" size={18} color="#fff" />}
+                <Text style={{ color:'#fff', fontWeight:'800', fontSize:15 }}>{busy ? 'Traitement...' : `Recharger ${parseInt(amount || '0', 10).toLocaleString()} FCFA`}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -605,46 +1023,166 @@ function DriverDash({ user, logout }) {
 }
 
 function AdminDash({ user, logout }) {
+  const [stats, setStats] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [online, setOnline] = useState(true);
+  const [tab, setTab] = useState('live'); // live | comptes
+
+  const load = useCallback(async () => {
+    try {
+      const [s, b, u] = await Promise.all([api.stats(), api.bookings(), api.users()]);
+      setStats(s);
+      setBookings(b.results || b);
+      setUsers(u.results || u);
+      setOnline(true);
+    } catch { setOnline(false); }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 8000); // synchro quasi-instantanee
+    return () => clearInterval(t);
+  }, [load]);
+
+  const setStatus = async (id, status) => {
+    try { await api.setStatus(id, status); await load(); } catch (_) {}
+  };
+  const toggleUser = async (u) => {
+    try { await api.setUser(u.id, { is_active: !u.is_active }); await load(); } catch (_) {}
+  };
+  const setRole = async (u, role) => {
+    try { await api.setUser(u.id, { role }); await load(); } catch (_) {}
+  };
+
+  const pendingB = bookings.filter(b => b.status === 'pending');
+  const ROLE_LABEL = { CLIENT:'Client', OWNER:'Gestionnaire', DRIVER:'Chauffeur', ADMIN:'Admin', CONTROLLER:'Controleur' };
+
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:20 }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:14 }}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
           <View style={{ flex:1, marginRight:10 }}>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Administration</Text>
             <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>AutoLink Pro</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:4, backgroundColor:'rgba(255,255,255,0.15)', borderRadius:20, paddingHorizontal:10, paddingVertical:5 }}>
+              <View style={{ width:7, height:7, borderRadius:4, backgroundColor: online ? '#4ADE80' : '#F87171' }} />
+              <Text style={{ color:'#fff', fontSize:10, fontWeight:'700' }}>{online ? 'En ligne' : 'Hors ligne'}</Text>
+            </View>
+            <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
+              <Ionicons name="log-out-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
-      <ScrollView style={{ padding:16 }}>
-        <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
-          {[{l:'Utilisateurs',v:'5 247',c:C.info},{l:'Vehicules',v:'523',c:C.primary},{l:'Commission',v:'11.9 M',c:C.success}].map(s=>(
-            <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
-              <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={{ backgroundColor:'#FEF3C7', borderRadius:14, padding:14, marginBottom:14, flexDirection:'row', alignItems:'center', gap:10 }}>
-          <Ionicons name="warning" size={22} color="#D97706" />
-          <Text style={{ color:'#92400E', fontWeight:'600', fontSize:13, flex:1 }}>12 candidatures chauffeurs en attente de validation</Text>
-        </View>
-        <SectionTitle title="Agents affilies" />
-        {[{code:'AGT-DBL-001',name:'Moise Kamga',conv:28,comm:217000},{code:'AGT-YDE-002',name:'Rachel Biyong',conv:14,comm:94500},{code:'AGT-DBL-003',name:'Serge Ndoumbe',conv:42,comm:399000}].map(a=>(
-          <View key={a.code} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
-            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, flex:1, marginRight:10 }}>{a.name}</Text>
-              <Badge label={a.code} color={C.primary} />
-            </View>
-            <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
-              <Text style={{ color:C.muted, fontSize:12 }}>{a.conv} conversions</Text>
-              <Text style={{ fontWeight:'700', color:C.primary, fontSize:13 }}>{fmtNum(a.comm)}</Text>
-            </View>
-          </View>
+
+      <View style={{ flexDirection:'row', backgroundColor:C.card, borderBottomWidth:1, borderBottomColor:C.border }}>
+        {[['live','En direct'],['comptes','Comptes & roles']].map(([id,l]) => (
+          <TouchableOpacity key={id} onPress={() => setTab(id)}
+            style={{ flex:1, paddingVertical:12, alignItems:'center', borderBottomWidth:2, borderBottomColor: tab===id ? C.primary : 'transparent' }}>
+            <Text style={{ color: tab===id ? C.primary : C.muted, fontWeight:'700', fontSize:13 }}>{l}</Text>
+          </TouchableOpacity>
         ))}
+      </View>
+
+      <ScrollView style={{ padding:16 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+        {tab === 'live' && (
+          <>
+            <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
+              {[{l:'Utilisateurs',v:stats?stats.users:'—',c:C.info},{l:'Vehicules',v:stats?stats.vehicles:'—',c:C.primary},{l:'Reservations',v:stats?stats.bookings_total:'—',c:'#7C3AED'}].map(s=>(
+                <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+                  <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
+              {[{l:'En attente',v:stats?stats.bookings_pending:'—',c:C.warning},{l:'En cours',v:stats?stats.bookings_active:'—',c:C.info},{l:'Commission',v:stats?fmtNum(stats.commission_total):'—',c:C.success}].map(s=>(
+                <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+                  <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
+                </View>
+              ))}
+            </View>
+            {pendingB.length > 0 && (
+              <View style={{ backgroundColor:'#FEF3C7', borderRadius:14, padding:12, marginBottom:14, flexDirection:'row', alignItems:'center', gap:8 }}>
+                <Ionicons name="warning" size={20} color="#D97706" />
+                <Text style={{ color:'#92400E', fontWeight:'600', fontSize:12, flex:1 }}>{pendingB.length} reservation(s) en attente de validation</Text>
+              </View>
+            )}
+            <SectionTitle title="Reservations en direct" />
+            {bookings.length === 0 && <Text style={{ color:C.muted, textAlign:'center', marginTop:20 }}>{online ? 'Aucune reservation.' : 'API injoignable.'}</Text>}
+            {bookings.slice(0, 30).map(b => (
+              <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                  <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:13, flex:1, marginRight:8 }}>
+                    BK-{String(b.id).padStart(4,'0')} — {b.client_name || 'Client'}
+                  </Text>
+                  <Badge label={STATUS_LABEL[b.status] || b.status} color={STATUS_COLOR[b.status] || C.muted} />
+                </View>
+                <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{b.vehicle_name} · {b.start_date} → {b.end_date}</Text>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:6 }}>
+                  <Text style={{ fontWeight:'900', color:C.primary, fontSize:14 }}>{Number(b.subtotal).toLocaleString()} F</Text>
+                  {b.status === 'pending' && (
+                    <View style={{ flexDirection:'row', gap:6 }}>
+                      <TouchableOpacity onPress={() => setStatus(b.id, 'confirmed')} style={{ backgroundColor:C.success, borderRadius:8, paddingHorizontal:10, paddingVertical:6, flexDirection:'row', alignItems:'center', gap:4 }}>
+                        <Ionicons name="checkmark" size={13} color="#fff" /><Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Confirmer</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setStatus(b.id, 'cancelled')} style={{ backgroundColor:C.error, borderRadius:8, paddingHorizontal:10, paddingVertical:6, flexDirection:'row', alignItems:'center', gap:4 }}>
+                        <Ionicons name="close" size={13} color="#fff" /><Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Annuler</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+
+        {tab === 'comptes' && (
+          <>
+            <SectionTitle title="Gestion des comptes" />
+            <Text style={{ color:C.muted, fontSize:11, marginBottom:12 }}>
+              Activez/suspendez les comptes et attribuez les roles chauffeur ou controleur.
+            </Text>
+            {users.map(u => (
+              <View key={u.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+                  <View style={{ flex:1, marginRight:8 }}>
+                    <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:13 }}>{u.first_name} {u.last_name}</Text>
+                    <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{u.email}</Text>
+                  </View>
+                  <Badge label={ROLE_LABEL[u.role] || u.role} color={u.role==='ADMIN'?C.error:u.role==='DRIVER'?C.info:u.role==='CONTROLLER'?'#7C3AED':C.primary} />
+                </View>
+                <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:8 }}>
+                  <View style={{ flexDirection:'row', gap:6 }}>
+                    {u.role !== 'ADMIN' && (
+                      <>
+                        <TouchableOpacity onPress={() => setRole(u, u.role === 'DRIVER' ? 'CLIENT' : 'DRIVER')}
+                          style={{ backgroundColor:C.info+'18', borderRadius:8, paddingHorizontal:8, paddingVertical:5 }}>
+                          <Text style={{ color:C.info, fontSize:10, fontWeight:'700' }}>{u.role === 'DRIVER' ? 'Retirer chauffeur' : 'Nommer chauffeur'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setRole(u, u.role === 'CONTROLLER' ? 'CLIENT' : 'CONTROLLER')}
+                          style={{ backgroundColor:'#7C3AED18', borderRadius:8, paddingHorizontal:8, paddingVertical:5 }}>
+                          <Text style={{ color:'#7C3AED', fontSize:10, fontWeight:'700' }}>{u.role === 'CONTROLLER' ? 'Retirer controleur' : 'Nommer controleur'}</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => toggleUser(u)}
+                    style={{ backgroundColor:(u.is_active ? C.success : C.error)+'18', borderRadius:8, paddingHorizontal:10, paddingVertical:5 }}>
+                    <Text style={{ color:u.is_active ? C.success : C.error, fontSize:11, fontWeight:'700' }}>{u.is_active ? 'Actif' : 'Suspendu'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+        <View style={{ height:20 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -700,7 +1238,7 @@ function ControllerDash({ user, logout }) {
 }
 
 // ─── BOOKING MODAL ────────────────────────────────────────────────────────────
-function BookingModal({ vehicle, onClose }) {
+function BookingModal({ vehicle, onClose, onDone }) {
   const [step, setStep] = useState(1);
   const [rt, setRt] = useState(RENTAL_TYPES[2]);
   const [days, setDays] = useState(2);
@@ -711,6 +1249,34 @@ function BookingModal({ vehicle, onClose }) {
   const [pay, setPay] = useState('mtn');
   const [phone, setPhone] = useState('');
   const [done, setDone] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!phone) { Alert.alert('Requis', 'Entrez votre numero'); return; }
+    setBusy(true);
+    try {
+      // date JJ/MM/AAAA → AAAA-MM-JJ
+      let start = date;
+      const m = date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) start = `${m[3]}-${m[2]}-${m[1]}`;
+      const end = new Date(start);
+      end.setDate(end.getDate() + (rt.id === 'longhaul' ? days : 1));
+      await api.newBooking({
+        vehicle: vehicle.id,
+        start_date: start,
+        end_date: end.toISOString().split('T')[0],
+        pickup_address: pickup,
+        notes: `Type: ${rt.label} | Paiement: ${pay} | Tel: ${phone}${agentCode ? ` | Agent: ${agentCode}` : ''}`,
+      });
+      setSaved(true);
+      onDone?.();
+    } catch (_) {
+      setSaved(false); // confirmation locale si API injoignable
+    }
+    setBusy(false);
+    setDone(true);
+  };
 
   const price = (() => {
     if (!vehicle) return 0;
@@ -728,11 +1294,13 @@ function BookingModal({ vehicle, onClose }) {
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', justifyContent:'center', padding:20 }}>
         <View style={{ backgroundColor:C.bg, borderRadius:24, padding:28, alignItems:'center' }}>
           <Ionicons name="checkmark-circle" size={64} color={C.success} />
-          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, marginTop:12, marginBottom:8, textAlign:'center' }}>Reservation confirmee</Text>
+          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, marginTop:12, marginBottom:8, textAlign:'center' }}>Reservation {saved ? 'envoyee' : 'confirmee'}</Text>
           <Text style={{ color:C.muted, textAlign:'center' }}>{vehicle.name} — {rt.label}</Text>
           {agentOk && <Text style={{ color:C.success, fontSize:12, fontWeight:'600', marginTop:4 }}>Code agent {agentCode} applique</Text>}
           <Text style={{ fontSize:22, fontWeight:'900', color:C.primary, marginVertical:12 }}>{fmtNum(price)}</Text>
-          <Text style={{ color:C.muted, fontSize:11, marginBottom:20, textAlign:'center' }}>SMS envoye au {phone}</Text>
+          <Text style={{ color:saved?C.success:C.muted, fontSize:11, marginBottom:20, textAlign:'center' }}>
+            {saved ? 'Enregistree — visible dans le tableau de bord admin.' : `SMS envoye au ${phone}`}
+          </Text>
           <TouchableOpacity onPress={onClose} style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14, paddingHorizontal:32 }}>
             <Text style={{ color:'#fff', fontWeight:'700', fontSize:15 }}>Fermer</Text>
           </TouchableOpacity>
@@ -853,7 +1421,7 @@ function BookingModal({ vehicle, onClose }) {
                 </View>
               : <View style={{ flexDirection:'row', gap:10 }}>
                   <TouchableOpacity onPress={()=>setStep(2)} style={{ flex:1, borderWidth:2, borderColor:C.muted, borderRadius:14, paddingVertical:14, alignItems:'center' }}><Text style={{ color:C.muted, fontWeight:'700' }}>Retour</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={()=>phone?setDone(true):Alert.alert('Requis','Entrez votre numero')} style={{ flex:2, backgroundColor:C.primary, borderRadius:14, paddingVertical:14, alignItems:'center', flexDirection:'row', justifyContent:'center', gap:8 }}><Ionicons name="shield-checkmark" size={18} color="#fff" /><Text style={{ color:'#fff', fontWeight:'700', fontSize:15 }}>Payer — {fmtNum(price)}</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={submit} disabled={busy} style={{ flex:2, backgroundColor:busy?'#94A3B8':C.primary, borderRadius:14, paddingVertical:14, alignItems:'center', flexDirection:'row', justifyContent:'center', gap:8 }}>{busy?<ActivityIndicator color="#fff" size="small"/>:<Ionicons name="shield-checkmark" size={18} color="#fff" />}<Text style={{ color:'#fff', fontWeight:'700', fontSize:15 }}>{busy?'Envoi...':`Payer — ${fmtNum(price)}`}</Text></TouchableOpacity>
                 </View>
             }
           </View>
@@ -874,17 +1442,67 @@ function AppInner() {
       .catch(() => {});
   }, []);
 
+  const normalize = (u) => ({
+    ...u,
+    firstName: u.firstName || u.first_name || '',
+    lastName:  u.lastName  || u.last_name  || '',
+  });
+
+  const saveSession = async (data) => {
+    const u = normalize(data.user);
+    await AsyncStorage.setItem('autolink_user', JSON.stringify(u));
+    await AsyncStorage.setItem('al_access', data.access);
+    await AsyncStorage.setItem('al_refresh', data.refresh);
+    setUser(u);
+    return u;
+  };
+
   const login = async ({ email, password }) => {
+    try {
+      const data = await api.login(email, password);
+      await saveSession(data);
+      return { success: true };
+    } catch (e) {
+      if (e.status === 400 || e.status === 401) return { success: false, error: 'Email ou mot de passe incorrect.' };
+    }
+    // API injoignable → repli comptes demo
     const found = DEMO_USERS.find(u => u.email === email && u.password === password);
-    if (!found) return { success: false, error: 'Email ou mot de passe incorrect.' };
+    if (!found) return { success: false, error: 'API injoignable — compte demo introuvable.' };
     const { password: _, ...safe } = found;
     await AsyncStorage.setItem('autolink_user', JSON.stringify(safe));
     setUser(safe);
     return { success: true };
   };
 
+  const googleLogin = async (profile) => {
+    try {
+      const data = await api.google(profile);
+      await saveSession(data);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: 'Connexion Google impossible — API injoignable.' };
+    }
+  };
+
+  const register = async ({ email, password, firstName, lastName, phone }) => {
+    try {
+      const data = await api.register({
+        username: email.split('@')[0] + Date.now() % 1000,
+        email, password, password2: password,
+        first_name: firstName, last_name: lastName, phone: phone || '', role: 'CLIENT',
+      });
+      await saveSession(data);
+      return { success: true };
+    } catch (e) {
+      const first = e.data && Object.values(e.data)[0];
+      return { success: false, error: Array.isArray(first) ? first[0] : 'Inscription impossible — API injoignable.' };
+    }
+  };
+
   const logout = async () => {
     await AsyncStorage.removeItem('autolink_user');
+    await AsyncStorage.removeItem('al_access');
+    await AsyncStorage.removeItem('al_refresh');
     setUser(null);
   };
 
@@ -903,7 +1521,7 @@ function AppInner() {
   };
 
   return (
-    <AuthCtx.Provider value={{ user, login, logout }}>
+    <AuthCtx.Provider value={{ user, login, logout, register, googleLogin }}>
       {renderByRole()}
     </AuthCtx.Provider>
   );

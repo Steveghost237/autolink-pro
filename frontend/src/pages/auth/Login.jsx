@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Car, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import GoogleAuthButton from '../../components/GoogleAuthButton';
 
 const DEMO_ACCOUNTS = [
   { role: 'CLIENT', email: 'client@autolink.com', label: 'Client' },
@@ -90,6 +91,14 @@ export default function Login() {
               {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Se connecter'}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium">OU</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          <GoogleAuthButton />
 
           <div className="mt-6 pt-5 border-t border-slate-100">
             <p className="text-xs text-slate-400 text-center mb-3">Comptes démo (mot de passe : pass123)</p>

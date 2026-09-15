@@ -15,6 +15,12 @@ class Vehicle(models.Model):
         MAINTENANCE = 'maintenance', 'En maintenance'
         SUSPENDED = 'suspended', 'Suspendu'
 
+    class Tier(models.TextChoices):
+        BASIC = 'basic', 'Basic'
+        STANDARD = 'standard', 'Standard'
+        PREMIUM = 'premium', 'Premium'
+        GOLD = 'gold', 'Gold'
+
     class Fuel(models.TextChoices):
         ESSENCE = 'essence', 'Essence'
         DIESEL = 'diesel', 'Diesel'
@@ -32,6 +38,7 @@ class Vehicle(models.Model):
     year = models.IntegerField(validators=[MinValueValidator(2000), MaxValueValidator(2030)])
     plate = models.CharField(max_length=20, unique=True)
     category = models.CharField(max_length=50)
+    tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.STANDARD)
     fuel = models.CharField(max_length=20, choices=Fuel.choices)
     seats = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(50)])
     color = models.CharField(max_length=50)
@@ -80,6 +87,16 @@ class Vehicle(models.Model):
 
     def save(self, *args, **kwargs):
         self.computed_rate = self.compute_rate()
+        if not self.tier:
+            rate = float(self.daily_rate)
+            if rate < 25000:
+                self.tier = 'basic'
+            elif rate < 55000:
+                self.tier = 'standard'
+            elif rate < 90000:
+                self.tier = 'premium'
+            else:
+                self.tier = 'gold'
         super().save(*args, **kwargs)
 
 
