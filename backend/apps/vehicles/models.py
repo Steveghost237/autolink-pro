@@ -108,6 +108,9 @@ class Vehicle(models.Model):
     seats = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(50)])
     color = models.CharField(max_length=50)
     description = models.TextField(blank=True)
+    image_url = models.URLField(
+        max_length=500, blank=True,
+        help_text='Photo réelle du modèle (vignette allégée Wikimedia Commons).')
     mode = models.CharField(max_length=20, choices=Mode.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     driver_available = models.BooleanField(

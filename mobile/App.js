@@ -13,6 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getModelPhoto } from './modelPhotos';
 
 // ─── DIMENSIONS & CONSTANTS ───────────────────────────────────────────────────
 const { width: SW, height: SH } = Dimensions.get('window');
@@ -130,11 +131,11 @@ const DEMO_USERS = [
     firstName:'Paul', lastName:'Diallo', phone:'+237 6 54 44 55 66', inspections:247 },
 ];
 
-// 60+ véhicules réels les plus utilisés au Cameroun — gammes basic/standard/premium/gold
+// 60+ véhicules réels les plus utilisés au Cameroun — gammes basic/standard/premium/gold/collection
 const _mv = (id, name, cat, tier, rate, fuel, seats, extra = {}) => ({
   id, name, cat, tier, rate, fuel, seats,
   plate: `LT-${1000 + id}-A`,
-  image: tier === 'gold' || tier === 'premium' || tier === 'collection' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla,
+  image: getModelPhoto(name) || (tier === 'gold' || tier === 'premium' || tier === 'collection' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla),
   kmIncluded: tier === 'gold' || tier === 'collection' ? 350 : tier === 'premium' ? 250 : 200,
   kmRate: tier === 'collection' ? 500 : tier === 'gold' ? 400 : tier === 'premium' ? 250 : tier === 'standard' ? 150 : 100,
   rating: extra.rating ?? 4.6, reviews: extra.reviews ?? 15,
@@ -576,9 +577,10 @@ function LoginScreen() {
 // Mappe un vehicule API vers le format des cartes mobiles
 const mapApiVehicle = (v) => {
   const m = (v.model || '').toLowerCase();
+  // Photo réelle du modèle (Wikimedia, ~30-60 Ko) en priorité
   let image = IMG.corolla;
   if (v.category === 'SUV') image = IMG.tucson;
-  if (v.tier === 'gold' || v.tier === 'premium') image = IMG.merGLE;
+  if (v.tier === 'gold' || v.tier === 'premium' || v.tier === 'collection') image = IMG.merGLE;
   if (m.includes('corolla')) image = IMG.corolla;
   else if (m.includes('tucson')) image = IMG.tucson;
   else if (m.includes('sportage')) image = IMG.sportage;
@@ -586,6 +588,7 @@ const mapApiVehicle = (v) => {
   else if (m.includes('serie')) image = IMG.bmw5;
   else if (m.includes('evoque')) image = IMG.evoque;
   else if (v.category === 'Van' || v.category === 'Minibus') image = IMG.sprinter;
+  if (v.image_url) image = v.image_url;
   return {
     id: v.id, name: `${v.brand} ${v.model} ${v.year}`, cat: v.category, tier: v.tier || 'standard',
     plate: v.plate, image, rate: Number(v.daily_rate || v.computed_rate),

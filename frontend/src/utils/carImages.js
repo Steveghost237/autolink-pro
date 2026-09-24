@@ -1,3 +1,5 @@
+import { getModelPhoto } from './modelPhotos';
+
 const BASE = 'https://images.unsplash.com';
 
 export const HERO_SLIDES = [
@@ -72,8 +74,10 @@ export const TIERS = [
 const OWNERS = ['Jean Kouassi', 'Alice Bah', 'Pierre Yao', 'Fatou Camara', 'Awa Diallo', 'Paul Bamba', "Robert N'Goran", 'Serge Etame', 'Claudine Mbappe', 'Innocent Fouda'];
 
 // 60+ véhicules réels — les modèles les plus courants au Cameroun
+// image = illustration de secours ; la photo réelle du modèle prime toujours
 const V = (id, name, category, tier, image, price, opts = {}) => ({
-  id, name, category, tier, image, price,
+  id, name, category, tier, price,
+  image: getModelPhoto(name) || image,
   kmIncluded: tier === 'gold' || tier === 'premium' ? 500 : 300,
   kmRate: tier === 'gold' ? 150 : tier === 'premium' ? 120 : 100,
   rating: opts.rating ?? 4.6, reviews: opts.reviews ?? 15,

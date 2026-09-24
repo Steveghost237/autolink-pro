@@ -17,15 +17,18 @@ const TIER_STYLE = {
 // Mappe un véhicule API vers le format affiché par les cartes
 const mapApiVehicle = (v) => {
   const model = (v.model || '').toLowerCase();
-  let image = getVehicleImage(v.category);
-  if (model.includes('corolla')) image = SPECIFIC_CARS.corolla;
-  else if (model.includes('tucson')) image = SPECIFIC_CARS.tucson;
-  else if (model.includes('serie') || model.includes('série')) image = SPECIFIC_CARS.bmw5;
-  else if (model.includes('gle')) image = SPECIFIC_CARS.mercedesGLE;
-  else if (model.includes('sportage')) image = SPECIFIC_CARS.sportage;
-  else if (model.includes('evoque')) image = SPECIFIC_CARS.rangeRover;
-  else if (model.includes('sprinter')) image = SPECIFIC_CARS.sprinter;
-  else if (model.includes('hiace')) image = SPECIFIC_CARS.hiace;
+  // Photo réelle du modèle (Wikimedia) en priorité, sinon illustration par catégorie
+  let image = v.image_url || getVehicleImage(v.category);
+  if (!v.image_url) {
+    if (model.includes('corolla')) image = SPECIFIC_CARS.corolla;
+    else if (model.includes('tucson')) image = SPECIFIC_CARS.tucson;
+    else if (model.includes('serie') || model.includes('série')) image = SPECIFIC_CARS.bmw5;
+    else if (model.includes('gle')) image = SPECIFIC_CARS.mercedesGLE;
+    else if (model.includes('sportage')) image = SPECIFIC_CARS.sportage;
+    else if (model.includes('evoque')) image = SPECIFIC_CARS.rangeRover;
+    else if (model.includes('sprinter')) image = SPECIFIC_CARS.sprinter;
+    else if (model.includes('hiace')) image = SPECIFIC_CARS.hiace;
+  }
   return {
     id: v.id,
     name: `${v.brand} ${v.model} ${v.year}`,

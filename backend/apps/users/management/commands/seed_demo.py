@@ -1,3 +1,7 @@
+import json
+import os
+
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
@@ -146,15 +150,27 @@ class Command(BaseCommand):
         self.stdout.write(f'Users: {len(users)} ready')
 
         owner = users['owner']
+        # Photos réelles par modèle (vignettes allégées Wikimedia Commons)
+        images = {}
+        img_path = os.path.join(
+            settings.BASE_DIR, 'apps', 'vehicles', 'data', 'vehicle_images.json')
+        if os.path.exists(img_path):
+            with open(img_path, encoding='utf-8') as f:
+                images = json.load(f)
+
         for v in DEMO_VEHICLES:
+            image_url = images.get(f"{v['brand']}|{v['model']}", '')
             obj, created = Vehicle.objects.get_or_create(
                 plate=v['plate'],
-                defaults={**v, 'owner': owner, 'insurance_expiry': timezone.now().date() + timedelta(days=365)},
+                defaults={**v, 'owner': owner, 'image_url': image_url,
+                          'insurance_expiry': timezone.now().date() + timedelta(days=365)},
             )
             if not created:
                 # Données démo : resynchronise les champs objectifs puis reclassifie
                 for f in ('market_value', 'city', 'mileage', 'daily_rate', 'insurance_type', 'condition_score'):
                     setattr(obj, f, v[f])
+                if image_url:
+                    obj.image_url = image_url
                 # Caution & forfait km : recalculés sur la nouvelle catégorie
                 obj.deposit_amount = None
                 obj.km_included_per_day = None
