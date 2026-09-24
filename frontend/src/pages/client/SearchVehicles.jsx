@@ -7,10 +7,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TIERS } from '../../utils/carImages';
 
 const TIER_STYLE = {
-  basic:    { label: 'Basic',    cls: 'bg-slate-600' },
-  standard: { label: 'Standard', cls: 'bg-blue-600' },
-  premium:  { label: 'Premium',  cls: 'bg-purple-600' },
-  gold:     { label: 'Gold',     cls: 'bg-amber-500' },
+  basic:      { label: 'Économique',    cls: 'bg-slate-600' },
+  standard:   { label: 'Intermédiaire', cls: 'bg-blue-600' },
+  premium:    { label: 'Premium',       cls: 'bg-purple-600' },
+  gold:       { label: 'Luxe',          cls: 'bg-amber-500' },
+  collection: { label: 'Super Luxe',    cls: 'bg-rose-700' },
 };
 
 // Mappe un véhicule API vers le format affiché par les cartes
@@ -31,8 +32,10 @@ const mapApiVehicle = (v) => {
     category: v.category,
     tier: v.tier || 'standard',
     image,
-    price: Number(v.computed_rate || v.daily_rate),
-    kmIncluded: 300, kmRate: 120,
+    price: Number(v.daily_rate || v.computed_rate),
+    kmIncluded: v.km_included_per_day || 200, kmRate: v.extra_km_rate || 150,
+    deposit: Number(v.deposit_amount) || 0,
+    city: v.city || 'Douala',
     rating: Number(v.rating) || 4.7,
     reviews: v.rating_count || 0,
     available: v.status === 'approved',
@@ -93,8 +96,7 @@ function BookingModal({ vehicle, onClose }) {
       if (err.response?.status === 401) {
         setApiError('Session expirée — reconnectez-vous.');
       } else if (!err.response) {
-        setSaved(false);
-        setStep(3);
+        setApiError('Serveur injoignable — vérifiez votre connexion puis réessayez.');
       } else {
         const data = err.response?.data;
         setApiError(data?.payment || data?.vehicle || data?.driver_type || 'Erreur lors de la réservation — réessayez.');
@@ -114,10 +116,9 @@ function BookingModal({ vehicle, onClose }) {
   };
 
   const basePrice   = computePrice();
-  const kmIncluded  = rentalType.kmIncluded;
-  const commission  = Math.round(basePrice * 0.22);
-  const agentComm   = agentValid === true ? Math.round(basePrice * 0.05) : 0;
-  const gestAmount  = basePrice - commission;
+  const kmIncluded  = vehicle.kmIncluded || rentalType.kmIncluded;
+  const commission  = Math.round(basePrice * 0.50);
+  const deposit     = vehicle.deposit || 0;
 
   const checkAgent = (code) => {
     if (!code) { setAgentValid(null); return; }
@@ -295,8 +296,10 @@ function BookingModal({ vehicle, onClose }) {
               <div className="flex justify-between"><span className="text-slate-500">Prise en charge</span><span className="font-medium">{form.pickup || '—'}</span></div>
               <div className="flex justify-between text-slate-500"><span>Km inclus</span><span>{kmIncluded} km · {vehicle.kmRate} F/km supp.</span></div>
               {agentValid === true && <div className="flex justify-between text-emerald-600"><span>Code agent</span><span>{form.agentCode}</span></div>}
+              <div className="flex justify-between text-slate-500"><span>Location</span><span className="font-medium">{basePrice.toLocaleString()} F</span></div>
+              {deposit > 0 && <div className="flex justify-between text-amber-700 dark:text-amber-400"><span>Caution (restituée au retour)</span><span className="font-medium">+{deposit.toLocaleString()} F</span></div>}
               <div className="flex justify-between font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-600 pt-2 mt-2 text-base">
-                <span>Total</span><span className="text-primary-600">{basePrice.toLocaleString()} FCFA</span>
+                <span>Total à débiter</span><span className="text-primary-600">{(basePrice + deposit).toLocaleString()} FCFA</span>
               </div>
             </div>
           )}
@@ -407,7 +410,7 @@ export default function SearchVehicles() {
         <div>
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">Gamme du véhicule</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[{ id: '', label: 'Toutes les gammes', desc: 'Basic à Gold' }, ...TIERS].map(t => (
+            {[{ id: '', label: 'Toutes les gammes', desc: 'Économique à Super Luxe' }, ...TIERS].map(t => (
               <button key={t.id} onClick={() => setTier(t.id)}
                 className={`p-3 rounded-xl border-2 text-left transition-all ${selectedTier === t.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-primary-200'}`}>
                 <div className="font-bold text-sm text-slate-900 dark:text-white">{t.label}</div>

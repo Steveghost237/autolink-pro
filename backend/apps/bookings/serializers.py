@@ -14,12 +14,14 @@ class BookingSerializer(serializers.ModelSerializer):
     payment_method = serializers.CharField(source='payment.method', read_only=True)
     payment_status = serializers.CharField(source='payment.status', read_only=True)
     escrow_status = serializers.CharField(source='payment.escrow_status', read_only=True)
+    deposit_status = serializers.CharField(source='payment.deposit_status', read_only=True)
 
     class Meta:
         model = Booking
         fields = '__all__'
         read_only_fields = ['client', 'driver', 'daily_rate', 'days', 'subtotal',
-                            'commission_amount', 'owner_amount',
+                            'commission_amount', 'owner_amount', 'discount_percent',
+                            'deposit_amount',
                             'dispute_reason', 'dispute_opened_at',
                             'created_at', 'updated_at']
 
@@ -29,5 +31,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         vehicle = validated_data['vehicle']
-        validated_data['daily_rate'] = vehicle.computed_rate or vehicle.daily_rate
+        # Prix affiché (ajusté par le proprio dans la marge encadrée) + caution figée
+        validated_data['daily_rate'] = vehicle.daily_rate or vehicle.computed_rate
+        validated_data['deposit_amount'] = vehicle.deposit_amount or 0
         return super().create(validated_data)

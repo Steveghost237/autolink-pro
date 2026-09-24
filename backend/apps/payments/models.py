@@ -37,6 +37,16 @@ class Payment(models.Model):
     paid_at = models.DateTimeField(null=True, blank=True)
     payout_done = models.BooleanField(default=False)
     payout_at = models.DateTimeField(null=True, blank=True)
+
+    # Caution de garantie CLIENT (dommages/pannes) — distincte du séquestre
+    # propriétaire ci-dessus : bloquée à la réservation, rendue à la fin,
+    # versée au propriétaire si le litige est tranché en sa faveur.
+    deposit_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    deposit_status = models.CharField(
+        max_length=20, default='held',
+        choices=[('held', 'Caution bloquée'), ('released', 'Caution rendue au client'),
+                 ('forfeited', 'Caution versée au propriétaire')])
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -75,21 +85,57 @@ class Payment(models.Model):
             self.booking.vehicle.save(update_fields=['total_earned', 'updated_at'])
 
     def refund_client(self):
-        """Litige arbitré en faveur du client : remboursement sur son solde."""
+        """Litige/annulation en faveur du client : location + caution remboursées."""
         if self.escrow_status not in (self.Escrow.HELD, self.Escrow.DISPUTED):
             return
         client = self.booking.client
-        client.balance = (client.balance or 0) + self.amount
+        total = self.amount + (self.deposit_amount or 0)
+        client.balance = (client.balance or 0) + total
         client.save(update_fields=['balance', 'updated_at'])
         WalletTransaction.objects.create(
-            user=client, kind='refund', amount=self.amount,
+            user=client, kind='refund', amount=total,
             balance_after=client.balance,
             reference=f'REFUND-{self.pk:04d}',
-            note=f'Remboursement {self.booking}',
+            note=f'Remboursement {self.booking} (location + caution)',
         )
         self.escrow_status = self.Escrow.REFUNDED
+        self.deposit_status = 'released'
         self.status = self.Status.REFUNDED
-        self.save(update_fields=['escrow_status', 'status'])
+        self.save(update_fields=['escrow_status', 'deposit_status', 'status'])
+
+    def release_deposit(self):
+        """Fin normale de location : la caution client est débloquée."""
+        from django.utils import timezone
+        if self.deposit_status != 'held' or not self.deposit_amount:
+            return
+        client = self.booking.client
+        client.balance = (client.balance or 0) + self.deposit_amount
+        client.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            user=client, kind='refund', amount=self.deposit_amount,
+            balance_after=client.balance,
+            reference=f'DEPOSIT-{self.pk:04d}',
+            note=f'Caution rendue — {self.booking}',
+        )
+        self.deposit_status = 'released'
+        self.save(update_fields=['deposit_status'])
+
+    def forfeit_deposit(self):
+        """Litige tranché en faveur du propriétaire : la caution lui est versée."""
+        from django.utils import timezone
+        if self.deposit_status != 'held' or not self.deposit_amount:
+            return
+        owner = self.booking.vehicle.owner
+        owner.balance = (owner.balance or 0) + self.deposit_amount
+        owner.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            user=owner, kind='topup', amount=self.deposit_amount,
+            balance_after=owner.balance,
+            reference=f'DEPOSIT-{self.pk:04d}',
+            note=f'Caution retenue (litige) — {self.booking}',
+        )
+        self.deposit_status = 'forfeited'
+        self.save(update_fields=['deposit_status'])
 
 
 class Payout(models.Model):

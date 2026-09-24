@@ -37,9 +37,15 @@ class Booking(models.Model):
 
     daily_rate = models.DecimalField(max_digits=10, decimal_places=2)
     days = models.IntegerField(validators=[MinValueValidator(1)])
+    discount_percent = models.IntegerField(
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(50)],
+        help_text='Dégressivité longue durée : -5 % dès 7 jours, -10 % dès 30 jours.')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     commission_amount = models.DecimalField(max_digits=12, decimal_places=2)
     owner_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    deposit_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Caution de garantie bloquée chez le client pendant la location.')
 
     dispute_reason = models.TextField(blank=True)
     dispute_opened_at = models.DateTimeField(null=True, blank=True)
@@ -62,7 +68,10 @@ class Booking(models.Model):
     def save(self, *args, **kwargs):
         if self.start_date and self.end_date:
             self.days = (self.end_date - self.start_date).days or 1
-        self.subtotal = self.daily_rate * self.days
+        # Tarification dynamique : dégressivité longue durée
+        self.discount_percent = 10 if self.days >= 30 else 5 if self.days >= 7 else 0
+        gross = self.daily_rate * self.days
+        self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
         self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))
         self.owner_amount = self.subtotal - self.commission_amount
         super().save(*args, **kwargs)
@@ -87,6 +96,7 @@ class Booking(models.Model):
         self.save(update_fields=['status', 'updated_at'])
         self.sync_vehicle_status()
         self._release_escrow()
+        self._release_deposit()
         self._notify_end()
 
     def _release_escrow(self):
@@ -98,6 +108,13 @@ class Booking(models.Model):
         if payment.escrow_status != 'held':
             return
         payment.release_escrow()
+
+    def _release_deposit(self):
+        """Fin normale de location : la caution client est débloquée."""
+        try:
+            self.payment.release_deposit()
+        except Exception:
+            pass
 
     def _notify_end(self):
         from apps.users.models import Notification

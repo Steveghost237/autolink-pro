@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import { vehiclesAPI } from '../../services/api';
 
 const STEPS = [
   { label: 'Informations', desc: 'Données du véhicule' },
@@ -10,9 +11,19 @@ const STEPS = [
   { label: 'Confirmation', desc: 'Récapitulatif' },
 ];
 
-const FUEL_TYPES = ['Essence', 'Diesel', 'Hybride', 'Électrique'];
-const CATEGORIES = ['Berline', 'SUV', 'Van', 'Minibus', 'Luxe', 'Pick-up', 'Citadine'];
-const INSURANCE_TYPES = ['Standard', 'Premium', 'Tous risques'];
+const FUEL_TYPES = [
+  { value: 'essence', label: 'Essence' },
+  { value: 'diesel', label: 'Diesel' },
+  { value: 'hybrid', label: 'Hybride' },
+  { value: 'electric', label: 'Électrique' },
+];
+const CATEGORIES = ['Berline', 'SUV', 'Van', 'Minibus', 'Pick-up', 'Citadine'];
+const INSURANCE_TYPES = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'premium', label: 'Premium' },
+  { value: 'all_risk', label: 'Tous risques' },
+];
+const CITIES = ['Douala', 'Yaoundé', 'Bafoussam', 'Bamenda', 'Buéa', 'Limbé', 'Kribi', 'Garoua', 'Ngaoundéré', 'Maroua'];
 
 const CONDITION_ITEMS = [
   'Carrosserie sans rayures',
@@ -29,12 +40,17 @@ export default function AddVehicle() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const [form, setForm] = useState({
+  const [created, setCreated] = useState(null);
+  const [apiError, setApiError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const EMPTY = {
     name: '', brand: '', model: '', year: '', plate: '', category: '',
     fuel: '', seats: '', color: '', dailyRate: '', mode: '', description: '',
     insurance: '', insuranceExpiry: '', technicalControl: '',
+    mileage: '', marketValue: '', city: 'Douala', driverAvailable: true,
     conditionChecks: [],
-  });
+  };
+  const [form, setForm] = useState(EMPTY);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleCondition = (item) => {
@@ -43,14 +59,40 @@ export default function AddVehicle() {
       : [...form.conditionChecks, item]);
   };
 
-  const computedPrice = () => {
-    let base = Number(form.dailyRate) || 0;
-    if (form.insurance === 'Premium' || form.insurance === 'Tous risques') base += 2000;
-    const age = new Date().getFullYear() - Number(form.year);
-    if (age <= 2) base += 5000;
-    else if (age <= 5) base += 2000;
-    const conditionBonus = Math.round((form.conditionChecks.length / CONDITION_ITEMS.length) * 5000);
-    return base + conditionBonus;
+  const submit = async () => {
+    setBusy(true);
+    setApiError(null);
+    try {
+      const res = await vehiclesAPI.create({
+        brand: form.brand,
+        model: form.model,
+        year: Number(form.year),
+        plate: form.plate.toUpperCase(),
+        category: form.category,
+        fuel: form.fuel,
+        seats: Number(form.seats) || 5,
+        color: form.color || 'Non précisé',
+        description: form.description,
+        mode: form.mode,
+        driver_available: form.driverAvailable,
+        daily_rate: Number(form.dailyRate) || 0,
+        mileage: Number(form.mileage) || 0,
+        market_value: Number(form.marketValue) || null,
+        city: form.city,
+        insurance_type: form.insurance,
+        insurance_expiry: form.insuranceExpiry,
+        technical_control_date: form.technicalControl || null,
+        condition_score: Math.round((form.conditionChecks.length / CONDITION_ITEMS.length) * 100),
+      });
+      setCreated(res.data);
+      setSubmitted(true);
+    } catch (err) {
+      const data = err.response?.data;
+      const first = data && typeof data === 'object' ? Object.values(data)[0] : null;
+      setApiError(Array.isArray(first) ? first[0] : first || 'Erreur lors de la soumission — vérifiez les champs.');
+      setStep(3);
+    }
+    setBusy(false);
   };
 
   if (submitted) return (
@@ -58,11 +100,22 @@ export default function AddVehicle() {
       <div className="max-w-md mx-auto text-center py-20">
         <CheckCircle size={72} className="text-emerald-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-slate-900 mb-3">Véhicule soumis avec succès !</h2>
+        {created && (
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4 text-sm">
+            <div className="font-bold text-primary-800">Gamme attribuée automatiquement : {created.tier_label || created.tier}</div>
+            <div className="text-slate-600 mt-1">
+              Prix indicatif : {Number(created.computed_rate || 0).toLocaleString()} F/jour ·
+              Votre tarif : {Number(created.daily_rate || 0).toLocaleString()} F/jour<br />
+              Caution client : {Number(created.deposit_amount || 0).toLocaleString()} F ·
+              {created.km_included_per_day} km/j inclus · {created.extra_km_rate} F/km supp.
+            </div>
+          </div>
+        )}
         <p className="text-slate-500 mb-2">Votre véhicule est en attente de validation par notre équipe de contrôle.</p>
         <p className="text-sm text-slate-400 mb-8">Délai de traitement : 24 à 48 heures ouvrables.</p>
         <div className="space-y-3">
           <button onClick={() => navigate('/owner/vehicles')} className="btn-primary w-full">Voir mes véhicules</button>
-          <button onClick={() => { setSubmitted(false); setStep(0); setForm({ name: '', brand: '', model: '', year: '', plate: '', category: '', fuel: '', seats: '', color: '', dailyRate: '', mode: '', description: '', insurance: '', insuranceExpiry: '', technicalControl: '', conditionChecks: [] }); }} className="btn-outline w-full">Ajouter un autre véhicule</button>
+          <button onClick={() => { setSubmitted(false); setCreated(null); setStep(0); setForm(EMPTY); }} className="btn-outline w-full">Ajouter un autre véhicule</button>
         </div>
       </div>
     </DashboardLayout>
@@ -106,7 +159,18 @@ export default function AddVehicle() {
                 </div>
                 <div>
                   <label className="label">Immatriculation</label>
-                  <input type="text" className="input-field" placeholder="AB 1234 CI" value={form.plate} onChange={e => set('plate', e.target.value)} />
+                  <input type="text" className="input-field" placeholder="LT 1234 A" value={form.plate} onChange={e => set('plate', e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Kilométrage (km)</label>
+                  <input type="number" className="input-field" placeholder="45000" min={0} value={form.mileage} onChange={e => set('mileage', e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Valeur marchande estimée (FCFA)</label>
+                  <input type="number" className="input-field" placeholder="12000000" min={0} value={form.marketValue} onChange={e => set('marketValue', e.target.value)} />
+                  <p className="text-xs text-slate-400 mt-1">Prix de revente estimé du véhicule.</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -121,7 +185,7 @@ export default function AddVehicle() {
                   <label className="label">Carburant</label>
                   <select className="input-field" value={form.fuel} onChange={e => set('fuel', e.target.value)}>
                     <option value="">Choisir...</option>
-                    {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                    {FUEL_TYPES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -136,9 +200,19 @@ export default function AddVehicle() {
                 </div>
               </div>
               <div>
+                <label className="label">Ville de mise à disposition</label>
+                <select className="input-field" value={form.city} onChange={e => set('city', e.target.value)}>
+                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">Le tarif de référence est adapté au marché local (Douala = référence).</p>
+              </div>
+              <div>
                 <label className="label">Tarif souhaité (FCFA/jour)</label>
                 <input type="number" className="input-field" placeholder="25000" value={form.dailyRate} onChange={e => set('dailyRate', e.target.value)} />
-                <p className="text-xs text-slate-400 mt-1">Notre algorithme peut ajuster légèrement le tarif selon l'état et l'assurance.</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  AutoLink calcule un prix indicatif selon la marque, l'année, le kilométrage, l'état et la valeur marchande.
+                  Votre tarif est ajusté dans une fourchette de ±20 % autour de ce prix indicatif.
+                </p>
               </div>
               <div>
                 <label className="label">Description (optionnel)</label>
@@ -165,6 +239,13 @@ export default function AddVehicle() {
                   </div>
                 </label>
               ))}
+              <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer ${form.driverAvailable ? 'border-primary-500 bg-primary-50' : 'border-slate-200'}`}>
+                <input type="checkbox" className="w-4 h-4 accent-primary-600" checked={form.driverAvailable} onChange={e => set('driverAvailable', e.target.checked)} />
+                <div>
+                  <div className="font-semibold text-sm text-slate-900">Je peux fournir mon propre chauffeur</div>
+                  <div className="text-xs text-slate-500">Si un client demande « chauffeur du propriétaire », vous devrez vous présenter avec votre chauffeur.</div>
+                </div>
+              </label>
             </div>
           )}
 
@@ -175,7 +256,7 @@ export default function AddVehicle() {
                   <label className="label">Type d'assurance</label>
                   <select className="input-field" value={form.insurance} onChange={e => set('insurance', e.target.value)}>
                     <option value="">Choisir...</option>
-                    {INSURANCE_TYPES.map(i => <option key={i} value={i}>{i}</option>)}
+                    {INSURANCE_TYPES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -224,11 +305,14 @@ export default function AddVehicle() {
                   {[
                     ['Véhicule', `${form.brand} ${form.model} ${form.year}`],
                     ['Catégorie', form.category],
+                    ['Ville', form.city],
+                    ['Kilométrage', form.mileage ? `${Number(form.mileage).toLocaleString()} km` : ''],
+                    ['Valeur marchande', form.marketValue ? `${Number(form.marketValue).toLocaleString()} F` : ''],
                     ['Immatriculation', form.plate],
                     ['Carburant', form.fuel],
                     ['Places', form.seats],
                     ['Mode de gestion', form.mode === 'platform' ? 'Confié à AutoLink' : 'À domicile'],
-                    ['Assurance', form.insurance],
+                    ['Assurance', INSURANCE_TYPES.find(i => i.value === form.insurance)?.label],
                     ['Score d\'état', `${Math.round((form.conditionChecks.length / CONDITION_ITEMS.length) * 100)}/100`],
                   ].map(([k, v]) => v ? (
                     <div key={k} className="flex justify-between gap-2">
@@ -241,10 +325,17 @@ export default function AddVehicle() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
                 <div className="text-sm text-amber-800">
-                  <strong>Tarif calculé par AutoLink : {computedPrice().toLocaleString()} FCFA/jour</strong><br />
-                  Basé sur l'état, l'assurance et l'âge du véhicule. Votre part = <strong>{Math.round(computedPrice() * 0.50).toLocaleString()} FCFA/jour (50%)</strong> — bloquée en caution pendant chaque location, versée au retour du véhicule.
+                  <strong>Classification automatique AutoLink</strong><br />
+                  La gamme (Économique → Super Luxe) et le prix indicatif sont calculés objectivement à partir de la marque, l'année, le kilométrage, l'état et la valeur marchande — vous ne choisissez pas la gamme.
+                  Votre tarif souhaité ({Number(form.dailyRate || 0).toLocaleString()} F) sera ramené dans la fourchette <strong>±20 % du prix indicatif</strong>. Votre part = <strong>50 %</strong> — bloquée en caution pendant chaque location, versée au retour.
                 </div>
               </div>
+              {apiError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                  <AlertCircle size={18} className="text-red-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-red-700">{apiError}</div>
+                </div>
+              )}
               <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600">
                 <strong>Prochaines étapes :</strong>
                 <ol className="list-decimal ml-4 mt-2 space-y-1">
@@ -260,7 +351,7 @@ export default function AddVehicle() {
             {step > 0 && <button onClick={() => setStep(s => s - 1)} className="btn-outline flex-1 py-3">← Retour</button>}
             {step < 3
               ? <button onClick={() => setStep(s => s + 1)} className="btn-primary flex-1 py-3">Suivant →</button>
-              : <button onClick={() => setSubmitted(true)} className="btn-accent flex-1 py-3">Soumettre le véhicule</button>
+              : <button onClick={submit} disabled={busy} className="btn-accent flex-1 py-3 disabled:opacity-50">{busy ? 'Envoi…' : 'Soumettre le véhicule'}</button>
             }
           </div>
         </div>

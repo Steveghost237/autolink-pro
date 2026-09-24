@@ -37,6 +37,9 @@ const mapApiBooking = (b) => ({
   payMethod: PAY_LABEL[b.payment_method] || '—',
   rating: b.client_rating || null,
   commission: Number(b.commission_amount || 0),
+  deposit: Number(b.deposit_amount || 0),
+  discount: Number(b.discount_percent || 0),
+  depositStatus: b.deposit_status || null,
 });
 
 function RatingModal({ booking, onClose }) {
@@ -222,6 +225,14 @@ export default function MyBookings() {
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xl font-black text-slate-900">{b.amount.toLocaleString()} <span className="text-sm font-normal text-slate-400">FCFA</span></div>
+                  {b.discount > 0 && (
+                    <div className="text-xs text-emerald-600 font-semibold mt-0.5">-{b.discount}% longue durée appliqué</div>
+                  )}
+                  {b.deposit > 0 && (
+                    <div className="text-xs text-amber-600 mt-0.5">
+                      Caution {b.deposit.toLocaleString()} F {b.depositStatus === 'released' ? '· restituée' : b.depositStatus === 'held' ? '· bloquée' : ''}
+                    </div>
+                  )}
                   {b.status === 'completed' && (
                     <div className="text-xs text-slate-400 mt-0.5">Commission : {b.commission.toLocaleString()} F</div>
                   )}

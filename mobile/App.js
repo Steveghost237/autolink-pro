@@ -73,10 +73,11 @@ const api = {
 };
 
 const TIER_STYLE = {
-  basic:    { label: 'Basic',    color: '#475569' },
-  standard: { label: 'Standard', color: '#2563EB' },
-  premium:  { label: 'Premium',  color: '#7C3AED' },
-  gold:     { label: 'Gold',     color: '#D97706' },
+  basic:      { label: 'Économique',    color: '#475569' },
+  standard:   { label: 'Intermédiaire', color: '#2563EB' },
+  premium:    { label: 'Premium',       color: '#7C3AED' },
+  gold:       { label: 'Luxe',          color: '#D97706' },
+  collection: { label: 'Super Luxe',    color: '#BE123C' },
 };
 
 const TOPUP_METHODS = [
@@ -133,9 +134,9 @@ const DEMO_USERS = [
 const _mv = (id, name, cat, tier, rate, fuel, seats, extra = {}) => ({
   id, name, cat, tier, rate, fuel, seats,
   plate: `LT-${1000 + id}-A`,
-  image: tier === 'gold' || tier === 'premium' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla,
-  kmIncluded: tier === 'gold' || tier === 'premium' ? 500 : 300,
-  kmRate: tier === 'gold' ? 150 : 120,
+  image: tier === 'gold' || tier === 'premium' || tier === 'collection' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla,
+  kmIncluded: tier === 'gold' || tier === 'collection' ? 350 : tier === 'premium' ? 250 : 200,
+  kmRate: tier === 'collection' ? 500 : tier === 'gold' ? 400 : tier === 'premium' ? 250 : tier === 'standard' ? 150 : 100,
   rating: extra.rating ?? 4.6, reviews: extra.reviews ?? 15,
   status: extra.status ?? 'approved', score: extra.score ?? 90,
 });
@@ -587,8 +588,10 @@ const mapApiVehicle = (v) => {
   else if (v.category === 'Van' || v.category === 'Minibus') image = IMG.sprinter;
   return {
     id: v.id, name: `${v.brand} ${v.model} ${v.year}`, cat: v.category, tier: v.tier || 'standard',
-    plate: v.plate, image, rate: Number(v.computed_rate || v.daily_rate),
-    kmIncluded: 300, kmRate: 120, rating: Number(v.rating) || 4.6, reviews: v.rating_count || 0,
+    plate: v.plate, image, rate: Number(v.daily_rate || v.computed_rate),
+    kmIncluded: v.km_included_per_day || 200, kmRate: v.extra_km_rate || 150,
+    deposit: Number(v.deposit_amount) || 0, city: v.city || 'Douala',
+    rating: Number(v.rating) || 4.6, reviews: v.rating_count || 0,
     fuel: v.fuel, seats: v.seats, status: v.status, score: v.condition_score,
     driverAvailable: !!v.driver_available, api: true,
   };
@@ -713,7 +716,7 @@ function ClientDash({ user, logout }) {
             </LinearGradient>
             <View style={{ paddingHorizontal:16, paddingTop:12, paddingBottom:4 }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {[{id:'',label:'Toutes'},{id:'basic',label:'Basic'},{id:'standard',label:'Standard'},{id:'premium',label:'Premium'},{id:'gold',label:'Gold'}].map(t => (
+                {[{id:'',label:'Toutes'},...Object.entries(TIER_STYLE).map(([id,s])=>({id,label:s.label}))].map(t => (
                   <TouchableOpacity key={t.id} onPress={() => setTier(t.id)}
                     style={{ backgroundColor: tier===t.id ? C.primary : C.card, borderRadius:20,
                       paddingHorizontal:14, paddingVertical:7, marginRight:8, borderWidth:1, borderColor: tier===t.id ? C.primary : C.border }}>
@@ -1510,6 +1513,7 @@ function BookingModal({ vehicle, onClose, onDone }) {
   })();
 
   const chk = txt => { const u=txt.toUpperCase(); setAgentCode(u); setAgentOk(u?VALID_AGENT_CODES.includes(u):null); };
+  const deposit = vehicle?.deposit || 0;
 
   if (done) return (
     <Modal visible animationType="fade" transparent>
@@ -1618,9 +1622,17 @@ function BookingModal({ vehicle, onClose, onDone }) {
                       <Text numberOfLines={1} style={{ color:C.text, fontSize:12, fontWeight:'600', flexShrink:1, textAlign:'right' }}>{v}</Text>
                     </View>
                   ))}
+                  <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:5 }}>
+                    <Text style={{ color:C.muted, fontSize:12 }}>Location</Text>
+                    <Text style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{fmtNum(price)}</Text>
+                  </View>
+                  {deposit>0 && <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:5 }}>
+                    <Text style={{ color:'#B45309', fontSize:12 }}>Caution (restituee)</Text>
+                    <Text style={{ color:'#B45309', fontSize:12, fontWeight:'600' }}>+{fmtNum(deposit)}</Text>
+                  </View>}
                   <View style={{ borderTopWidth:1, borderTopColor:C.border, paddingTop:8, marginTop:4, flexDirection:'row', justifyContent:'space-between' }}>
-                    <Text style={{ fontWeight:'800', color:C.text }}>Total</Text>
-                    <Text style={{ fontWeight:'900', color:C.primary, fontSize:15 }}>{fmtNum(price)}</Text>
+                    <Text style={{ fontWeight:'800', color:C.text }}>Total a debiter</Text>
+                    <Text style={{ fontWeight:'900', color:C.primary, fontSize:15 }}>{fmtNum(price+deposit)}</Text>
                   </View>
                 </View>
               </View>
@@ -1642,9 +1654,13 @@ function BookingModal({ vehicle, onClose, onDone }) {
                     <Ionicons name="shield-checkmark" size={14} color={C.success} />
                     <Text style={{ color:C.muted, fontSize:11, flex:1 }}>Paiement securise — caution bloquee jusqu'a la fin de la location</Text>
                   </View>
+                  {deposit>0 && <View style={{ flexDirection:'row', justifyContent:'space-between', paddingTop:8 }}>
+                    <Text style={{ color:'#B45309', fontSize:12 }}>Caution client (restituee au retour)</Text>
+                    <Text style={{ color:'#B45309', fontSize:12, fontWeight:'700' }}>{fmtNum(deposit)}</Text>
+                  </View>}
                   <View style={{ flexDirection:'row', justifyContent:'space-between', paddingTop:8 }}>
                     <Text style={{ fontWeight:'800', color:C.text }}>Total a payer</Text>
-                    <Text style={{ fontWeight:'900', color:C.primary, fontSize:16 }}>{fmtNum(price)}</Text>
+                    <Text style={{ fontWeight:'900', color:C.primary, fontSize:16 }}>{fmtNum(price+deposit)}</Text>
                   </View>
                 </View>
               </View>

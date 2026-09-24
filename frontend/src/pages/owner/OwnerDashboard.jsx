@@ -174,7 +174,7 @@ export default function OwnerDashboard() {
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
                         <div className="font-bold text-primary-700 text-sm">{Number(v.computed_rate || v.daily_rate).toLocaleString()} F</div>
-                        <div className="text-xs text-slate-400">/jour · {v.tier}</div>
+                        <div className="text-xs text-slate-400">/jour · {v.tier_label || v.tier}</div>
                       </div>
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>{st.label}</span>
                     </div>

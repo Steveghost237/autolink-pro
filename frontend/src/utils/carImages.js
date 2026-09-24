@@ -59,12 +59,14 @@ export function getVehicleImage(category) {
   return VEHICLE_IMAGES[category?.toLowerCase()] || VEHICLE_IMAGES.default;
 }
 
-// Tiers tarifaires AutoLink : basic / standard / premium / gold
+// Tiers tarifaires AutoLink : basic / standard / premium / gold / collection
+// (classification objective : marque, année, kilométrage, état, valeur marchande)
 export const TIERS = [
-  { id: 'basic',    label: 'Basic',    desc: 'Économique',      maxPrice: 25000 },
-  { id: 'standard', label: 'Standard', desc: 'Confort',         maxPrice: 55000 },
-  { id: 'premium',  label: 'Premium',  desc: 'Haut de gamme',   maxPrice: 90000 },
-  { id: 'gold',     label: 'Gold',     desc: 'Luxe & prestige', maxPrice: 999999 },
+  { id: 'basic',      label: 'Économique',    desc: 'Citadines & petites berlines',  maxPrice: 30000 },
+  { id: 'standard',   label: 'Intermédiaire', desc: 'Familiales & SUV compacts',     maxPrice: 60000 },
+  { id: 'premium',    label: 'Premium',       desc: 'SUV & berlines de marque',      maxPrice: 110000 },
+  { id: 'gold',       label: 'Luxe',          desc: 'Haut de gamme & prestige',      maxPrice: 180000 },
+  { id: 'collection', label: 'Super Luxe',    desc: 'Modèles d\'exception',          maxPrice: 999999 },
 ];
 
 const OWNERS = ['Jean Kouassi', 'Alice Bah', 'Pierre Yao', 'Fatou Camara', 'Awa Diallo', 'Paul Bamba', "Robert N'Goran", 'Serge Etame', 'Claudine Mbappe', 'Innocent Fouda'];

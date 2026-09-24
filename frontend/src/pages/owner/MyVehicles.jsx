@@ -4,12 +4,13 @@ import { PlusCircle, Car, AlertTriangle, CheckCircle, Calendar, Shield, Clock, W
 import DashboardLayout from '../../components/DashboardLayout';
 import { vehiclesAPI } from '../../services/api';
 
-const TIER_LABEL = { basic: 'Basic', standard: 'Standard', premium: 'Premium', gold: 'Gold' };
+const TIER_LABEL = { basic: 'Économique', standard: 'Intermédiaire', premium: 'Premium', gold: 'Luxe', collection: 'Super Luxe' };
 const TIER_CLS = {
   basic: 'bg-slate-100 text-slate-700',
   standard: 'bg-blue-100 text-blue-700',
   premium: 'bg-purple-100 text-purple-700',
   gold: 'bg-amber-100 text-amber-700',
+  collection: 'bg-rose-100 text-rose-700',
 };
 const STATUS = {
   pending: { label: 'En vérification AutoLink', cls: 'badge-warning', icon: Clock },
@@ -84,6 +85,9 @@ export default function MyVehicles() {
                         <div className="text-right">
                           <div className="text-xl font-black text-primary-600">{Number(v.daily_rate).toLocaleString()} F</div>
                           <div className="text-xs text-slate-400">/ jour</div>
+                          {v.computed_rate && Number(v.computed_rate) !== Number(v.daily_rate) && (
+                            <div className="text-xs text-slate-400 mt-0.5">indicatif {Number(v.computed_rate).toLocaleString()} F</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -96,12 +100,13 @@ export default function MyVehicles() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 text-center text-xs mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-center text-xs mb-4">
                     {[
                       { label: 'Immatriculation', value: v.plate },
-                      { label: 'Carburant', value: v.fuel },
-                      { label: 'Places', value: v.seats },
-                      { label: 'Chauffeur', value: v.driver_available ? 'Fourni possible' : 'Non fourni' },
+                      { label: 'Ville', value: v.city || '—' },
+                      { label: 'Caution client', value: `${Number(v.deposit_amount || 0).toLocaleString()} F` },
+                      { label: 'Km inclus/j', value: `${v.km_included_per_day || '—'} km` },
+                      { label: 'Km supp.', value: `${v.extra_km_rate || '—'} F/km` },
                       { label: 'Votre part/jour', value: `${Math.round(v.daily_rate * 0.5).toLocaleString()} F` },
                     ].map(({ label, value }) => (
                       <div key={label} className="bg-slate-50 rounded-xl p-2.5">
@@ -134,7 +139,7 @@ export default function MyVehicles() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar size={15} className="text-slate-500" />
-                    <span className="text-slate-600">Contrôle technique : <strong>{v.technical_inspection || '—'}</strong></span>
+                    <span className="text-slate-600">Contrôle technique : <strong>{v.technical_control_date || '—'}</strong></span>
                   </div>
                   <div className={`flex items-center gap-2 ${v.insurance_expiry && new Date(v.insurance_expiry) < new Date(Date.now() + 90 * 86400000) ? 'text-amber-600' : 'text-slate-600'}`}>
                     <Shield size={15} />

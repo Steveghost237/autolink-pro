@@ -17,11 +17,22 @@ DEMO_USERS = [
 ]
 
 # 60+ véhicules réels parmi les plus utilisés au Cameroun
-# tier: basic (<25k) / standard (25-55k) / premium (55-90k) / gold (>90k)
-def _v(brand, model, year, plate, category, fuel, seats, color, rate, tier, insurance='standard', score=90, status='approved'):
+# La catégorie (tier) est ATTRIBUÉE AUTOMATIQUEMENT par le barème objectif :
+# marque/modèle + année + kilométrage + état + valeur marchande.
+# `tier` passé ici = catégorie attendue (vérification) ; le modèle recalcule.
+_PLATE_CITY = {'LT': 'Douala', 'CE': 'Yaoundé', 'SW': 'Buea', 'NW': 'Bamenda',
+               'OU': 'Bafoussam', 'AD': 'Garoua', 'EN': 'Maroua', 'SU': 'Kribi'}
+
+def _v(brand, model, year, plate, category, fuel, seats, color, rate, tier,
+       insurance='standard', score=90, status='approved', mv=None, km=None):
+    # Valeur marchande estimée ≈ 500 jours de location ; km ≈ 15 000/an
+    mv = mv if mv is not None else rate * 500
+    km = km if km is not None else max(0, 2025 - year) * 15000
+    city = _PLATE_CITY.get(plate.split('-')[0], 'Douala')
     return dict(brand=brand, model=model, year=year, plate=plate, category=category, fuel=fuel,
                 seats=seats, color=color, daily_rate=rate, tier=tier, insurance_type=insurance,
-                status=status, condition_score=score, mode='platform')
+                status=status, condition_score=score, mode='platform',
+                market_value=mv, city=city, mileage=km)
 
 DEMO_VEHICLES = [
     # ── BASIC — citadines & berlines économiques (< 25 000 F/jour) ──
@@ -69,7 +80,7 @@ DEMO_VEHICLES = [
     _v('Mazda', 'CX-5', 2022, 'LT-0040-S', 'SUV', 'essence', 5, 'Rouge', 43000, 'standard', 'premium', score=92),
     _v('Mitsubishi', 'Outlander', 2020, 'LT-0041-S', 'SUV', 'essence', 7, 'Gris', 38000, 'standard', score=85),
     _v('Mitsubishi', 'L200', 2021, 'LT-0042-S', 'Pickup', 'diesel', 5, 'Blanc', 46000, 'standard', score=87),
-    _v('Mitsubishi', 'Pajero', 2018, 'CE-0043-S', 'SUV', 'diesel', 7, 'Argent', 50000, 'standard', score=83),
+    _v('Mitsubishi', 'Pajero', 2018, 'CE-0043-S', 'SUV', 'diesel', 7, 'Argent', 50000, 'standard', 'premium', score=90, mv=30000000),
     _v('Suzuki', 'Vitara', 2021, 'LT-0044-S', 'SUV', 'essence', 5, 'Vert', 32000, 'standard', score=89),
     _v('Peugeot', '3008', 2021, 'LT-0045-S', 'SUV', 'diesel', 5, 'Gris', 45000, 'standard', 'premium', score=90),
     _v('Peugeot', '508', 2020, 'LT-0046-S', 'Berline', 'diesel', 5, 'Noir', 38000, 'standard', score=87),
@@ -99,20 +110,25 @@ DEMO_VEHICLES = [
     _v('Volkswagen', 'Touareg', 2021, 'LT-0068-P', 'SUV', 'diesel', 5, 'Gris', 76000, 'premium', 'all_risk', score=92),
 
     # ── GOLD — luxe & prestige (> 90 000 F/jour) ──
-    _v('Mercedes', 'GLE 350', 2023, 'CE-0069-G', 'SUV', 'diesel', 7, 'Blanc', 95000, 'gold', 'all_risk', score=97),
-    _v('Mercedes', 'GLS 450', 2022, 'LT-0070-G', 'SUV', 'essence', 7, 'Noir', 120000, 'gold', 'all_risk', score=95),
-    _v('Mercedes', 'Classe S 500', 2023, 'LT-0071-G', 'Berline', 'hybrid', 5, 'Noir', 150000, 'gold', 'all_risk', score=98),
-    _v('Mercedes', 'Classe G 63', 2022, 'LT-0072-G', 'SUV', 'essence', 5, 'Vert', 200000, 'gold', 'all_risk', score=96),
-    _v('BMW', 'X7', 2023, 'LT-0073-G', 'SUV', 'essence', 7, 'Noir', 130000, 'gold', 'all_risk', score=96),
-    _v('BMW', 'Serie 7', 2022, 'LT-0074-G', 'Berline', 'hybrid', 5, 'Gris', 125000, 'gold', 'all_risk', score=94),
-    _v('Lexus', 'LX 570', 2021, 'CE-0075-G', 'SUV', 'essence', 7, 'Blanc', 110000, 'gold', 'all_risk', score=93),
-    _v('Range Rover', 'Evoque', 2022, 'LT-0076-G', 'SUV', 'essence', 5, 'Vert', 110000, 'gold', 'all_risk', score=98),
-    _v('Range Rover', 'Sport', 2023, 'LT-0077-G', 'SUV', 'diesel', 5, 'Noir', 140000, 'gold', 'all_risk', score=97),
-    _v('Range Rover', 'Velar', 2022, 'LT-0078-G', 'SUV', 'essence', 5, 'Gris', 105000, 'gold', 'all_risk', score=95),
-    _v('Toyota', 'Land Cruiser V8 VXR', 2023, 'LT-0079-G', 'SUV', 'diesel', 7, 'Blanc', 100000, 'gold', 'all_risk', score=98),
-    _v('Porsche', 'Cayenne', 2022, 'LT-0080-G', 'SUV', 'essence', 5, 'Noir', 160000, 'gold', 'all_risk', score=97),
+    _v('Mercedes', 'GLE 350', 2023, 'CE-0069-G', 'SUV', 'diesel', 7, 'Blanc', 95000, 'gold', 'all_risk', score=97, mv=65000000),
+    _v('Mercedes', 'GLS 450', 2022, 'LT-0070-G', 'SUV', 'essence', 7, 'Noir', 120000, 'gold', 'all_risk', score=95, mv=85000000),
+    _v('Mercedes', 'Classe S 500', 2023, 'LT-0071-G', 'Berline', 'hybrid', 5, 'Noir', 150000, 'gold', 'all_risk', score=98, mv=120000000),
+    _v('Mercedes', 'Classe G 63', 2022, 'LT-0072-G', 'SUV', 'essence', 5, 'Vert', 200000, 'gold', 'all_risk', score=96, mv=160000000),
+    _v('BMW', 'X7', 2023, 'LT-0073-G', 'SUV', 'essence', 7, 'Noir', 130000, 'gold', 'all_risk', score=96, mv=85000000),
+    _v('BMW', 'Serie 7', 2022, 'LT-0074-G', 'Berline', 'hybrid', 5, 'Gris', 125000, 'gold', 'all_risk', score=94, mv=95000000),
+    _v('Lexus', 'LX 570', 2021, 'CE-0075-G', 'SUV', 'essence', 7, 'Blanc', 110000, 'gold', 'all_risk', score=93, mv=110000000),
+    _v('Range Rover', 'Evoque', 2022, 'LT-0076-G', 'SUV', 'essence', 5, 'Vert', 110000, 'gold', 'all_risk', score=98, mv=55000000),
+    _v('Range Rover', 'Sport', 2023, 'LT-0077-G', 'SUV', 'diesel', 5, 'Noir', 140000, 'gold', 'all_risk', score=97, mv=120000000),
+    _v('Range Rover', 'Velar', 2022, 'LT-0078-G', 'SUV', 'essence', 5, 'Gris', 105000, 'gold', 'all_risk', score=95, mv=75000000),
+    _v('Toyota', 'Land Cruiser V8 VXR', 2023, 'LT-0079-G', 'SUV', 'diesel', 7, 'Blanc', 100000, 'gold', 'all_risk', score=98, mv=90000000),
+    _v('Porsche', 'Cayenne', 2022, 'LT-0080-G', 'SUV', 'essence', 5, 'Noir', 160000, 'gold', 'all_risk', score=97, mv=75000000),
     _v('Audi', 'Q7', 2022, 'LT-0081-G', 'SUV', 'diesel', 7, 'Noir', 98000, 'gold', 'all_risk', score=94),
     _v('Audi', 'Q8', 2023, 'LT-0082-G', 'SUV', 'essence', 5, 'Gris', 135000, 'gold', 'all_risk', score=96),
+
+    # ── COLLECTION — Super Luxe / modèles d'exception (> 180 000 F/jour) ──
+    _v('Bentley', 'Bentayga', 2023, 'LT-0083-C', 'SUV', 'essence', 5, 'Noir', 280000, 'collection', 'all_risk', score=99, mv=180000000),
+    _v('Porsche', 'Panamera', 2023, 'LT-0084-C', 'Berline', 'hybrid', 5, 'Gris', 250000, 'collection', 'all_risk', score=98, mv=140000000),
+    _v('Maserati', 'Levante', 2022, 'CE-0085-C', 'SUV', 'essence', 5, 'Bleu', 220000, 'collection', 'all_risk', score=96, mv=110000000),
 ]
 
 
@@ -131,10 +147,19 @@ class Command(BaseCommand):
 
         owner = users['owner']
         for v in DEMO_VEHICLES:
-            Vehicle.objects.get_or_create(
+            obj, created = Vehicle.objects.get_or_create(
                 plate=v['plate'],
                 defaults={**v, 'owner': owner, 'insurance_expiry': timezone.now().date() + timedelta(days=365)},
             )
+            if not created:
+                # Données démo : resynchronise les champs objectifs puis reclassifie
+                for f in ('market_value', 'city', 'mileage', 'daily_rate', 'insurance_type', 'condition_score'):
+                    setattr(obj, f, v[f])
+                # Caution & forfait km : recalculés sur la nouvelle catégorie
+                obj.deposit_amount = None
+                obj.km_included_per_day = None
+                obj.extra_km_rate = None
+                obj.save()  # reclassifie + recalcule prix indicatif
         self.stdout.write(f'Vehicles: {Vehicle.objects.count()} ready')
 
         if not Booking.objects.exists():

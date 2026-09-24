@@ -111,25 +111,38 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.sync_vehicle_status()
 
     def _pay(self, booking, method):
-        """Encaisse le client et crée le paiement avec caution bloquée (50% proprio)."""
+        """Encaisse le client : location + caution de garantie.
+        Séquestre 50 % proprio + caution client bloqués jusqu'à la fin."""
         from apps.payments.models import Payment, WalletTransaction
         import uuid
+        deposit = booking.deposit_amount or 0
+        total = booking.subtotal + deposit
         payer = booking.client.__class__.objects.select_for_update().get(pk=booking.client_id)
         if method == 'wallet':
-            if (payer.balance or 0) < booking.subtotal:
-                raise ValidationError({'payment': 'Solde insuffisant. Rechargez votre portefeuille.'})
-            payer.balance -= booking.subtotal
+            if (payer.balance or 0) < total:
+                raise ValidationError({
+                    'payment': f'Solde insuffisant : {total} F requis '
+                               f'({booking.subtotal} F location + {deposit} F caution).'
+                })
+            payer.balance -= total
             payer.save(update_fields=['balance', 'updated_at'])
             WalletTransaction.objects.create(
                 user=payer, kind='debit', method='wallet', amount=booking.subtotal,
-                balance_after=payer.balance, reference=f'BK-{booking.pk:04d}',
+                balance_after=payer.balance + deposit, reference=f'BK-{booking.pk:04d}',
                 note=f'Paiement location {booking.vehicle}',
             )
+            if deposit:
+                WalletTransaction.objects.create(
+                    user=payer, kind='debit', method='wallet', amount=deposit,
+                    balance_after=payer.balance, reference=f'BK-{booking.pk:04d}-DEP',
+                    note=f'Caution bloquée {booking.vehicle}',
+                )
         Payment.objects.create(
             booking=booking, payer=payer, method=method,
             status='completed', amount=booking.subtotal,
             commission=booking.commission_amount, owner_payout=booking.owner_amount,
-            escrow_status='held', transaction_ref=f'AL-{uuid.uuid4().hex[:12].upper()}',
+            escrow_status='held', deposit_amount=deposit, deposit_status='held',
+            transaction_ref=f'AL-{uuid.uuid4().hex[:12].upper()}',
             paid_at=timezone.now(),
         )
 
@@ -265,15 +278,17 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.status = Booking.Status.COMPLETED
             _notify(booking.vehicle.owner, 'Litige résolu',
                     f'Le litige sur votre véhicule {booking.vehicle} a été tranché '
-                    f'en votre faveur. Votre part a été versée sur votre solde.')
+                    f'en votre faveur. Votre part et la caution client ont été versées.')
             _notify(booking.client, 'Litige résolu',
-                    f'Votre litige sur {booking} a été tranché en faveur du propriétaire.')
+                    f'Votre litige sur {booking} a été tranché en faveur du propriétaire. '
+                    f'La caution a été conservée à titre de dédommagement.')
         else:
             raise ValidationError({'decision': 'Valeur attendue : "release" ou "refund".'})
         booking.save(update_fields=['status', 'updated_at'])
         booking.sync_vehicle_status()
         if booking.status == 'completed' and payment:
-            payment.release_escrow()
+            payment.release_escrow()   # part propriétaire
+            payment.forfeit_deposit()  # caution client versée au propriétaire
         return Response(BookingSerializer(booking).data)
 
     @action(detail=False, methods=['get'])
