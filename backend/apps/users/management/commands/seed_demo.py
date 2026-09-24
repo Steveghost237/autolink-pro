@@ -9,6 +9,8 @@ from apps.bookings.models import Booking
 DEMO_USERS = [
     dict(username='client',     email='client@autolink.com',     first_name='Marie',  last_name='Mballa',   role='CLIENT',     phone='+237675123456'),
     dict(username='driver',     email='driver@autolink.com',     first_name='Armand', last_name='Nkounga',  role='DRIVER',     phone='+237699887700', is_verified=True),
+    dict(username='driver2',    email='driver2@autolink.com',    first_name='Samuel', last_name='Etoundi',  role='DRIVER',     phone='+237690112233', is_verified=True),
+    dict(username='driver3',    email='driver3@autolink.com',    first_name='Eric',   last_name='Fotso',    role='DRIVER',     phone='+237677889900', is_verified=True),
     dict(username='owner',      email='owner@autolink.com',      first_name='Jean',   last_name='Kouassi',  role='OWNER',      phone='+237655223344', is_verified=True),
     dict(username='admin',      email='admin@autolink.com',      first_name='Admin',  last_name='AutoLink', role='ADMIN',      phone='+237222200001', is_verified=True, is_staff=True, is_superuser=True),
     dict(username='controller', email='controller@autolink.com', first_name='Paul',   last_name='Diallo',   role='CONTROLLER', phone='+237654445566', is_verified=True),

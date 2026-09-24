@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, FileText, Shield, Award, X } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, FileText, Shield, Award, X, Car, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 
 const CRITERIA = [
@@ -41,7 +41,9 @@ function CandidateModal({ candidate, onClose }) {
   if (decision) return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center">
-        <div className="text-5xl mb-3">{decision === 'approved' ? '✅' : '❌'}</div>
+        {decision === 'approved'
+          ? <CheckCircle size={52} className="text-emerald-500 mx-auto mb-3" />
+          : <XCircle size={52} className="text-red-500 mx-auto mb-3" />}
         <h3 className="text-xl font-bold text-slate-900 mb-2">{decision === 'approved' ? 'Candidature approuvée !' : 'Candidature refusée'}</h3>
         <p className="text-slate-500 mb-5">{candidate.name} {decision === 'approved' ? 'peut maintenant rejoindre AutoLink.' : 'a été informé(e) du refus.'}</p>
         <button onClick={onClose} className="btn-primary w-full">Fermer</button>
@@ -165,10 +167,10 @@ export default function DriverRecruitment() {
                       <h3 className="font-bold text-slate-900">{c.name}</h3>
                       <span className={SC.style}><Icon size={12} className="inline mr-1" />{SC.label}</span>
                     </div>
-                    <div className="text-sm text-slate-500 space-x-3">
-                      <span>👤 {c.age} ans</span>
-                      <span>🚗 {c.experience} ans d'exp.</span>
-                      <span>📅 {c.applied}</span>
+                    <div className="text-sm text-slate-500 flex items-center gap-3 flex-wrap">
+                      <span className="inline-flex items-center gap-1"><User size={13} /> {c.age} ans</span>
+                      <span className="inline-flex items-center gap-1"><Car size={13} /> {c.experience} ans d'exp.</span>
+                      <span className="inline-flex items-center gap-1"><Calendar size={13} /> {c.applied}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
                       <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden" style={{ maxWidth: 120 }}>

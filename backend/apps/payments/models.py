@@ -19,6 +19,12 @@ class Payment(models.Model):
         FAILED = 'failed', 'Échoué'
         REFUNDED = 'refunded', 'Remboursé'
 
+    class Escrow(models.TextChoices):
+        HELD = 'held', 'Caution bloquée'
+        RELEASED = 'released', 'Caution libérée (propriétaire payé)'
+        REFUNDED = 'refunded', 'Caution remboursée au client'
+        DISPUTED = 'disputed', 'Caution gelée (litige)'
+
     booking = models.OneToOneField('bookings.Booking', on_delete=models.CASCADE, related_name='payment')
     payer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     method = models.CharField(max_length=20, choices=Method.choices)
@@ -26,6 +32,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     commission = models.DecimalField(max_digits=12, decimal_places=2)
     owner_payout = models.DecimalField(max_digits=12, decimal_places=2)
+    escrow_status = models.CharField(max_length=20, choices=Escrow.choices, default=Escrow.HELD)
     transaction_ref = models.CharField(max_length=200, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     payout_done = models.BooleanField(default=False)
@@ -39,6 +46,50 @@ class Payment(models.Model):
 
     def __str__(self):
         return f'PAY-{self.pk:04d} — {self.amount} FCFA ({self.status})'
+
+    def release_escrow(self):
+        """Fin de location sans litige : verse les 50% au propriétaire."""
+        from django.utils import timezone
+        from django.db import transaction as db_transaction
+        if self.escrow_status != self.Escrow.HELD:
+            return
+        with db_transaction.atomic():
+            owner = self.booking.vehicle.owner
+            owner.balance = (owner.balance or 0) + self.owner_payout
+            owner.save(update_fields=['balance', 'updated_at'])
+            WalletTransaction.objects.create(
+                user=owner, kind='topup', amount=self.owner_payout,
+                balance_after=owner.balance,
+                reference=f'PAYOUT-{self.pk:04d}',
+                note=f'Part location {self.booking} (caution libérée)',
+            )
+            Payout.objects.create(
+                payment=self, recipient=owner, amount=self.owner_payout,
+                method='wallet', status='completed', processed_at=timezone.now(),
+            )
+            self.escrow_status = self.Escrow.RELEASED
+            self.payout_done = True
+            self.payout_at = timezone.now()
+            self.save(update_fields=['escrow_status', 'payout_done', 'payout_at'])
+            self.booking.vehicle.total_earned = (self.booking.vehicle.total_earned or 0) + self.owner_payout
+            self.booking.vehicle.save(update_fields=['total_earned', 'updated_at'])
+
+    def refund_client(self):
+        """Litige arbitré en faveur du client : remboursement sur son solde."""
+        if self.escrow_status not in (self.Escrow.HELD, self.Escrow.DISPUTED):
+            return
+        client = self.booking.client
+        client.balance = (client.balance or 0) + self.amount
+        client.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            user=client, kind='refund', amount=self.amount,
+            balance_after=client.balance,
+            reference=f'REFUND-{self.pk:04d}',
+            note=f'Remboursement {self.booking}',
+        )
+        self.escrow_status = self.Escrow.REFUNDED
+        self.status = self.Status.REFUNDED
+        self.save(update_fields=['escrow_status', 'status'])
 
 
 class Payout(models.Model):

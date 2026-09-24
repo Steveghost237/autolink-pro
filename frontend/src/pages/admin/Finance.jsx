@@ -4,13 +4,13 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import DashboardLayout from '../../components/DashboardLayout';
 
 const MONTHLY_DATA = [
-  { month: 'Fév', ca: 2800000, commission: 700000, versements: 2100000 },
-  { month: 'Mar', ca: 3200000, commission: 800000, versements: 2400000 },
-  { month: 'Avr', ca: 3800000, commission: 950000, versements: 2850000 },
-  { month: 'Mai', ca: 4100000, commission: 1025000, versements: 3075000 },
-  { month: 'Juin', ca: 3700000, commission: 925000, versements: 2775000 },
-  { month: 'Juil', ca: 4500000, commission: 1125000, versements: 3375000 },
-  { month: 'Août', ca: 4760000, commission: 1190000, versements: 3570000 },
+  { month: 'Fév', ca: 2800000, commission: 1400000, versements: 1400000 },
+  { month: 'Mar', ca: 3200000, commission: 1600000, versements: 1600000 },
+  { month: 'Avr', ca: 3800000, commission: 1900000, versements: 1900000 },
+  { month: 'Mai', ca: 4100000, commission: 2050000, versements: 2050000 },
+  { month: 'Juin', ca: 3700000, commission: 1850000, versements: 1850000 },
+  { month: 'Juil', ca: 4500000, commission: 2250000, versements: 2250000 },
+  { month: 'Août', ca: 4760000, commission: 2380000, versements: 2380000 },
 ];
 
 const PAYMENT_METHODS = [
@@ -21,10 +21,10 @@ const PAYMENT_METHODS = [
 ];
 
 const TRANSACTIONS = [
-  { id: 'TX001', type: 'booking', client: 'Marie Konan', vehicle: 'Toyota Corolla 2022', amount: 50000, commission: 12500, owner_share: 37500, method: 'MTN Money', date: '2025-08-20', status: 'completed' },
-  { id: 'TX002', type: 'booking', client: 'Yves Kouadio', vehicle: 'BMW Série 5', amount: 80000, commission: 20000, owner_share: 60000, method: 'Orange Money', date: '2025-08-20', status: 'completed' },
-  { id: 'TX003', type: 'booking', client: 'Awa Diallo', vehicle: 'Hyundai Tucson', amount: 135000, commission: 33750, owner_share: 101250, method: 'PayPal', date: '2025-08-19', status: 'completed' },
-  { id: 'TX004', type: 'booking', client: 'Paul Bamba', vehicle: 'Mercedes Sprinter', amount: 110000, commission: 27500, owner_share: 82500, method: 'Stripe', date: '2025-08-19', status: 'pending' },
+  { id: 'TX001', type: 'booking', client: 'Marie Konan', vehicle: 'Toyota Corolla 2022', amount: 50000, commission: 25000, owner_share: 25000, method: 'MTN Money', date: '2025-08-20', status: 'completed' },
+  { id: 'TX002', type: 'booking', client: 'Yves Kouadio', vehicle: 'BMW Série 5', amount: 80000, commission: 40000, owner_share: 40000, method: 'Orange Money', date: '2025-08-20', status: 'completed' },
+  { id: 'TX003', type: 'booking', client: 'Awa Diallo', vehicle: 'Hyundai Tucson', amount: 135000, commission: 67500, owner_share: 67500, method: 'PayPal', date: '2025-08-19', status: 'completed' },
+  { id: 'TX004', type: 'booking', client: 'Paul Bamba', vehicle: 'Mercedes Sprinter', amount: 110000, commission: 55000, owner_share: 55000, method: 'Stripe', date: '2025-08-19', status: 'pending' },
   { id: 'TX005', type: 'refund', client: 'Fatou Coulibaly', vehicle: 'Ford Ranger', amount: -40000, commission: 0, owner_share: 0, method: 'MTN Money', date: '2025-08-18', status: 'refunded' },
 ];
 
@@ -43,8 +43,8 @@ export default function Finance() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'CA ce mois', value: `${fmt(currentMonth.ca)} FCFA`, change: `+${growth}%`, up: true, icon: TrendingUp, color: 'bg-blue-50 text-blue-600' },
-            { label: 'Commission AutoLink (25%)', value: `${fmt(currentMonth.commission)} FCFA`, change: '25% du CA', up: true, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600' },
-            { label: 'Versé propriétaires (75%)', value: `${fmt(currentMonth.versements)} FCFA`, change: '75% du CA', up: true, icon: CreditCard, color: 'bg-purple-50 text-purple-600' },
+            { label: 'Commission AutoLink (50%)', value: `${fmt(currentMonth.commission)} FCFA`, change: '50% du CA', up: true, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Versé propriétaires (50%)', value: `${fmt(currentMonth.versements)} FCFA`, change: '50% du CA', up: true, icon: CreditCard, color: 'bg-purple-50 text-purple-600' },
             { label: 'Transactions ce mois', value: '1 247', change: '+18 vs hier', up: true, icon: Calendar, color: 'bg-accent-50 text-accent-600' },
           ].map(({ label, value, change, up, icon: Icon, color }) => (
             <div key={label} className="card">
@@ -70,14 +70,14 @@ export default function Finance() {
               <div className="text-xs text-primary-300 mt-1">Montant total de la location</div>
             </div>
             <div className="bg-accent-500/30 rounded-xl p-4 border border-accent-400/50">
-              <div className="text-3xl font-black text-accent-300">25%</div>
+              <div className="text-3xl font-black text-accent-300">50%</div>
               <div className="text-accent-200 text-sm mt-1">AutoLink garde</div>
               <div className="text-xs text-accent-300 mt-1">Commission plateforme</div>
             </div>
             <div className="bg-emerald-500/30 rounded-xl p-4 border border-emerald-400/50">
-              <div className="text-3xl font-black text-emerald-300">75%</div>
-              <div className="text-emerald-200 text-sm mt-1">Reversé propriétaire</div>
-              <div className="text-xs text-emerald-300 mt-1">Versement automatique</div>
+              <div className="text-3xl font-black text-emerald-300">50%</div>
+              <div className="text-emerald-200 text-sm mt-1">Caution propriétaire</div>
+              <div className="text-xs text-emerald-300 mt-1">Bloquée puis versée au retour du véhicule</div>
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function Finance() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['ID', 'Client', 'Véhicule', 'Montant total', 'Commission (25%)', 'Versé (75%)', 'Méthode', 'Date', 'Statut'].map(h => (
+                  {['ID', 'Client', 'Véhicule', 'Montant total', 'Commission (50%)', 'Caution proprio (50%)', 'Méthode', 'Date', 'Statut'].map(h => (
                     <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>

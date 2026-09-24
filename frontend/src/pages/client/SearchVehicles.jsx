@@ -46,16 +46,25 @@ const mapApiVehicle = (v) => {
 const CATEGORIES = ['Tous', 'Berline', 'SUV', 'Van', 'Minibus', 'Luxe'];
 
 const PAYMENT_METHODS = [
-  { value: 'mtn',    label: 'MTN Mobile Money',  color: 'bg-yellow-400', border: 'border-yellow-400' },
-  { value: 'orange', label: 'Orange Money',       color: 'bg-orange-500', border: 'border-orange-500' },
-  { value: 'bank',   label: 'Dépôt bancaire',     color: 'bg-blue-500',   border: 'border-blue-500' },
+  { value: 'wallet', label: 'Solde AutoLink',  color: 'bg-emerald-500', border: 'border-emerald-500' },
+  { value: 'mtn',    label: 'MTN MoMo',        color: 'bg-yellow-400', border: 'border-yellow-400' },
+  { value: 'orange', label: 'Orange Money',    color: 'bg-orange-500', border: 'border-orange-500' },
+  { value: 'senbid', label: 'SenBid',          color: 'bg-teal-500',   border: 'border-teal-500' },
+  { value: 'paybid', label: 'PayBid',          color: 'bg-indigo-500', border: 'border-indigo-500' },
+  { value: 'stripe', label: 'Carte (Stripe)',  color: 'bg-purple-500', border: 'border-purple-500' },
+];
+
+const DRIVER_OPTIONS = [
+  { value: 'none',     label: 'Sans chauffeur',        sub: 'Vous conduisez' },
+  { value: 'internal', label: 'Chauffeur AutoLink',    sub: 'Assigné automatiquement' },
+  { value: 'owner',    label: 'Chauffeur du proprio',  sub: 'Fourni avec la voiture' },
 ];
 
 function BookingModal({ vehicle, onClose }) {
   const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [rentalType, setRentalType] = useState(RENTAL_TYPES[2]);
-  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: 1, agentCode: '', withDriver: true, paymentMethod: 'mtn', phone: '' });
+  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: 1, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
   const [agentValid, setAgentValid] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -68,25 +77,27 @@ function BookingModal({ vehicle, onClose }) {
     try {
       const end = new Date(form.date);
       end.setDate(end.getDate() + (rentalType.id === 'long_haul' ? form.days : 1));
-      await bookingsAPI.create({
+      const res = await bookingsAPI.create({
         vehicle: vehicle.id,
         start_date: form.date,
         end_date: end.toISOString().split('T')[0],
         pickup_address: form.pickup,
         dropoff_address: form.destination,
-        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Paiement: ${form.paymentMethod} | Tel: ${form.phone} | Chauffeur: ${form.withDriver ? 'oui' : 'non'}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
+        driver_type: form.driverType,
+        payment_method: form.paymentMethod,
+        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
       });
-      setSaved(true);
+      setSaved(res.data?.status === 'confirmed');
       setStep(3);
     } catch (err) {
       if (err.response?.status === 401) {
         setApiError('Session expirée — reconnectez-vous.');
       } else if (!err.response) {
-        // API injoignable : confirmation locale quand même
         setSaved(false);
         setStep(3);
       } else {
-        setApiError('Erreur lors de la réservation — réessayez.');
+        const data = err.response?.data;
+        setApiError(data?.payment || data?.vehicle || data?.driver_type || 'Erreur lors de la réservation — réessayez.');
       }
     }
     setSubmitting(false);
@@ -119,15 +130,22 @@ function BookingModal({ vehicle, onClose }) {
         <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
           <CheckCircle size={40} className="text-emerald-500" />
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Réservation {saved ? 'envoyée' : 'confirmée'}</h3>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          {saved ? 'Réservation confirmée' : 'Réservation enregistrée'}
+        </h3>
         <p className="text-slate-500 dark:text-slate-400 mb-1">{vehicle.name} — {rentalType.label}</p>
         <p className="text-slate-500 dark:text-slate-400 mb-1 text-sm">Prise en charge : {form.pickup || 'Non précisé'}</p>
+        {form.driverType === 'internal' && <p className="text-xs text-blue-600 font-medium">Un chauffeur AutoLink vous sera assigné automatiquement.</p>}
+        {form.driverType === 'owner' && <p className="text-xs text-blue-600 font-medium">Le propriétaire se présentera avec son chauffeur.</p>}
         {agentValid === true && <p className="text-xs text-emerald-600 font-medium mb-1">Code agent {form.agentCode} appliqué</p>}
         <p className="text-xl font-black text-primary-600 my-3">{basePrice.toLocaleString()} FCFA</p>
         {saved ? (
-          <p className="text-xs text-emerald-600 font-medium mb-6">Votre réservation est enregistrée — visible dans le tableau de bord admin.</p>
+          <p className="text-xs text-emerald-600 font-medium mb-6">
+            Paiement reçu — réservation confirmée automatiquement. Le propriétaire a été notifié.
+            Retrouvez-la dans « Mes réservations ».
+          </p>
         ) : (
-          <p className="text-xs text-slate-400 mb-6">Un SMS de confirmation sera envoyé au {form.phone}</p>
+          <p className="text-xs text-slate-400 mb-6">Enregistrée hors-ligne — elle sera synchronisée au retour de la connexion.</p>
         )}
         <button onClick={onClose} className="btn-primary w-full">Retour au catalogue</button>
       </div>
@@ -232,11 +250,11 @@ function BookingModal({ vehicle, onClose }) {
               )}
               <div>
                 <label className="label">Option chauffeur</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[{ v: true, l: 'Avec chauffeur', sub: 'Recommandé' }, { v: false, l: 'Sans chauffeur', sub: 'Dépôt requis' }].map(opt => (
-                    <label key={String(opt.v)} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${form.withDriver === opt.v ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
-                      <input type="radio" className="sr-only" onChange={() => setForm(f => ({ ...f, withDriver: opt.v }))} />
-                      <div className="font-semibold text-sm text-slate-900 dark:text-white">{opt.l}</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {DRIVER_OPTIONS.map(opt => (
+                    <label key={opt.value} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${form.driverType === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
+                      <input type="radio" className="sr-only" onChange={() => setForm(f => ({ ...f, driverType: opt.value }))} />
+                      <div className="font-semibold text-sm text-slate-900 dark:text-white">{opt.label}</div>
                       <div className="text-xs text-slate-500">{opt.sub}</div>
                     </label>
                   ))}

@@ -28,3 +28,19 @@ class User(AbstractUser):
 
     def __str__(self):
         return f'{self.get_full_name()} ({self.role})'
+
+
+class Notification(models.Model):
+    """Notification interne — propriétaire notifié d'une réservation, fin de location, litige…"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=150)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Notification'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.title} → {self.user}'

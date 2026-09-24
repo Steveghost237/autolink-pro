@@ -45,6 +45,10 @@ class Vehicle(models.Model):
     description = models.TextField(blank=True)
     mode = models.CharField(max_length=20, choices=Mode.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    driver_available = models.BooleanField(
+        default=True,
+        help_text='Le propriétaire peut fournir son propre chauffeur avec ce véhicule.'
+    )
 
     daily_rate = models.DecimalField(max_digits=10, decimal_places=2)
     computed_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

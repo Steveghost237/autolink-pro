@@ -56,7 +56,7 @@ export default function AddVehicle() {
   if (submitted) return (
     <DashboardLayout title="Véhicule ajouté">
       <div className="max-w-md mx-auto text-center py-20">
-        <div className="text-7xl mb-4">✅</div>
+        <CheckCircle size={72} className="text-emerald-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-slate-900 mb-3">Véhicule soumis avec succès !</h2>
         <p className="text-slate-500 mb-2">Votre véhicule est en attente de validation par notre équipe de contrôle.</p>
         <p className="text-sm text-slate-400 mb-8">Délai de traitement : 24 à 48 heures ouvrables.</p>
@@ -151,8 +151,8 @@ export default function AddVehicle() {
             <div className="space-y-4">
               <p className="text-slate-600 text-sm">Choisissez comment vous souhaitez proposer votre véhicule :</p>
               {[
-                { value: 'platform', title: '🏢 Confier à AutoLink', desc: "Vous nous confiez le véhicule. Nous le gérons, le mettons à disposition 24h/24. Vous n'avez rien à faire. Revenus stables garantis.", pros: ['Zéro gestion de votre part', 'Disponibilité maximale', 'Assurance prise en charge par AutoLink'] },
-                { value: 'home', title: '🏠 Garder chez moi (à la demande)', desc: "Le véhicule reste chez vous. Vous le mettez à disposition uniquement quand vous le confirmez. Plus de flexibilité, revenus variables.", pros: ['Vous gardez le contrôle total', 'Mettez à disposition à votre convenance', 'Idéal si vous utilisez aussi le véhicule'] },
+                { value: 'platform', title: 'Confier à AutoLink', desc: "Vous nous confiez le véhicule. Nous le gérons, le mettons à disposition 24h/24. Vous n'avez rien à faire. Revenus stables garantis.", pros: ['Zéro gestion de votre part', 'Disponibilité maximale', 'Assurance prise en charge par AutoLink'] },
+                { value: 'home', title: 'Garder chez moi (à la demande)', desc: "Le véhicule reste chez vous. Vous le mettez à disposition uniquement quand vous le confirmez. Plus de flexibilité, revenus variables.", pros: ['Vous gardez le contrôle total', 'Mettez à disposition à votre convenance', 'Idéal si vous utilisez aussi le véhicule'] },
               ].map(({ value, title, desc, pros }) => (
                 <label key={value} className={`flex gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${form.mode === value ? 'border-primary-500 bg-primary-50' : 'border-slate-200 hover:border-slate-300'}`}>
                   <input type="radio" name="mode" value={value} className="mt-1 w-4 h-4 accent-primary-600" onChange={() => set('mode', value)} checked={form.mode === value} />
@@ -242,7 +242,7 @@ export default function AddVehicle() {
                 <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
                 <div className="text-sm text-amber-800">
                   <strong>Tarif calculé par AutoLink : {computedPrice().toLocaleString()} FCFA/jour</strong><br />
-                  Basé sur l'état, l'assurance et l'âge du véhicule. Votre part = <strong>{Math.round(computedPrice() * 0.75).toLocaleString()} FCFA/jour (75%)</strong>.
+                  Basé sur l'état, l'assurance et l'âge du véhicule. Votre part = <strong>{Math.round(computedPrice() * 0.50).toLocaleString()} FCFA/jour (50%)</strong> — bloquée en caution pendant chaque location, versée au retour du véhicule.
                 </div>
               </div>
               <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600">

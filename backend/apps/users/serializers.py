@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User
+from .models import User, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,6 +9,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'balance', 'created_at']
         read_only_fields = ['id', 'is_verified', 'balance', 'created_at']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'is_read', 'created_at']
+        read_only_fields = ['title', 'message', 'created_at']
 
 
 class AdminUserSerializer(serializers.ModelSerializer):

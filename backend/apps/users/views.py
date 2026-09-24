@@ -2,8 +2,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User
-from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer
+from .models import User, Notification
+from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
 
 
 class LoginView(APIView):
@@ -68,3 +68,29 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
+
+
+class NotificationListView(generics.ListAPIView):
+    """Notifications de l'utilisateur connecté — les plus récentes d'abord."""
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.notifications.all()[:100]
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        unread = request.user.notifications.filter(is_read=False).count()
+        return Response({'unread': unread, 'results': self.get_serializer(qs, many=True).data})
+
+
+class NotificationReadView(APIView):
+    """Marque toutes les notifications (ou une seule) comme lues."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk=None):
+        qs = request.user.notifications.filter(is_read=False)
+        if pk:
+            qs = qs.filter(pk=pk)
+        qs.update(is_read=True)
+        return Response({'unread': request.user.notifications.filter(is_read=False).count()})

@@ -47,7 +47,7 @@ export default function Login() {
             </div>
             <span className="text-2xl font-black text-white">Auto<span className="text-primary-400">Link</span> <span className="text-accent-400 text-sm">PRO</span></span>
           </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">Bon retour 👋</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Bon retour</h1>
           <p className="text-primary-300">Connectez-vous à votre compte</p>
         </div>
 

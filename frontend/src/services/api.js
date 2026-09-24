@@ -60,7 +60,15 @@ export const bookingsAPI = {
   create: (payload) => api.post('/bookings/', payload),
   update: (id, payload) => api.patch(`/bookings/${id}/`, payload),
   updateStatus: (id, status) => api.patch(`/bookings/${id}/`, { status }),
+  dispute: (id, reason) => api.post(`/bookings/${id}/dispute/`, { reason }),
+  resolveDispute: (id, decision) => api.post(`/bookings/${id}/resolve-dispute/`, { decision }),
   stats: () => api.get('/bookings/stats/'),
+};
+
+export const notificationsAPI = {
+  list: () => api.get('/users/notifications/'),
+  readAll: () => api.post('/users/notifications/read/'),
+  read: (id) => api.post(`/users/notifications/${id}/read/`),
 };
 
 export const usersAPI = {

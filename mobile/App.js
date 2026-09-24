@@ -26,11 +26,11 @@ const C = {
 };
 const STATUS_COLOR = {
   approved: C.success, pending: C.warning, rented: C.info, completed: C.success,
-  active: C.info, confirmed: C.primary, cancelled: C.error,
+  active: C.info, confirmed: C.primary, cancelled: C.error, disputed: C.error,
 };
 const STATUS_LABEL = {
-  approved: 'Approuve', pending: 'En attente', rented: 'En location',
-  completed: 'Termine', active: 'En cours', confirmed: 'Confirme', cancelled: 'Annule',
+  approved: 'Approuve', pending: 'Attente paiement', rented: 'En location',
+  completed: 'Termine', active: 'En cours', confirmed: 'Confirme', cancelled: 'Annule', disputed: 'Litige',
 };
 
 // ─── API — backend partage web + mobile ────────────────────────────────────────
@@ -66,6 +66,10 @@ const api = {
   setUser:    (id, payload)     => apiFetch(`/users/${id}/`, { method: 'PATCH', body: payload }),
   wallet:     ()                => apiFetch('/payments/wallet/'),
   topup:      (amount, method, phone) => apiFetch('/payments/wallet/topup/', { method: 'POST', body: { amount, method, phone } }),
+  dispute:    (id, reason)      => apiFetch(`/bookings/${id}/dispute/`, { method: 'POST', body: { reason } }),
+  resolve:    (id, decision)    => apiFetch(`/bookings/${id}/resolve-dispute/`, { method: 'POST', body: { decision } }),
+  notifs:     ()                => apiFetch('/users/notifications/'),
+  readNotifs: ()                => apiFetch('/users/notifications/read/', { method: 'POST' }),
 };
 
 const TIER_STYLE = {
@@ -585,7 +589,8 @@ const mapApiVehicle = (v) => {
     id: v.id, name: `${v.brand} ${v.model} ${v.year}`, cat: v.category, tier: v.tier || 'standard',
     plate: v.plate, image, rate: Number(v.computed_rate || v.daily_rate),
     kmIncluded: 300, kmRate: 120, rating: Number(v.rating) || 4.6, reviews: v.rating_count || 0,
-    fuel: v.fuel, seats: v.seats, status: v.status, score: v.condition_score, api: true,
+    fuel: v.fuel, seats: v.seats, status: v.status, score: v.condition_score,
+    driverAvailable: !!v.driver_available, api: true,
   };
 };
 
@@ -606,8 +611,10 @@ function ClientDash({ user, logout }) {
       const d = await api.bookings();
       setBookings((d.results || d).map(b => ({
         id: `BK-${String(b.id).padStart(4,'0')}`, vehicle: b.vehicle_name, type: 'Location',
-        amount: Number(b.subtotal), status: b.status, date: b.start_date,
-        driver: b.driver_name || 'En attente', rating: b.client_rating, rawId: b.id,
+        amount: Number(b.subtotal), status: b.status, date: b.start_date, endDate: b.end_date,
+        driver: b.driver_name || (b.driver_type==='internal' ? 'Attribution auto…' : b.driver_type==='owner' ? 'Chauffeur du proprio' : 'Sans chauffeur'),
+        driverType: b.driver_type, escrow: b.escrow_status,
+        rating: b.client_rating, rawId: b.id,
       })));
     } catch (_) {}
     try { const d = await api.wallet(); setBalance(Number(d.balance)); } catch (_) {}
@@ -734,7 +741,31 @@ function ClientDash({ user, logout }) {
               {bookings.length === 0 && (
                 <Text style={{ color:C.muted, textAlign:'center', marginTop:40 }}>Aucune reservation pour le moment.</Text>
               )}
-              {bookings.map(b => (
+              {bookings.map(b => {
+                const B_STATUS = {
+                  pending:   { l:'Attente paiement', c:C.warning },
+                  confirmed: { l:'Confirmee',        c:C.info },
+                  active:    { l:'En cours',         c:'#7C3AED' },
+                  completed: { l:'Termine',          c:C.success },
+                  cancelled: { l:'Annulee',          c:C.error },
+                  disputed:  { l:'Litige en cours',  c:C.error },
+                };
+                const st = B_STATUS[b.status] || B_STATUS.pending;
+                const reportProblem = () => {
+                  Alert.alert('Signaler un probleme', 'La caution du proprietaire sera gelee et un admin AutoLink arbitrera votre dossier.', [
+                    { text:'Annuler', style:'cancel' },
+                    { text:'Panne mecanique', onPress:() => api.dispute(b.rawId, 'Panne mecanique').then(refresh).catch(()=>Alert.alert('Erreur','API injoignable')) },
+                    { text:'Vehicule non conforme', onPress:() => api.dispute(b.rawId, 'Vehicule non conforme').then(refresh).catch(()=>Alert.alert('Erreur','API injoignable')) },
+                    { text:'Autre probleme', style:'destructive', onPress:() => api.dispute(b.rawId, 'Autre probleme signale par le client').then(refresh).catch(()=>Alert.alert('Erreur','API injoignable')) },
+                  ]);
+                };
+                const cancelBooking = () => {
+                  Alert.alert('Annuler la reservation', 'Le paiement sera integralement rembourse sur votre solde AutoLink.', [
+                    { text:'Non', style:'cancel' },
+                    { text:'Oui, annuler', style:'destructive', onPress:() => api.setStatus(b.rawId, 'cancelled').then(refresh).catch(()=>Alert.alert('Erreur','Annulation impossible')) },
+                  ]);
+                };
+                return (
                 <View key={b.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
                   <View style={{ flexDirection:'row', alignItems:'center', gap:10, marginBottom:10 }}>
                     <View style={{ width:42, height:42, borderRadius:13, backgroundColor:C.primary+'15', alignItems:'center', justifyContent:'center' }}>
@@ -744,18 +775,34 @@ function ClientDash({ user, logout }) {
                       <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text }}>{b.vehicle}</Text>
                       <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{b.id} · {b.type}</Text>
                     </View>
-                    <View style={{ backgroundColor:(b.status==='completed'?C.success:C.warning)+'20', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
-                      <Text style={{ color:b.status==='completed'?C.success:C.warning, fontSize:11, fontWeight:'700' }}>{b.status==='completed'?'Termine':'Attente'}</Text>
+                    <View style={{ backgroundColor:st.c+'20', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
+                      <Text style={{ color:st.c, fontSize:11, fontWeight:'700' }}>{st.l}</Text>
                     </View>
                   </View>
                   <View style={{ flexDirection:'row', justifyContent:'space-between', borderTopWidth:1, borderTopColor:C.border, paddingTop:10 }}>
-                    <View><Text style={{ color:C.muted, fontSize:10 }}>Chauffeur</Text><Text style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{b.driver}</Text></View>
-                    <View><Text style={{ color:C.muted, fontSize:10 }}>Date</Text><Text style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{b.date}</Text></View>
+                    <View style={{ flex:1, marginRight:8 }}><Text style={{ color:C.muted, fontSize:10 }}>Chauffeur</Text><Text numberOfLines={1} style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{b.driver}</Text></View>
+                    <View><Text style={{ color:C.muted, fontSize:10 }}>Dates</Text><Text style={{ color:C.text, fontSize:12, fontWeight:'600' }}>{b.date} → {b.endDate || '—'}</Text></View>
                     <View style={{ alignItems:'flex-end' }}><Text style={{ color:C.muted, fontSize:10 }}>Montant</Text><Text style={{ color:C.primary, fontSize:15, fontWeight:'900' }}>{fmtNum(b.amount)}</Text></View>
+                  </View>
+                  {b.escrow === 'held' && <Text style={{ color:C.muted, fontSize:10, marginTop:6 }}>Paiement securise — caution bloquee jusqu'a la fin</Text>}
+                  {b.escrow === 'disputed' && <Text style={{ color:C.error, fontSize:10, marginTop:6 }}>Caution gelee — arbitrage AutoLink en cours</Text>}
+                  <View style={{ flexDirection:'row', gap:8, marginTop:10 }}>
+                    {['pending','confirmed'].includes(b.status) && (
+                      <TouchableOpacity onPress={cancelBooking} style={{ flex:1, backgroundColor:C.error+'15', borderRadius:10, paddingVertical:8, alignItems:'center' }}>
+                        <Text style={{ color:C.error, fontSize:11, fontWeight:'700' }}>Annuler (rembourse)</Text>
+                      </TouchableOpacity>
+                    )}
+                    {['confirmed','active'].includes(b.status) && (
+                      <TouchableOpacity onPress={reportProblem} style={{ flex:1, backgroundColor:C.warning+'20', borderRadius:10, paddingVertical:8, alignItems:'center', flexDirection:'row', justifyContent:'center', gap:4 }}>
+                        <Ionicons name="warning" size={13} color="#B45309" />
+                        <Text style={{ color:'#B45309', fontSize:11, fontWeight:'700' }}>Signaler un probleme</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                   {b.rating ? <View style={{ marginTop:8, flexDirection:'row', gap:2 }}>{[1,2,3,4,5].map(i=><Ionicons key={i} name={i<=b.rating?'star':'star-outline'} size={13} color="#FBBF24" />)}</View> : null}
                 </View>
-              ))}
+                );
+              })}
             </ScrollView>
           </View>
         )}
@@ -907,27 +954,69 @@ function TopUpModal({ onClose, onDone }) {
 // ─── ROLE SCREENS (Owner/Driver/Admin/Controller stubs) ──────────────────────
 function OwnerDash({ user, logout }) {
   const av = user.firstName[0] + user.lastName[0];
-  const myV = [
-    { id:1, name:'Toyota Corolla 2022', plate:'LT-1234-A', image:IMG.corolla, rate:25000, status:'available', earned:873600, km:8240, score:94 },
-    { id:2, name:'Hyundai Tucson 2023', plate:'LT-5678-B', image:IMG.tucson,  rate:45000, status:'rented',    earned:1544400, km:12880, score:97 },
-  ];
+  const [vehicles, setVehicles] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [notifs, setNotifs] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [online, setOnline] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [v, b, n, w] = await Promise.all([api.vehicles(), api.bookings(), api.notifs(), api.wallet()]);
+      setVehicles((v.results || v).map(mapApiVehicle));
+      setBookings(b.results || b);
+      setNotifs(n.results || []);
+      setBalance(Number(w.balance));
+      setOnline(true);
+    } catch { setOnline(false); }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const markBack = (id) => {
+    Alert.alert('Vehicule recupere', 'Confirmer la fin de cette location ? La caution vous sera versee.', [
+      { text:'Non', style:'cancel' },
+      { text:'Oui, terminer', onPress: async () => {
+        setBusy(id);
+        try { await api.setStatus(id, 'completed'); await load(); } catch { Alert.alert('Erreur','Action impossible'); }
+        setBusy(null);
+      }},
+    ]);
+  };
+
+  const V_ST = {
+    pending:{l:'En verification',c:C.warning}, approved:{l:'Disponible',c:C.success},
+    rented:{l:'En location',c:C.info}, maintenance:{l:'Maintenance',c:'#F97316'}, suspended:{l:'Suspendu',c:C.error},
+  };
+  const active = bookings.filter(b => ['confirmed','active'].includes(b.status));
+  const earned = bookings.filter(b => b.status==='completed').reduce((s,b) => s + Number(b.owner_amount||0), 0);
+
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
       <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
           <View style={{ flex:1, marginRight:10 }}>
-            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Gestionnaire de parc</Text>
+            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Proprietaire</Text>
             <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+            <View style={{ width:7, height:7, borderRadius:4, backgroundColor: online ? '#4ADE80' : '#F87171' }} />
+            <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
+              <Ionicons name="log-out-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
-      <ScrollView style={{ padding:16 }}>
+      <ScrollView style={{ padding:16 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
-          {[{l:'Vehicules',v:myV.length,c:C.info},{l:'Revenus nets',v:`${fmtNum(myV.reduce((s,v)=>s+v.earned,0))} `,c:C.primary},{l:'Km total',v:`${myV.reduce((s,v)=>s+v.km,0).toLocaleString()}`,c:C.success}].map(s=>(
+          {[{l:'Vehicules',v:vehicles.length,c:C.info},{l:'En location',v:active.length,c:'#7C3AED'},{l:'Solde',v:balance===null?'—':fmtNum(balance),c:C.success}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
               <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
@@ -935,68 +1024,178 @@ function OwnerDash({ user, logout }) {
           ))}
         </View>
         <View style={{ backgroundColor:'#F0FDF4', borderRadius:14, padding:12, marginBottom:14, flexDirection:'row', alignItems:'center', gap:8 }}>
-          <Ionicons name="information-circle" size={20} color={C.success} />
-          <Text style={{ color:'#166534', fontSize:12, flex:1 }}>Votre part : 78% — Commission AutoLink : 22% — Km supp. reverses</Text>
+          <Ionicons name="shield-checkmark" size={20} color={C.success} />
+          <Text style={{ color:'#166534', fontSize:11, flex:1 }}>Votre part : 50% — bloquee en caution pendant la location, versee automatiquement au retour du vehicule.</Text>
         </View>
-        <SectionTitle title="Mes vehicules" />
-        {myV.map(v => (
-          <View key={v.id} style={{ backgroundColor:C.card, borderRadius:16, overflow:'hidden', marginBottom:12, shadowColor:'#000', shadowOpacity:0.06, elevation:3 }}>
-            <Image source={{ uri:v.image }} style={{ width:'100%', height:130 }} resizeMode="cover" />
-            <View style={{ padding:14, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-              <View style={{ flex:1, marginRight:10 }}>
-                <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:14 }}>{v.name}</Text>
-                <Text numberOfLines={1} style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace' }}>{v.plate}</Text>
+        {notifs.length > 0 && (
+          <>
+            <SectionTitle title="Notifications" />
+            {notifs.slice(0,4).map(n => (
+              <View key={n.id} style={{ backgroundColor:n.is_read?C.card:'#EFF6FF', borderRadius:14, padding:12, marginBottom:8, borderWidth:n.is_read?0:1, borderColor:'#BFDBFE' }}>
+                <Text style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{n.title}</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginTop:2 }}>{n.message}</Text>
               </View>
-              <View style={{ alignItems:'flex-end' }}>
-                <Badge label={v.status==='available'?'Disponible':'En location'} color={v.status==='available'?C.success:C.info} />
-                <Text style={{ fontWeight:'900', color:C.primary, fontSize:15, marginTop:4 }}>{fmtNum(v.earned)}</Text>
-              </View>
+            ))}
+          </>
+        )}
+        <SectionTitle title="Locations en cours" />
+        {active.length === 0 && <Text style={{ color:C.muted, fontSize:12, marginBottom:12 }}>Aucune location en cours.</Text>}
+        {active.map(b => (
+          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:10 }}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:13, flex:1, marginRight:8 }}>{b.vehicle_name}</Text>
+              <Badge label={b.status==='confirmed'?'Confirmee':'En cours'} color={b.status==='confirmed'?C.info:'#7C3AED'} />
+            </View>
+            <Text style={{ color:C.muted, fontSize:11, marginTop:4 }}>
+              {b.client_name} · {b.start_date} → {b.end_date}
+              {b.driver_type==='owner' ? ' · Votre chauffeur requis' : b.driver_type==='internal' ? ' · Chauffeur AutoLink' : ''}
+            </Text>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginTop:8 }}>
+              <Text style={{ color:C.muted, fontSize:10 }}>Caution : {Number(b.owner_amount||0).toLocaleString()} F ({b.escrow_status==='held'?'bloquee':'versee'})</Text>
+              <TouchableOpacity onPress={()=>markBack(b.id)} disabled={busy===b.id}
+                style={{ backgroundColor:C.success+'18', borderRadius:8, paddingHorizontal:10, paddingVertical:6 }}>
+                <Text style={{ color:C.success, fontSize:11, fontWeight:'700' }}>{busy===b.id?'…':'Vehicule recupere'}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         ))}
+        <SectionTitle title="Mes vehicules" />
+        {vehicles.length === 0 && <Text style={{ color:C.muted, fontSize:12 }}>{online?'Aucun vehicule enregistre.':'API injoignable.'}</Text>}
+        {vehicles.map(v => {
+          const st = V_ST[v.status] || V_ST.pending;
+          return (
+            <View key={v.id} style={{ backgroundColor:C.card, borderRadius:16, overflow:'hidden', marginBottom:12, shadowColor:'#000', shadowOpacity:0.06, elevation:3 }}>
+              <Image source={{ uri:v.image }} style={{ width:'100%', height:130 }} resizeMode="cover" />
+              <View style={{ padding:14, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+                <View style={{ flex:1, marginRight:10 }}>
+                  <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:14 }}>{v.name}</Text>
+                  <Text numberOfLines={1} style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace' }}>{v.plate}</Text>
+                </View>
+                <View style={{ alignItems:'flex-end' }}>
+                  <Badge label={st.l} color={st.c} />
+                  <Text style={{ fontWeight:'900', color:C.primary, fontSize:15, marginTop:4 }}>{fmtNum(v.rate)}/j</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+        <TouchableOpacity onPress={logout} style={{ borderWidth:2, borderColor:C.error, borderRadius:14, paddingVertical:14, alignItems:'center', marginTop:8, flexDirection:'row', justifyContent:'center', gap:8 }}>
+          <Ionicons name="log-out-outline" size={18} color={C.error} />
+          <Text style={{ color:C.error, fontWeight:'700', fontSize:15 }}>Se deconnecter</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function DriverDash({ user, logout }) {
-  const [online, setOnline] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  const [notifs, setNotifs] = useState([]);
+  const [online, setOnline] = useState(true);
+  const [apiOk, setApiOk] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [b, n] = await Promise.all([api.bookings(), api.notifs()]);
+      setBookings(b.results || b);
+      setNotifs(n.results || []);
+      setApiOk(true);
+    } catch { setApiOk(false); }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const setStatus = async (id, status) => {
+    setBusy(id);
+    try { await api.setStatus(id, status); await load(); } catch { Alert.alert('Erreur','Action impossible'); }
+    setBusy(null);
+  };
+
+  const current = bookings.filter(b => ['confirmed','active'].includes(b.status));
+  const past = bookings.filter(b => ['completed','cancelled'].includes(b.status));
+
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
       <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
           <View style={{ flex:1, marginRight:10 }}>
-            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Chauffeur certifie</Text>
+            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Chauffeur interne AutoLink</Text>
             <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
           </View>
-          <View style={{ alignItems:'center', gap:4 }}>
-            <Switch value={online} onValueChange={setOnline} trackColor={{ false:'#94A3B8', true:C.success }} thumbColor="#fff" />
-            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:10 }}>{online?'En ligne':'Hors ligne'}</Text>
-          </View>
+          <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
+            <Ionicons name="log-out-outline" size={18} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <View style={{ marginTop:14, backgroundColor:online?C.success+'30':'rgba(255,255,255,0.1)', borderRadius:12, padding:12, flexDirection:'row', alignItems:'center', gap:8 }}>
-          <View style={{ width:10, height:10, borderRadius:5, backgroundColor:online?C.success:'#94A3B8' }} />
-          <Text style={{ color:'#fff', fontWeight:'600', fontSize:13, flex:1 }}>{online?'Vous recevez des demandes':'Activez-vous pour recevoir des courses'}</Text>
+        <View style={{ marginTop:14, backgroundColor:apiOk?C.success+'30':'rgba(255,255,255,0.1)', borderRadius:12, padding:12, flexDirection:'row', alignItems:'center', gap:8 }}>
+          <View style={{ width:10, height:10, borderRadius:5, backgroundColor:apiOk?C.success:'#94A3B8' }} />
+          <Text style={{ color:'#fff', fontWeight:'600', fontSize:13, flex:1 }}>{apiOk?'Courses assignees automatiquement par le systeme':'API injoignable'}</Text>
         </View>
       </LinearGradient>
-      <ScrollView style={{ padding:16 }}>
+      <ScrollView style={{ padding:16 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
-          {[{l:'Courses',v:user.trips||312,c:C.primary},{l:'Note',v:`${user.rating||4.8}/5`,c:'#F59E0B'},{l:'Revenus',v:`${fmtNum(user.earned||2450000)}`,c:C.success}].map(s=>(
+          {[{l:'A venir',v:current.filter(b=>b.status==='confirmed').length,c:C.info},{l:'En cours',v:current.filter(b=>b.status==='active').length,c:C.success},{l:'Terminees',v:past.length,c:C.primary}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
               <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
             </View>
           ))}
         </View>
-        <SectionTitle title="Vehicule assigne" />
-        <View style={{ backgroundColor:C.card, borderRadius:16, overflow:'hidden', marginBottom:14, shadowColor:'#000', shadowOpacity:0.06, elevation:3 }}>
-          <Image source={{ uri:IMG.corolla }} style={{ width:'100%', height:130 }} resizeMode="cover" />
-          <View style={{ padding:14 }}>
-            <Text style={{ fontWeight:'800', color:C.text, fontSize:14 }}>Toyota Corolla 2022</Text>
-            <Text style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace' }}>LT-1234-A · Score 94/100</Text>
+        {notifs.length > 0 && (
+          <>
+            <SectionTitle title="Notifications" />
+            {notifs.slice(0,3).map(n => (
+              <View key={n.id} style={{ backgroundColor:n.is_read?C.card:'#EFF6FF', borderRadius:14, padding:12, marginBottom:8 }}>
+                <Text style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{n.title}</Text>
+                <Text style={{ color:C.muted, fontSize:11, marginTop:2 }}>{n.message}</Text>
+              </View>
+            ))}
+          </>
+        )}
+        <SectionTitle title="Mes courses" />
+        {current.length === 0 && <Text style={{ color:C.muted, fontSize:12, marginBottom:12 }}>Aucune course assignee pour le moment.</Text>}
+        {current.map(b => (
+          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:13, flex:1, marginRight:8 }}>
+                {b.client_name} — {b.vehicle_name}
+              </Text>
+              <Badge label={b.status==='confirmed'?'A venir':'En cours'} color={b.status==='confirmed'?C.info:C.success} />
+            </View>
+            <Text style={{ color:C.muted, fontSize:11 }}>{b.start_date} → {b.end_date}</Text>
+            {b.pickup_address ? <Text style={{ color:C.muted, fontSize:11, marginTop:2 }}>Depart : {b.pickup_address}</Text> : null}
+            <View style={{ flexDirection:'row', gap:8, marginTop:10 }}>
+              {b.status === 'confirmed' && (
+                <TouchableOpacity onPress={()=>setStatus(b.id,'active')} disabled={busy===b.id}
+                  style={{ flex:1, backgroundColor:C.info, borderRadius:10, paddingVertical:9, alignItems:'center' }}>
+                  <Text style={{ color:'#fff', fontSize:12, fontWeight:'700' }}>Demarrer la course</Text>
+                </TouchableOpacity>
+              )}
+              {b.status === 'active' && (
+                <TouchableOpacity onPress={()=>setStatus(b.id,'completed')} disabled={busy===b.id}
+                  style={{ flex:1, backgroundColor:C.success, borderRadius:10, paddingVertical:9, alignItems:'center' }}>
+                  <Text style={{ color:'#fff', fontSize:12, fontWeight:'700' }}>{busy===b.id?'…':'Course terminee — liberer la voiture'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
+        ))}
+        <SectionTitle title="Historique" />
+        {past.slice(0,10).map(b => (
+          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:8, flexDirection:'row', alignItems:'center', gap:10 }}>
+            <Ionicons name="checkmark-circle" size={20} color={C.success} />
+            <View style={{ flex:1 }}>
+              <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{b.client_name} — {b.vehicle_name}</Text>
+              <Text style={{ color:C.muted, fontSize:10 }}>{b.start_date} → {b.end_date}</Text>
+            </View>
+          </View>
+        ))}
         <SectionTitle title="Dernieres courses" />
         {TRIPS.map(t => (
           <View key={t.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, flexDirection:'row', alignItems:'center', gap:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
@@ -1055,6 +1254,7 @@ function AdminDash({ user, logout }) {
     try { await api.setUser(u.id, { role }); await load(); } catch (_) {}
   };
 
+  const disputed = bookings.filter(b => b.status === 'disputed');
   const pendingB = bookings.filter(b => b.status === 'pending');
   const ROLE_LABEL = { CLIENT:'Client', OWNER:'Gestionnaire', DRIVER:'Chauffeur', ADMIN:'Admin', CONTROLLER:'Controleur' };
 
@@ -1108,13 +1308,33 @@ function AdminDash({ user, logout }) {
                 </View>
               ))}
             </View>
-            {pendingB.length > 0 && (
-              <View style={{ backgroundColor:'#FEF3C7', borderRadius:14, padding:12, marginBottom:14, flexDirection:'row', alignItems:'center', gap:8 }}>
-                <Ionicons name="warning" size={20} color="#D97706" />
-                <Text style={{ color:'#92400E', fontWeight:'600', fontSize:12, flex:1 }}>{pendingB.length} reservation(s) en attente de validation</Text>
-              </View>
+            {disputed.length > 0 && (
+              <>
+                <View style={{ backgroundColor:'#FEE2E2', borderRadius:14, padding:12, marginBottom:10, flexDirection:'row', alignItems:'center', gap:8 }}>
+                  <Ionicons name="warning" size={20} color={C.error} />
+                  <Text style={{ color:'#991B1B', fontWeight:'600', fontSize:12, flex:1 }}>{disputed.length} litige(s) a arbitrer — caution gelee</Text>
+                </View>
+                {disputed.map(b => (
+                  <View key={b.id} style={{ backgroundColor:'#FFF5F5', borderRadius:14, padding:12, marginBottom:10, borderWidth:1, borderColor:'#FECACA' }}>
+                    <Text style={{ fontWeight:'800', color:C.text, fontSize:13 }}>BK-{String(b.id).padStart(4,'0')} — {b.client_name}</Text>
+                    <Text style={{ color:C.muted, fontSize:11 }}>{b.vehicle_name} · {Number(b.subtotal).toLocaleString()} F bloques</Text>
+                    {b.dispute_reason ? <Text style={{ color:C.error, fontSize:11, fontStyle:'italic', marginTop:3 }}>"{b.dispute_reason}"</Text> : null}
+                    <View style={{ flexDirection:'row', gap:8, marginTop:10 }}>
+                      <TouchableOpacity onPress={() => api.resolve(b.id,'refund').then(load).catch(()=>{})}
+                        style={{ flex:1, backgroundColor:C.error, borderRadius:8, paddingVertical:8, alignItems:'center' }}>
+                        <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Rembourser client</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => api.resolve(b.id,'release').then(load).catch(()=>{})}
+                        style={{ flex:1, backgroundColor:C.success, borderRadius:8, paddingVertical:8, alignItems:'center' }}>
+                        <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Payer proprio</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </>
             )}
             <SectionTitle title="Reservations en direct" />
+            <Text style={{ color:C.muted, fontSize:10, marginBottom:10 }}>Confirmees automatiquement apres paiement — supervision uniquement.</Text>
             {bookings.length === 0 && <Text style={{ color:C.muted, textAlign:'center', marginTop:20 }}>{online ? 'Aucune reservation.' : 'API injoignable.'}</Text>}
             {bookings.slice(0, 30).map(b => (
               <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
@@ -1124,19 +1344,16 @@ function AdminDash({ user, logout }) {
                   </Text>
                   <Badge label={STATUS_LABEL[b.status] || b.status} color={STATUS_COLOR[b.status] || C.muted} />
                 </View>
-                <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{b.vehicle_name} · {b.start_date} → {b.end_date}</Text>
+                <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>
+                  {b.vehicle_name} · {b.start_date} → {b.end_date}{b.driver_name ? ` · Chauffeur : ${b.driver_name}` : ''}
+                </Text>
                 <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:6 }}>
                   <Text style={{ fontWeight:'900', color:C.primary, fontSize:14 }}>{Number(b.subtotal).toLocaleString()} F</Text>
-                  {b.status === 'pending' && (
-                    <View style={{ flexDirection:'row', gap:6 }}>
-                      <TouchableOpacity onPress={() => setStatus(b.id, 'confirmed')} style={{ backgroundColor:C.success, borderRadius:8, paddingHorizontal:10, paddingVertical:6, flexDirection:'row', alignItems:'center', gap:4 }}>
-                        <Ionicons name="checkmark" size={13} color="#fff" /><Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Confirmer</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setStatus(b.id, 'cancelled')} style={{ backgroundColor:C.error, borderRadius:8, paddingHorizontal:10, paddingVertical:6, flexDirection:'row', alignItems:'center', gap:4 }}>
-                        <Ionicons name="close" size={13} color="#fff" /><Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>Annuler</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  {b.escrow_status ? (
+                    <Text style={{ color:C.muted, fontSize:9 }}>
+                      {b.escrow_status==='held'?'Caution bloquee':b.escrow_status==='released'?'Proprio paye':b.escrow_status==='refunded'?'Client rembourse':'Caution gelee'}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -1246,14 +1463,14 @@ function BookingModal({ vehicle, onClose, onDone }) {
   const [pickup, setPickup] = useState('');
   const [agentCode, setAgentCode] = useState('');
   const [agentOk, setAgentOk] = useState(null);
-  const [pay, setPay] = useState('mtn');
+  const [pay, setPay] = useState('wallet');
   const [phone, setPhone] = useState('');
+  const [driverType, setDriverType] = useState('none');
   const [done, setDone] = useState(false);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!phone) { Alert.alert('Requis', 'Entrez votre numero'); return; }
     setBusy(true);
     try {
       // date JJ/MM/AAAA → AAAA-MM-JJ
@@ -1262,17 +1479,22 @@ function BookingModal({ vehicle, onClose, onDone }) {
       if (m) start = `${m[3]}-${m[2]}-${m[1]}`;
       const end = new Date(start);
       end.setDate(end.getDate() + (rt.id === 'longhaul' ? days : 1));
-      await api.newBooking({
+      const res = await api.newBooking({
         vehicle: vehicle.id,
         start_date: start,
         end_date: end.toISOString().split('T')[0],
         pickup_address: pickup,
-        notes: `Type: ${rt.label} | Paiement: ${pay} | Tel: ${phone}${agentCode ? ` | Agent: ${agentCode}` : ''}`,
+        driver_type: driverType,
+        payment_method: pay,
+        notes: `Type: ${rt.label} | Tel: ${phone || '—'}${agentCode ? ` | Agent: ${agentCode}` : ''}`,
       });
-      setSaved(true);
+      setSaved(res?.status === 'confirmed' || !!res?.id);
       onDone?.();
-    } catch (_) {
-      setSaved(false); // confirmation locale si API injoignable
+    } catch (e) {
+      const msg = e?.data?.payment || e?.data?.vehicle || e?.data?.driver_type;
+      Alert.alert('Reservation impossible', String(msg || 'Paiement non effectue — aucune reservation creee. Verifiez votre connexion et votre solde.'));
+      setBusy(false);
+      return;
     }
     setBusy(false);
     setDone(true);
@@ -1294,12 +1516,16 @@ function BookingModal({ vehicle, onClose, onDone }) {
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', justifyContent:'center', padding:20 }}>
         <View style={{ backgroundColor:C.bg, borderRadius:24, padding:28, alignItems:'center' }}>
           <Ionicons name="checkmark-circle" size={64} color={C.success} />
-          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, marginTop:12, marginBottom:8, textAlign:'center' }}>Reservation {saved ? 'envoyee' : 'confirmee'}</Text>
+          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, marginTop:12, marginBottom:8, textAlign:'center' }}>
+            {saved ? 'Reservation confirmee' : 'Reservation enregistree'}
+          </Text>
           <Text style={{ color:C.muted, textAlign:'center' }}>{vehicle.name} — {rt.label}</Text>
+          {driverType === 'internal' && <Text style={{ color:C.info, fontSize:12, fontWeight:'600', marginTop:4 }}>Un chauffeur AutoLink vous est assigne automatiquement.</Text>}
+          {driverType === 'owner' && <Text style={{ color:C.info, fontSize:12, fontWeight:'600', marginTop:4 }}>Le proprietaire se presentera avec son chauffeur.</Text>}
           {agentOk && <Text style={{ color:C.success, fontSize:12, fontWeight:'600', marginTop:4 }}>Code agent {agentCode} applique</Text>}
           <Text style={{ fontSize:22, fontWeight:'900', color:C.primary, marginVertical:12 }}>{fmtNum(price)}</Text>
-          <Text style={{ color:saved?C.success:C.muted, fontSize:11, marginBottom:20, textAlign:'center' }}>
-            {saved ? 'Enregistree — visible dans le tableau de bord admin.' : `SMS envoye au ${phone}`}
+          <Text style={{ color:C.success, fontSize:11, marginBottom:20, textAlign:'center' }}>
+            Paiement recu — confirmee automatiquement. Le proprietaire a ete notifie.
           </Text>
           <TouchableOpacity onPress={onClose} style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14, paddingHorizontal:32 }}>
             <Text style={{ color:'#fff', fontWeight:'700', fontSize:15 }}>Fermer</Text>
@@ -1369,6 +1595,17 @@ function BookingModal({ vehicle, onClose, onDone }) {
                   <TextInput value={agentCode} onChangeText={chk} placeholder="Ex: AGT-DBL-001" placeholderTextColor={C.muted} autoCapitalize="characters" style={{ borderWidth:1.5, borderColor:agentOk===true?C.success:agentOk===false?C.error:C.border, borderRadius:12, padding:12, fontSize:14, backgroundColor:C.card, color:C.text, paddingRight:44 }} />
                   {agentCode ? <View style={{ position:'absolute', right:12, top:13 }}><Ionicons name={agentOk?'checkmark-circle':'close-circle'} size={22} color={agentOk?C.success:C.error} /></View> : null}
                 </View>
+                <Text style={{ fontWeight:'700', color:C.text, marginBottom:8 }}>Option chauffeur</Text>
+                <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
+                  {[{id:'none',l:'Sans',s:'Vous conduisez'},{id:'internal',l:'AutoLink',s:'Assigne auto'},{id:'owner',l:'Du proprio',s:'Fourni',off:vehicle.api===true&&!vehicle.driverAvailable}].map(o => (
+                    <TouchableOpacity key={o.id} disabled={o.off} onPress={()=>setDriverType(o.id)}
+                      style={{ flex:1, borderWidth:2, borderRadius:12, padding:10, alignItems:'center', opacity:o.off?0.4:1,
+                        borderColor:driverType===o.id?C.primary:C.border, backgroundColor:driverType===o.id?C.primary+'10':C.card }}>
+                      <Text style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{o.l}</Text>
+                      <Text style={{ color:C.muted, fontSize:9, textAlign:'center' }}>{o.off?'Indisponible':o.s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <View style={{ backgroundColor:'#EFF6FF', borderRadius:12, padding:12 }}>
                   <Text style={{ color:C.info, fontWeight:'700', fontSize:12, marginBottom:2 }}>Forfait kilometrique</Text>
                   <Text style={{ color:C.info, fontSize:11 }}>{rt.km} km inclus · Au-dela : {vehicle.kmRate} F/km</Text>
@@ -1393,7 +1630,7 @@ function BookingModal({ vehicle, onClose, onDone }) {
                 <Text style={{ fontWeight:'700', color:C.text, marginBottom:6 }}>Numero de telephone</Text>
                 <TextInput value={phone} onChangeText={setPhone} placeholder="+237 6XX XX XX XX" placeholderTextColor={C.muted} keyboardType="phone-pad" style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:16 }} />
                 <Text style={{ fontWeight:'700', color:C.text, marginBottom:10 }}>Mode de paiement</Text>
-                {[{id:'mtn',label:'MTN Mobile Money',dot:'#FCD34D'},{id:'orange',label:'Orange Money',dot:'#FB923C'},{id:'bank',label:'Depot bancaire',dot:'#60A5FA'}].map(pm=>(
+                {[{id:'wallet',label:'Solde AutoLink',dot:'#10B981'},{id:'mtn',label:'MTN MoMo',dot:'#FCD34D'},{id:'orange',label:'Orange Money',dot:'#FB923C'},{id:'senbid',label:'SenBid',dot:'#14B8A6'},{id:'paybid',label:'PayBid',dot:'#6366F1'},{id:'stripe',label:'Carte (Stripe)',dot:'#7C3AED'}].map(pm=>(
                   <TouchableOpacity key={pm.id} onPress={()=>setPay(pm.id)} style={{ borderWidth:2, borderColor:pay===pm.id?pm.dot:C.border, borderRadius:14, padding:12, marginBottom:8, flexDirection:'row', alignItems:'center', gap:12, backgroundColor:pay===pm.id?pm.dot+'15':C.card }}>
                     <View style={{ width:28,height:28,borderRadius:8,backgroundColor:pm.dot+'50' }} />
                     <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text, flex:1 }}>{pm.label}</Text>
@@ -1401,9 +1638,9 @@ function BookingModal({ vehicle, onClose, onDone }) {
                   </TouchableOpacity>
                 ))}
                 <View style={{ backgroundColor:C.card, borderRadius:14, padding:14, borderWidth:1, borderColor:C.border, marginTop:8 }}>
-                  <View style={{ flexDirection:'row', justifyContent:'space-between', paddingBottom:8, borderBottomWidth:1, borderBottomColor:C.border }}>
-                    <Text style={{ color:C.muted }}>Commission AutoLink (22%)</Text>
-                    <Text style={{ color:C.error }}>-{fmtNum(Math.round(price*0.22))}</Text>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:6, paddingBottom:8, borderBottomWidth:1, borderBottomColor:C.border }}>
+                    <Ionicons name="shield-checkmark" size={14} color={C.success} />
+                    <Text style={{ color:C.muted, fontSize:11, flex:1 }}>Paiement securise — caution bloquee jusqu'a la fin de la location</Text>
                   </View>
                   <View style={{ flexDirection:'row', justifyContent:'space-between', paddingTop:8 }}>
                     <Text style={{ fontWeight:'800', color:C.text }}>Total a payer</Text>

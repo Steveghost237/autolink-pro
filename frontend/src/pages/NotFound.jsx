@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft } from 'lucide-react';
+import { Home, ArrowLeft, Car } from 'lucide-react';
 
 export default function NotFound() {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center px-4 text-center">
       <div>
-        <div className="text-8xl mb-6">🚗</div>
+        <Car size={80} className="text-primary-400 mx-auto mb-6" />
         <h1 className="text-6xl font-black text-white mb-4">404</h1>
         <h2 className="text-2xl font-bold text-primary-200 mb-4">Page introuvable</h2>
         <p className="text-primary-300 mb-8 max-w-sm mx-auto">Cette page n'existe pas ou a été déplacée. Retournez à l'accueil pour continuer.</p>

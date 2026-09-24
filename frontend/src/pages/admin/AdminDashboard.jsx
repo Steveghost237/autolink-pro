@@ -11,7 +11,7 @@ import {
 const POLL_INTERVAL = 8000; // rafraîchissement toutes les 8s
 
 const STATUS_STYLE = {
-  pending:   { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
+  pending:   { label: 'Attente paiement', cls: 'bg-amber-100 text-amber-700' },
   confirmed: { label: 'Confirmée',  cls: 'bg-blue-100 text-blue-700' },
   active:    { label: 'En cours',   cls: 'bg-purple-100 text-purple-700' },
   completed: { label: 'Terminée',   cls: 'bg-emerald-100 text-emerald-700' },
@@ -62,10 +62,10 @@ export default function AdminDashboard() {
     return () => clearInterval(t);
   }, [fetchAll]);
 
-  const setBookingStatus = async (id, status) => {
+  const resolveDispute = async (id, decision) => {
     setBusy(id);
     try {
-      await bookingsAPI.update(id, { status });
+      await bookingsAPI.resolveDispute(id, decision);
       await fetchAll();
     } catch (_) {}
     setBusy(null);
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
     } catch (_) {}
   };
 
-  const pendingBookings = bookings.filter(b => b.status === 'pending');
+  const disputedBookings = bookings.filter(b => b.status === 'disputed');
   const pendingVehicles = vehicles.filter(v => v.status === 'pending');
 
   return (
@@ -105,12 +105,13 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Alertes */}
-        {(pendingBookings.length > 0 || pendingVehicles.length > 0) && (
+        {/* Alertes — cas exceptionnels uniquement */}
+        {(disputedBookings.length > 0 || pendingVehicles.length > 0) && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
             <AlertTriangle size={20} className="text-amber-600 shrink-0" />
             <div className="flex-1 text-sm text-amber-800">
-              <strong>{pendingBookings.length} réservation(s)</strong> et <strong>{pendingVehicles.length} véhicule(s)</strong> en attente de validation.
+              {disputedBookings.length > 0 && <><strong>{disputedBookings.length} litige(s)</strong> à arbitrer. </>}
+              {pendingVehicles.length > 0 && <><strong>{pendingVehicles.length} véhicule(s)</strong> à vérifier avant mise en ligne.</>}
             </div>
           </div>
         )}
@@ -134,12 +135,48 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Réservations en direct */}
+          {/* Litiges à arbitrer — seule action admin sur les réservations */}
+          {disputedBookings.length > 0 && (
+            <div className="lg:col-span-2 card border-2 border-red-200">
+              <h3 className="font-bold text-red-700 mb-1 flex items-center gap-2">
+                <AlertTriangle size={18} /> Litiges à arbitrer
+              </h3>
+              <p className="text-xs text-slate-400 mb-4">La caution est gelée jusqu'à votre décision.</p>
+              <div className="space-y-3">
+                {disputedBookings.map(b => (
+                  <div key={b.id} className="border border-red-100 bg-red-50/50 rounded-xl p-3">
+                    <p className="text-sm font-semibold text-slate-800">
+                      BK-{String(b.id).padStart(4, '0')} — {b.client_name} · {b.vehicle_name}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {b.start_date} → {b.end_date} · {Number(b.subtotal).toLocaleString()} F bloqués
+                    </p>
+                    {b.dispute_reason && (
+                      <p className="text-xs text-red-700 mt-1 italic">« {b.dispute_reason} »</p>
+                    )}
+                    <div className="flex gap-2 mt-3">
+                      <button disabled={busy === b.id} onClick={() => resolveDispute(b.id, 'refund')}
+                        className="text-xs font-semibold px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Rembourser le client
+                      </button>
+                      <button disabled={busy === b.id} onClick={() => resolveDispute(b.id, 'release')}
+                        className="text-xs font-semibold px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                        Payer le propriétaire
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Réservations en direct — supervision (lecture seule) */}
           <div className="lg:col-span-2 card">
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-bold text-slate-900">Réservations en direct</h3>
               <span className="text-xs text-slate-400">synchro auto {POLL_INTERVAL / 1000}s</span>
             </div>
+            <p className="text-xs text-slate-400 mb-4">Confirmées automatiquement après paiement — supervision uniquement.</p>
             {bookings.length === 0 && (
               <p className="text-sm text-slate-400 py-8 text-center">
                 {online ? 'Aucune réservation pour le moment.' : 'API injoignable.'}
@@ -158,22 +195,18 @@ export default function AdminDashboard() {
                         BK-{String(b.id).padStart(4, '0')} — {b.client_name || 'Client'} · {b.vehicle_name}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {b.start_date} → {b.end_date} · {Number(b.subtotal).toLocaleString()} F · il y a {timeAgo(b.created_at)}
+                        {b.start_date} → {b.end_date} · {Number(b.subtotal).toLocaleString()} F
+                        {b.driver_name ? ` · Chauffeur : ${b.driver_name}` : ''} · il y a {timeAgo(b.created_at)}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>{st.label}</span>
-                      {b.status === 'pending' && (
-                        <div className="flex gap-1">
-                          <button disabled={busy === b.id} onClick={() => setBookingStatus(b.id, 'confirmed')}
-                            className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600" title="Confirmer">
-                            <CheckCircle2 size={14} />
-                          </button>
-                          <button disabled={busy === b.id} onClick={() => setBookingStatus(b.id, 'cancelled')}
-                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600" title="Annuler">
-                            <XCircle size={14} />
-                          </button>
-                        </div>
+                      {b.escrow_status && (
+                        <span className="text-[10px] text-slate-400">
+                          {b.escrow_status === 'held' ? 'Caution bloquée' :
+                           b.escrow_status === 'released' ? 'Propriétaire payé' :
+                           b.escrow_status === 'refunded' ? 'Client remboursé' : 'Caution gelée'}
+                        </span>
                       )}
                     </div>
                   </div>

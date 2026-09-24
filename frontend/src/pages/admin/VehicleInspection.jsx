@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClipboardList, CheckCircle, XCircle, Camera, AlertTriangle, Plus, X, Car } from 'lucide-react';
+import { ClipboardList, CheckCircle, XCircle, Camera, AlertTriangle, Plus, X, Car, User, Calendar } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 
 const INSPECTION_ITEMS = {
@@ -22,14 +22,14 @@ const INSPECTION_ITEMS = {
 };
 
 const PENDING_INSPECTIONS = [
-  { id: 'INS001', type: 'entry', vehicle: 'Toyota Corolla 2022', plate: 'AB 1234 CI', emoji: '🚗', client: 'Marie Konan', bookingId: 'BK089', date: '2025-08-26', owner: 'Jean Kouassi', km: 45230, fuel: 80 },
-  { id: 'INS002', type: 'exit', vehicle: 'Hyundai Tucson 2023', plate: 'CD 5678 CI', emoji: '🚙', client: 'Yves Kouadio', bookingId: 'BK085', date: '2025-08-26', owner: 'Moussa Koné', km: 62180, fuel: 45 },
-  { id: 'INS003', type: 'entry', vehicle: 'BMW Série 5 2022', plate: 'EF 9012 CI', emoji: '🏎️', client: 'Awa Diallo', bookingId: 'BK090', date: '2025-08-27', owner: 'Isabelle Yao', km: 28900, fuel: 95 },
+  { id: 'INS001', type: 'entry', vehicle: 'Toyota Corolla 2022', plate: 'LT-4523-A', client: 'Marie Ngo Bell', bookingId: 'BK089', date: '2025-08-26', owner: 'Jean Fotso', km: 45230, fuel: 80 },
+  { id: 'INS002', type: 'exit', vehicle: 'Hyundai Tucson 2023', plate: 'CE-8810-K', client: 'Yves Kamga', bookingId: 'BK085', date: '2025-08-26', owner: 'Moussa Etoundi', km: 62180, fuel: 45 },
+  { id: 'INS003', type: 'entry', vehicle: 'BMW Série 5 2022', plate: 'LT-2210-G', client: 'Awa Mbarga', bookingId: 'BK090', date: '2025-08-27', owner: 'Isabelle Nkomo', km: 28900, fuel: 95 },
 ];
 
 const COMPLETED = [
-  { id: 'INS099', type: 'exit', vehicle: 'Ford Ranger 2021', plate: 'GH 3456 CI', emoji: '🛻', client: 'Paul Bamba', date: '2025-08-25', score: 91, issues: 0, controller: 'Contrôleur AutoLink' },
-  { id: 'INS098', type: 'entry', vehicle: 'Kia Sportage 2023', plate: 'IJ 7890 CI', emoji: '🚙', client: 'Fatou Diallo', date: '2025-08-24', score: 88, issues: 1, controller: 'Contrôleur AutoLink' },
+  { id: 'INS099', type: 'exit', vehicle: 'Ford Ranger 2021', plate: 'SW-3345-P', client: 'Paul Biya', date: '2025-08-25', score: 91, issues: 0, controller: 'Contrôleur AutoLink' },
+  { id: 'INS098', type: 'entry', vehicle: 'Kia Sportage 2023', plate: 'LT-7789-M', client: 'Fatou Abena', date: '2025-08-24', score: 88, issues: 1, controller: 'Contrôleur AutoLink' },
 ];
 
 function InspectionForm({ inspection, onClose }) {
@@ -54,7 +54,7 @@ function InspectionForm({ inspection, onClose }) {
   if (submitted) return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center">
-        <div className="text-6xl mb-3">📋</div>
+        <ClipboardList size={56} className="text-primary-500 mx-auto mb-3" />
         <h3 className="text-xl font-bold text-slate-900 mb-2">Fiche d'inspection enregistrée !</h3>
         <div className={`text-3xl font-black mb-1 ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{score}/100</div>
         <p className="text-slate-500 text-sm mb-5">{passed} OK · {failed} problème(s) · {issues.length} remarque(s)</p>
@@ -69,7 +69,7 @@ function InspectionForm({ inspection, onClose }) {
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
           <div className="sticky top-0 bg-white rounded-t-2xl border-b border-slate-100 p-5 flex items-center justify-between z-10">
             <div>
-              <h3 className="font-bold text-slate-900">Fiche d'inspection — {inspection.type === 'entry' ? '🟢 ENTRÉE' : '🔴 SORTIE'}</h3>
+              <h3 className="font-bold text-slate-900">Fiche d'inspection — {inspection.type === 'entry' ? 'ENTRÉE' : 'SORTIE'}</h3>
               <p className="text-sm text-slate-500">{inspection.vehicle} ({inspection.plate}) · Client : {inspection.client} · {inspection.date}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100"><X size={20} /></button>
@@ -215,18 +215,18 @@ export default function VehicleInspection() {
             {PENDING_INSPECTIONS.map(ins => (
               <div key={ins.id} className="bg-white rounded-2xl border-2 border-slate-100 hover:border-primary-200 shadow-sm p-5 transition-all">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <span className="text-4xl">{ins.emoji}</span>
+                  <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center shrink-0"><Car size={26} className="text-primary-600" /></div>
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap mb-1">
                       <h3 className="font-bold text-slate-900">{ins.vehicle}</h3>
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ins.type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {ins.type === 'entry' ? '🟢 FICHE ENTRÉE' : '🔴 FICHE SORTIE'}
+                        {ins.type === 'entry' ? 'FICHE ENTRÉE' : 'FICHE SORTIE'}
                       </span>
                     </div>
-                    <div className="text-sm text-slate-500 space-x-3">
-                      <span>🚗 {ins.plate}</span>
-                      <span>👤 Client : {ins.client}</span>
-                      <span>📅 {ins.date}</span>
+                    <div className="text-sm text-slate-500 flex items-center gap-3 flex-wrap">
+                      <span className="inline-flex items-center gap-1"><Car size={13} /> {ins.plate}</span>
+                      <span className="inline-flex items-center gap-1"><User size={13} /> Client : {ins.client}</span>
+                      <span className="inline-flex items-center gap-1"><Calendar size={13} /> {ins.date}</span>
                     </div>
                     <div className="text-sm text-slate-400 mt-1">
                       Réservation : {ins.bookingId} · Propriétaire : {ins.owner} · {ins.km.toLocaleString()} km · Carburant : {ins.fuel}%
@@ -246,17 +246,19 @@ export default function VehicleInspection() {
             {COMPLETED.map(ins => (
               <div key={ins.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <span className="text-4xl">{ins.emoji}</span>
+                  <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center shrink-0"><Car size={26} className="text-slate-500" /></div>
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap mb-1">
                       <h3 className="font-bold text-slate-900">{ins.vehicle}</h3>
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ins.type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {ins.type === 'entry' ? '🟢 ENTRÉE' : '🔴 SORTIE'}
+                        {ins.type === 'entry' ? 'ENTRÉE' : 'SORTIE'}
                       </span>
                       {ins.issues > 0 && <span className="badge-warning">{ins.issues} problème(s)</span>}
                     </div>
-                    <div className="text-sm text-slate-500">
-                      🚗 {ins.plate} · 📅 {ins.date} · Contrôleur : {ins.controller}
+                    <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1"><Car size={13} /> {ins.plate}</span> ·
+                      <span className="inline-flex items-center gap-1"><Calendar size={13} /> {ins.date}</span> ·
+                      Contrôleur : {ins.controller}
                     </div>
                   </div>
                   <div className="text-right">

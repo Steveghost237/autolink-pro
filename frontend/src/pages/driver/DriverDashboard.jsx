@@ -1,67 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
-import { Car, Star, DollarSign, Clock, MapPin, Phone, CheckCircle, XCircle, Navigation, Award } from 'lucide-react';
+import { bookingsAPI, notificationsAPI } from '../../services/api';
+import { Car, Star, DollarSign, Clock, MapPin, Phone, CheckCircle, Navigation, Award, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 
-const TRIPS = [
-  { id: 'T001', client: 'Marie Konan', phone: '+225 07 12 34 56', vehicle: 'Toyota Corolla 2022', emoji: '🚗', pickup: 'Plateau, Abidjan', dropoff: 'Cocody, Abidjan', date: '2025-08-20', amount: 15000, status: 'completed', rating: 5 },
-  { id: 'T002', client: 'Yves Kouadio', phone: '+225 05 78 90 12', vehicle: 'Toyota Corolla 2022', emoji: '🚗', pickup: 'Aéroport FHB', dropoff: 'Hôtel Ivoire', date: '2025-08-22', amount: 20000, status: 'completed', rating: 4 },
-  { id: 'T003', client: 'Awa Diallo', phone: '+225 07 45 67 89', vehicle: 'Toyota Corolla 2022', emoji: '🚗', pickup: 'Marcory, Abidjan', dropoff: 'Yopougon', date: '2025-08-25', amount: 18000, status: 'active', rating: null },
-];
+const POLL = 10000;
 
-const UPCOMING = [
-  { id: 'U001', client: 'Paul Bamba', phone: '+225 07 99 00 11', vehicle: 'Toyota Corolla 2022', emoji: '🚗', pickup: 'Bingerville', dropoff: 'Plateau', date: '2025-08-26', time: '08:00', amount: 25000 },
-  { id: 'U002', client: 'Fatou Diallo', phone: '+225 05 22 33 44', vehicle: 'Toyota Corolla 2022', emoji: '🚗', pickup: 'Cocody', dropoff: 'Aéroport FHB', date: '2025-08-27', time: '14:30', amount: 22000 },
-];
-
-const DRIVER_STATS = { rating: 4.8, totalTrips: 312, totalEarned: 4680000, monthlyEarned: 480000, acceptanceRate: 94, onTimeRate: 98 };
+const STATUS_LABEL = {
+  confirmed: { label: 'À venir', cls: 'bg-blue-100 text-blue-700' },
+  active:    { label: 'En cours', cls: 'bg-emerald-100 text-emerald-700' },
+  completed: { label: 'Terminée', cls: 'bg-slate-100 text-slate-600' },
+  cancelled: { label: 'Annulée',  cls: 'bg-red-100 text-red-700' },
+};
 
 export default function DriverDashboard() {
   const { user } = useAuth();
-  const [isOnline, setIsOnline] = useState(true);
+  const [bookings, setBookings] = useState([]);
+  const [notifs, setNotifs] = useState([]);
+  const [online, setOnline] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [b, n] = await Promise.all([bookingsAPI.list({ page_size: 50 }), notificationsAPI.list()]);
+      setBookings(b.data.results || b.data || []);
+      setNotifs(n.data.results || []);
+      setOnline(true);
+    } catch (_) {
+      setOnline(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, POLL);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const setStatus = async (id, status) => {
+    setBusy(id);
+    try {
+      await bookingsAPI.updateStatus(id, status);
+      await load();
+    } catch (_) {}
+    setBusy(null);
+  };
+
+  const upcoming = bookings.filter(b => b.status === 'confirmed');
+  const active = bookings.filter(b => b.status === 'active');
+  const history = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
+  const totalEarned = bookings.filter(b => b.status === 'completed')
+    .reduce((s, b) => s + Number(b.subtotal || 0) * 0.10, 0); // part indicative chauffeur
 
   return (
-    <DashboardLayout title="Tableau de bord Chauffeur">
+    <DashboardLayout title="Espace Chauffeur">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-gradient-to-br from-slate-900 to-primary-900 rounded-2xl p-6 text-white">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h2 className="text-2xl font-bold mb-1">Bonjour, {user?.firstName} 🚗</h2>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={14} className={i < Math.floor(DRIVER_STATS.rating) ? 'text-amber-400 fill-current' : 'text-slate-600'} />)}
-                  <span className="text-amber-400 font-bold ml-1">{DRIVER_STATS.rating}</span>
-                </div>
-                <span className="badge-success">Chauffeur certifié ✓</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-300">{isOnline ? 'En ligne' : 'Hors ligne'}</span>
-                <button onClick={() => setIsOnline(!isOnline)} className={`relative w-12 h-6 rounded-full transition-colors ${isOnline ? 'bg-emerald-500' : 'bg-slate-600'}`}>
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow ${isOnline ? 'left-7' : 'left-1'}`} />
-                </button>
-              </div>
-              {isOnline && <span className="text-xs text-emerald-400">● Disponible pour des courses</span>}
-            </div>
+
+        {/* Bandeau connexion */}
+        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium ${online ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+          <div className="flex items-center gap-2">
+            {online ? <Wifi size={16} /> : <WifiOff size={16} />}
+            {online ? 'Connecté — courses synchronisées automatiquement' : 'API injoignable'}
           </div>
+          <button onClick={load} className="flex items-center gap-1 underline"><RefreshCw size={13} /> Actualiser</button>
         </div>
 
+        {/* Header */}
+        <div className="bg-gradient-to-br from-slate-900 to-primary-900 rounded-2xl p-6 text-white">
+          <h2 className="text-2xl font-bold mb-1">Bonjour, {user?.first_name || user?.firstName}</h2>
+          <p className="text-white/60 text-sm">Chauffeur interne AutoLink — les courses vous sont assignées automatiquement.</p>
+        </div>
+
+        {/* Notifications */}
+        {notifs.length > 0 && (
+          <div className="card">
+            <h3 className="font-bold text-slate-900 mb-3">Notifications</h3>
+            <div className="space-y-2">
+              {notifs.slice(0, 5).map(n => (
+                <div key={n.id} className={`p-3 rounded-xl text-sm ${n.is_read ? 'bg-slate-50 text-slate-500' : 'bg-blue-50 text-slate-800 font-medium'}`}>
+                  <span className="font-semibold">{n.title} — </span>{n.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Note', value: `${DRIVER_STATS.rating}★`, color: 'text-amber-600 bg-amber-50', icon: Star },
-            { label: 'Courses', value: DRIVER_STATS.totalTrips, color: 'text-blue-600 bg-blue-50', icon: Car },
-            { label: 'Revenus mois', value: `${(DRIVER_STATS.monthlyEarned / 1000).toFixed(0)}K F`, color: 'text-emerald-600 bg-emerald-50', icon: DollarSign },
-            { label: 'Total gagné', value: `${(DRIVER_STATS.totalEarned / 1000000).toFixed(1)}M F`, color: 'text-primary-600 bg-primary-50', icon: Award },
-            { label: 'Acceptation', value: `${DRIVER_STATS.acceptanceRate}%`, color: 'text-purple-600 bg-purple-50', icon: CheckCircle },
-            { label: 'Ponctualité', value: `${DRIVER_STATS.onTimeRate}%`, color: 'text-primary-600 bg-primary-50', icon: Clock },
+            { label: 'Courses à venir', value: upcoming.length, color: 'text-blue-600 bg-blue-50', icon: Clock },
+            { label: 'En cours', value: active.length, color: 'text-emerald-600 bg-emerald-50', icon: Navigation },
+            { label: 'Terminées', value: history.length, color: 'text-slate-600 bg-slate-100', icon: CheckCircle },
+            { label: 'Gains cumulés', value: `${Math.round(totalEarned).toLocaleString()} F`, color: 'text-primary-600 bg-primary-50', icon: DollarSign },
           ].map(({ label, value, color, icon: Icon }) => (
             <div key={label} className="card p-4 text-center">
-              <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center mx-auto mb-2`}>
-                <Icon size={16} />
-              </div>
+              <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center mx-auto mb-2`}><Icon size={16} /></div>
               <div className="font-black text-slate-900">{value}</div>
               <div className="text-xs text-slate-400">{label}</div>
             </div>
@@ -69,96 +102,68 @@ export default function DriverDashboard() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Upcoming Trips */}
+          {/* Courses actives + à venir */}
           <div className="card">
-            <h3 className="font-bold text-slate-900 mb-4">Prochaines courses</h3>
-            {UPCOMING.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <Clock size={32} className="mx-auto mb-2" />
-                <p>Aucune course planifiée</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {UPCOMING.map(t => (
-                  <div key={t.id} className="border-2 border-primary-100 bg-primary-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{t.emoji}</span>
-                        <div>
-                          <div className="font-semibold text-slate-900 text-sm">{t.client}</div>
-                          <div className="text-xs text-slate-500">{t.date} à {t.time}</div>
-                        </div>
-                      </div>
-                      <div className="font-bold text-primary-700">{t.amount.toLocaleString()} F</div>
+            <h3 className="font-bold text-slate-900 mb-4">Mes courses</h3>
+            {active.length === 0 && upcoming.length === 0 && (
+              <p className="text-sm text-slate-400 py-8 text-center">Aucune course assignée pour le moment.</p>
+            )}
+            <div className="space-y-4">
+              {[...active, ...upcoming].map(b => {
+                const st = STATUS_LABEL[b.status] || STATUS_LABEL.confirmed;
+                return (
+                  <div key={b.id} className={`border-2 rounded-xl p-4 ${b.status === 'active' ? 'border-emerald-300 bg-emerald-50' : 'border-primary-100 bg-primary-50'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-semibold text-slate-900 text-sm">{b.client_name} — {b.vehicle_name}</div>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
                     </div>
                     <div className="space-y-1 text-xs text-slate-600 mb-3">
-                      <div className="flex items-center gap-1.5"><MapPin size={11} className="text-emerald-500" /> Départ : {t.pickup}</div>
-                      <div className="flex items-center gap-1.5"><Navigation size={11} className="text-red-500" /> Arrivée : {t.dropoff}</div>
+                      <div className="flex items-center gap-1.5"><Clock size={11} /> {b.start_date} → {b.end_date}</div>
+                      {b.pickup_address && <div className="flex items-center gap-1.5"><MapPin size={11} className="text-emerald-500" /> Départ : {b.pickup_address}</div>}
+                      {b.dropoff_address && <div className="flex items-center gap-1.5"><Navigation size={11} className="text-red-500" /> Arrivée : {b.dropoff_address}</div>}
                     </div>
                     <div className="flex gap-2">
-                      <button className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-emerald-500 text-white py-2 rounded-lg hover:bg-emerald-600 transition-colors font-medium">
-                        <CheckCircle size={12} /> Accepter
-                      </button>
-                      <button className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-slate-200 text-slate-600 py-2 rounded-lg hover:bg-slate-300 transition-colors font-medium">
-                        <XCircle size={12} /> Décliner
-                      </button>
-                      <a href={`tel:${t.phone}`} className="flex items-center justify-center gap-1.5 text-xs bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors">
-                        <Phone size={12} />
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* History */}
-          <div className="card">
-            <h3 className="font-bold text-slate-900 mb-4">Historique des courses</h3>
-            <div className="space-y-3">
-              {TRIPS.map(t => (
-                <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${t.status === 'active' ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50'}`}>
-                  <span className="text-2xl">{t.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-slate-900 text-sm">{t.client}</span>
-                      {t.status === 'active' && <span className="badge-success text-xs animate-pulse">En cours</span>}
-                      {t.status === 'completed' && t.rating && (
-                        <div className="flex items-center gap-0.5">
-                          {[...Array(t.rating)].map((_, i) => <Star key={i} size={10} className="text-amber-400 fill-current" />)}
-                        </div>
+                      {b.status === 'confirmed' && (
+                        <button onClick={() => setStatus(b.id, 'active')} disabled={busy === b.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">
+                          <Navigation size={12} /> Démarrer la course
+                        </button>
+                      )}
+                      {b.status === 'active' && (
+                        <button onClick={() => setStatus(b.id, 'completed')} disabled={busy === b.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
+                          <CheckCircle size={12} /> {busy === b.id ? 'Clôture…' : 'Course terminée — libérer la voiture'}
+                        </button>
+                      )}
+                      {b.client_phone && (
+                        <a href={`tel:${b.client_phone}`} className="flex items-center justify-center gap-1.5 text-xs bg-slate-200 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-300">
+                          <Phone size={12} />
+                        </a>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500">{t.pickup} → {t.dropoff}</div>
-                    <div className="text-xs text-slate-400">{t.date}</div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-bold text-emerald-600 text-sm">+{t.amount.toLocaleString()} F</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        </div>
 
-        {/* Assigned Vehicle */}
-        <div className="card">
-          <h3 className="font-bold text-slate-900 mb-4">Véhicule assigné</h3>
-          <div className="flex items-center gap-6 flex-wrap">
-            <div className="text-6xl">🚗</div>
-            <div className="flex-1">
-              <h4 className="font-bold text-slate-900 text-lg">Toyota Corolla 2022</h4>
-              <div className="flex flex-wrap gap-2 mt-1">
-                <span className="badge-primary">AB 1234 CI</span>
-                <span className="badge-success">Assurance valide</span>
-                <span className="badge-info">Essence</span>
-                <span className="badge-success">État : 92/100</span>
-              </div>
-              <div className="text-sm text-slate-500 mt-2">Propriétaire : Jean Kouassi · Dernière inspection : 2025-08-10</div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-primary-700">25 000</div>
-              <div className="text-xs text-slate-500">FCFA/jour tarif</div>
+          {/* Historique */}
+          <div className="card">
+            <h3 className="font-bold text-slate-900 mb-4">Historique</h3>
+            {history.length === 0 && <p className="text-sm text-slate-400 py-8 text-center">Aucune course terminée.</p>}
+            <div className="space-y-3">
+              {history.map(b => (
+                <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                  <div className="w-9 h-9 bg-primary-50 text-primary-600 rounded-lg flex items-center justify-center shrink-0"><Car size={16} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-900 text-sm">{b.client_name} — {b.vehicle_name}</div>
+                    <div className="text-xs text-slate-500">{b.start_date} → {b.end_date}</div>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${(STATUS_LABEL[b.status] || STATUS_LABEL.completed).cls}`}>
+                    {(STATUS_LABEL[b.status] || STATUS_LABEL.completed).label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -1,25 +1,33 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from decimal import Decimal
 
 
-COMMISSION_RATE = Decimal('0.25')
+COMMISSION_RATE = Decimal('0.50')
 
 
 class Booking(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'pending', 'En attente'
+        PENDING = 'pending', 'En attente de paiement'
         CONFIRMED = 'confirmed', 'Confirmé'
         ACTIVE = 'active', 'En cours'
         COMPLETED = 'completed', 'Terminé'
         CANCELLED = 'cancelled', 'Annulé'
         DISPUTED = 'disputed', 'Litige'
 
+    class DriverType(models.TextChoices):
+        NONE = 'none', 'Sans chauffeur'
+        INTERNAL = 'internal', 'Chauffeur AutoLink'
+        OWNER = 'owner', 'Chauffeur du propriétaire'
+
     client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='bookings')
     vehicle = models.ForeignKey('vehicles.Vehicle', on_delete=models.PROTECT, related_name='bookings')
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='driven_bookings')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+    driver_type = models.CharField(max_length=20, choices=DriverType.choices, default=DriverType.NONE)
 
     start_date = models.DateField()
     end_date = models.DateField()
@@ -32,6 +40,9 @@ class Booking(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     commission_amount = models.DecimalField(max_digits=12, decimal_places=2)
     owner_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    dispute_reason = models.TextField(blank=True)
+    dispute_opened_at = models.DateTimeField(null=True, blank=True)
 
     client_rating = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(5)])
     client_review = models.TextField(blank=True)
@@ -55,3 +66,59 @@ class Booking(models.Model):
         self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))
         self.owner_amount = self.subtotal - self.commission_amount
         super().save(*args, **kwargs)
+
+    def sync_vehicle_status(self):
+        """Met à jour le statut du véhicule selon le statut de la réservation."""
+        vehicle = self.vehicle
+        if self.status in ('confirmed', 'active'):
+            if vehicle.status == 'approved' and self.start_date <= timezone.now().date():
+                vehicle.status = 'rented'
+                vehicle.save(update_fields=['status', 'updated_at'])
+        elif self.status in ('completed', 'cancelled'):
+            if vehicle.status in ('rented', 'maintenance'):
+                vehicle.status = 'approved'
+                vehicle.save(update_fields=['status', 'updated_at'])
+
+    def finish(self):
+        """Termine la location : véhicule libéré + caution versée au propriétaire."""
+        if self.status in ('completed', 'cancelled'):
+            return
+        self.status = self.Status.COMPLETED
+        self.save(update_fields=['status', 'updated_at'])
+        self.sync_vehicle_status()
+        self._release_escrow()
+        self._notify_end()
+
+    def _release_escrow(self):
+        """Libère la caution : le propriétaire reçoit ses 50%."""
+        try:
+            payment = self.payment
+        except Exception:
+            return
+        if payment.escrow_status != 'held':
+            return
+        payment.release_escrow()
+
+    def _notify_end(self):
+        from apps.users.models import Notification
+        Notification.objects.create(
+            user=self.vehicle.owner,
+            title='Location terminée',
+            message=f'La location de votre véhicule {self.vehicle} par {self.client.get_full_name()} est terminée. Votre part de {self.owner_amount} FCFA a été versée sur votre solde.',
+        )
+        Notification.objects.create(
+            user=self.client,
+            title='Location terminée',
+            message=f'Votre location du véhicule {self.vehicle} est terminée. Merci d\'avoir utilisé AutoLink.',
+        )
+
+    @classmethod
+    def auto_complete_expired(cls):
+        """Termine automatiquement les locations dont la date de fin est passée."""
+        today = timezone.now().date()
+        expired = cls.objects.filter(
+            status__in=('confirmed', 'active'),
+            end_date__lt=today,
+        ).select_related('vehicle', 'client', 'vehicle__owner')
+        for booking in expired:
+            booking.finish()
