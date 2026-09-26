@@ -39,6 +39,10 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs.pop('password2'):
             raise serializers.ValidationError({'password': 'Les mots de passe ne correspondent pas.'})
+        email = attrs.get('email', '').strip().lower()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({'email': 'Un compte existe déjà avec cet email.'})
+        attrs['email'] = email
         return attrs
 
     def create(self, validated_data):
@@ -52,9 +56,8 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        try:
-            user = User.objects.get(email__iexact=attrs['email'].strip())
-        except User.DoesNotExist:
+        user = User.objects.filter(email__iexact=attrs['email'].strip()).first()
+        if user is None:
             raise serializers.ValidationError('Email ou mot de passe incorrect.')
         if not user.check_password(attrs['password']) or not user.is_active:
             raise serializers.ValidationError('Email ou mot de passe incorrect.')

@@ -27,7 +27,7 @@ export default function MyVehicles() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await vehiclesAPI.list({ page_size: 100 });
+      const { data } = await vehiclesAPI.list({ mine: 1, page_size: 100 });
       setVehicles(data.results || data);
       setOnline(true);
     } catch (_) { setOnline(false); }

@@ -93,13 +93,15 @@ function RatingModal({ booking, onClose }) {
 function DisputeModal({ booking, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
   const submit = async () => {
     setSending(true);
+    setError('');
     try {
       await bookingsAPI.dispute(booking.id, reason);
       onDone();
     } catch (_) {
-      alert('Impossible d\'envoyer le litige — vérifiez votre connexion.');
+      setError('Impossible d\'envoyer le litige — vérifiez votre connexion.');
     }
     setSending(false);
   };
@@ -122,6 +124,7 @@ function DisputeModal({ booking, onClose, onDone }) {
               placeholder="Ex: panne moteur, climatisation HS, véhicule non conforme…"
               value={reason} onChange={e => setReason(e.target.value)} />
           </div>
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
         <div className="p-6 border-t border-slate-100 flex gap-3">
           <button onClick={onClose} className="btn-outline flex-1 py-2.5">Annuler</button>

@@ -18,7 +18,7 @@ class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
         fields = '__all__'
-        read_only_fields = ['tier', 'computed_rate', 'deposit_amount', 'km_included_per_day',
+        read_only_fields = ['owner', 'tier', 'computed_rate', 'deposit_amount', 'km_included_per_day',
                             'extra_km_rate', 'total_bookings', 'total_earned',
                             'rating', 'rating_count', 'created_at', 'updated_at']
 

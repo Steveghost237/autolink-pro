@@ -59,6 +59,7 @@ const api = {
   register:   (payload)         => apiFetch('/users/register/', { method: 'POST', body: payload, auth: false }),
   me:         ()                => apiFetch('/users/me/'),
   vehicles:   ()                => apiFetch('/vehicles/?page_size=100', { auth: false }),
+  myVehicles: ()                => apiFetch('/vehicles/?mine=1&page_size=100'),
   bookings:   ()                => apiFetch('/bookings/?page_size=100'),
   newBooking: (payload)         => apiFetch('/bookings/', { method: 'POST', body: payload }),
   setStatus:  (id, status)      => apiFetch(`/bookings/${id}/`, { method: 'PATCH', body: { status } }),
@@ -179,11 +180,13 @@ function VehicleCard({ v, onPress }) {
             </View>
           )}
         </View>
-        <View style={{ position:'absolute', top:10, right:10, backgroundColor:'rgba(0,0,0,0.45)',
-          borderRadius:20, paddingHorizontal:8, paddingVertical:3, flexDirection:'row', alignItems:'center', gap:3 }}>
-          <Ionicons name="star" size={11} color="#FBBF24" />
-          <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.rating}</Text>
-        </View>
+        {v.reviews > 0 && (
+          <View style={{ position:'absolute', top:10, right:10, backgroundColor:'rgba(0,0,0,0.45)',
+            borderRadius:20, paddingHorizontal:8, paddingVertical:3, flexDirection:'row', alignItems:'center', gap:3 }}>
+            <Ionicons name="star" size={11} color="#FBBF24" />
+            <Text style={{ color:'#fff', fontSize:11, fontWeight:'700' }}>{v.rating}</Text>
+          </View>
+        )}
         {!avail && (
           <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.5)',
             alignItems:'center', justifyContent:'center' }}>
@@ -447,7 +450,7 @@ const mapApiVehicle = (v) => {
     plate: v.plate, image, rate: Number(v.daily_rate || v.computed_rate),
     kmIncluded: v.km_included_per_day || 200, kmRate: v.extra_km_rate || 150,
     deposit: Number(v.deposit_amount) || 0, city: v.city || 'Douala',
-    rating: Number(v.rating) || 4.6, reviews: v.rating_count || 0,
+    rating: Number(v.rating) || 0, reviews: v.rating_count || 0,
     fuel: v.fuel, seats: v.seats, status: v.status, score: v.condition_score,
     driverAvailable: !!v.driver_available, api: true,
   };
@@ -832,7 +835,7 @@ function OwnerDash({ user, logout }) {
 
   const load = useCallback(async () => {
     try {
-      const [v, b, n, w] = await Promise.all([api.vehicles(), api.bookings(), api.notifs(), api.wallet()]);
+      const [v, b, n, w] = await Promise.all([api.myVehicles(), api.bookings(), api.notifs(), api.wallet()]);
       setVehicles((v.results || v).map(mapApiVehicle));
       setBookings(b.results || b);
       setNotifs(n.results || []);
@@ -1098,13 +1101,16 @@ function AdminDash({ user, logout }) {
   }, [load]);
 
   const setStatus = async (id, status) => {
-    try { await api.setStatus(id, status); await load(); } catch (_) {}
+    try { await api.setStatus(id, status); await load(); }
+    catch (e) { Alert.alert('Erreur', e.data?.detail || 'Action impossible pour le moment.'); }
   };
   const toggleUser = async (u) => {
-    try { await api.setUser(u.id, { is_active: !u.is_active }); await load(); } catch (_) {}
+    try { await api.setUser(u.id, { is_active: !u.is_active }); await load(); }
+    catch (e) { Alert.alert('Erreur', e.data?.detail || 'Impossible de modifier ce compte.'); }
   };
   const setRole = async (u, role) => {
-    try { await api.setUser(u.id, { role }); await load(); } catch (_) {}
+    try { await api.setUser(u.id, { role }); await load(); }
+    catch (e) { Alert.alert('Erreur', e.data?.detail || 'Impossible de changer ce role.'); }
   };
 
   const disputed = bookings.filter(b => b.status === 'disputed');

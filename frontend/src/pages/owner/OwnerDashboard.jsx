@@ -37,7 +37,7 @@ export default function OwnerDashboard() {
   const load = useCallback(async () => {
     try {
       const [v, b, n, w] = await Promise.all([
-        vehiclesAPI.list({ page_size: 100 }),
+        vehiclesAPI.list({ mine: 1, page_size: 100 }),
         bookingsAPI.list({ page_size: 50 }),
         notificationsAPI.list(),
         walletAPI.get(),

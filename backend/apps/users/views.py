@@ -56,7 +56,7 @@ class IsAdminRole(permissions.BasePermission):
 
 
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('-created_at')
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
     filterset_fields = ['role', 'is_verified', 'is_active']

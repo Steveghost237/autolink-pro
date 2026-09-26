@@ -35,10 +35,12 @@ class VehicleViewSet(ModelViewSet):
     def get_queryset(self):
         qs = Vehicle.objects.all()
         if self.request.user.is_authenticated:
-            if self.request.user.role == 'OWNER':
-                return qs.filter(owner=self.request.user)
             if self.request.user.role in ['ADMIN', 'CONTROLLER']:
                 return qs
+            # Le propriétaire gère ses véhicules via ?mine=1 ; sinon il peut
+            # aussi parcourir le catalogue public et louer comme un client.
+            if self.request.user.role == 'OWNER' and self.request.query_params.get('mine'):
+                return qs.filter(owner=self.request.user)
         return qs.filter(status='approved')
 
 
