@@ -172,8 +172,18 @@ DEBUG=False
 SECRET_KEY=<chaine-aleatoire-longue>
 ALLOWED_HOSTS=api-autolink-pro.worldwide-international.business
 CORS_ALLOWED_ORIGINS=https://autolink-pro.worldwide-international.business
-COMMISSION_RATE=0.25
+COMMISSION_RATE=0.50
 DATABASE_URL=sqlite:////app/data/db.sqlite3
+FRONTEND_URL=https://autolink-pro.worldwide-international.business
+FCFA_PER_USD=600
+
+# Paiements live (secrets — Dokploy Environment uniquement)
+STRIPE_API_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_MODE=live
+PAYPAL_PAYOUTS_ENABLED=false
 ```
 Montez un volume persistant sur `/app/data` pour conserver SQLite,
 ou utilisez `DATABASE_URL=postgres://user:pass@host:5432/autolink` pour PostgreSQL.
