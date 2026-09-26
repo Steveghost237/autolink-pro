@@ -21,6 +21,8 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -59,6 +61,10 @@ function AppRoutes() {
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
+
+      {/* Pages communes à tous les rôles connectés */}
+      <Route path="/profile" element={<Guard><Profile /></Guard>} />
+      <Route path="/settings" element={<Guard><Settings /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

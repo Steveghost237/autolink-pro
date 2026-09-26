@@ -75,6 +75,8 @@ export const usersAPI = {
   list: (params) => api.get('/users/', { params }),
   getAll: (params) => api.get('/users/', { params }),
   update: (id, payload) => api.patch(`/users/${id}/`, payload),
+  me: () => api.get('/users/me/'),
+  updateMe: (payload) => api.patch('/users/me/', payload),
 };
 
 export const walletAPI = {

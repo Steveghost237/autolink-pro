@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, usersAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -129,6 +129,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = async (payload) => {
+    // Met à jour le profil via l'API puis resynchronise la session locale.
+    try {
+      const { data } = await usersAPI.updateMe(payload);
+      const safeUser = normalizeUser(data);
+      localStorage.setItem('autolink_user', JSON.stringify(safeUser));
+      setUser(safeUser);
+      return { success: true, user: safeUser };
+    } catch (err) {
+      if (err.response?.data) {
+        const first = Object.values(err.response.data)[0];
+        return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
+      }
+      // Hors-ligne : on applique quand même localement
+      const merged = normalizeUser({ ...user, ...payload });
+      localStorage.setItem('autolink_user', JSON.stringify(merged));
+      setUser(merged);
+      return { success: true, user: merged, offline: true };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const { data } = await usersAPI.me();
+      const safeUser = normalizeUser(data);
+      localStorage.setItem('autolink_user', JSON.stringify(safeUser));
+      setUser(safeUser);
+      return safeUser;
+    } catch (_) { return null; }
+  };
+
   const getDashboardPath = (role) => {
     const paths = {
       CLIENT: '/client/dashboard',
@@ -141,7 +172,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, register, googleLogin, getDashboardPath }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, register, googleLogin, updateUser, refreshUser, getDashboardPath }}>
       {children}
     </AuthContext.Provider>
   );
