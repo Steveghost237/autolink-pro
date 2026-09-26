@@ -408,9 +408,9 @@ function AboutSection() {
         {/* Counters — style trireno */}
         <div className="grid grid-cols-3 gap-8 mt-16 pt-12 border-t border-slate-100">
           {[
-            { target: 98,   suffix: '%',  label: 'Satisfaction clients' },
-            { target: 500,  suffix: '+',  label: 'Véhicules certifiés' },
-            { target: 2,    suffix: '',   label: 'Villes couvertes' },
+            { target: 85,   suffix: '+',  label: 'Véhicules au catalogue' },
+            { target: 6,    suffix: '',   label: 'Moyens de paiement' },
+            { target: 8,    suffix: '',   label: 'Villes couvertes' },
           ].map(({ target, suffix, label }) => (
             <div key={label} className="text-center">
               <div className="text-4xl md:text-5xl font-black text-teal-600 mb-2">
@@ -648,9 +648,9 @@ function AppSection() {
           </div>
           <div className="flex justify-center gap-8 text-center">
             {[
-              { v: '50 000+', l: 'Téléchargements' },
-              { v: '4.8/5',   l: 'Note moyenne' },
-              { v: '99 %',    l: 'Satisfaction' },
+              { v: '85+',   l: 'Véhicules au catalogue' },
+              { v: '6',     l: 'Moyens de paiement' },
+              { v: '5',     l: 'Catégories de véhicules' },
             ].map(s => (
               <div key={s.l}>
                 <div className="text-3xl md:text-4xl font-black text-white mb-1">{s.v}</div>
