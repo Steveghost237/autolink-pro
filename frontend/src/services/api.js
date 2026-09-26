@@ -1,7 +1,17 @@
 import axios from 'axios';
 
-// URL de l'API — configurable via .env (REACT_APP_API_URL)
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// URL de l'API — priorité à REACT_APP_API_URL (build), sinon déduction au
+// runtime : sur *.worldwide-international.business → sous-domaine api-,
+// ailleurs (local) → localhost:8000.
+function resolveApiUrl() {
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  const host = window.location.hostname.replace(/^www\./, '');
+  if (host.endsWith('.worldwide-international.business')) {
+    return `https://api-${host}/api`;
+  }
+  return 'http://localhost:8000/api';
+}
+const API_URL = resolveApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
