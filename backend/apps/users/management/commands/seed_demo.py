@@ -1,6 +1,7 @@
 import json
 import os
 
+from decouple import config
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -9,6 +10,12 @@ from apps.users.models import User
 from apps.vehicles.models import Vehicle
 from apps.bookings.models import Booking
 
+
+# Identifiants du super admin — configurables via les variables
+# d'environnement Dokploy (ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD).
+ADMIN_USERNAME = config('ADMIN_USERNAME', default='admin')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@autolink.com')
+ADMIN_PASSWORD = config('ADMIN_PASSWORD', default='')
 
 DEMO_USERS = [
     dict(username='client',     email='client@autolink.com',     first_name='Marie',  last_name='Mballa',   role='CLIENT',     phone='+237675123456'),
@@ -142,10 +149,36 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         users = {}
         for u in DEMO_USERS:
+            u = dict(u)
+            password = 'pass123'
+            is_admin = u['username'] == 'admin'
+            if is_admin:
+                u['username'] = ADMIN_USERNAME
+                u['email'] = ADMIN_EMAIL
+                password = ADMIN_PASSWORD or 'pass123'
             obj, created = User.objects.get_or_create(username=u['username'], defaults=u)
             if created:
-                obj.set_password('pass123')
+                obj.set_password(password)
                 obj.save()
+            elif is_admin:
+                # Répare les droits admin si le compte existait déjà, et applique
+                # ADMIN_PASSWORD si la variable est explicitement définie.
+                fixed = False
+                for attr, val in (('role', 'ADMIN'), ('is_staff', True),
+                                  ('is_superuser', True), ('is_verified', True)):
+                    if getattr(obj, attr) != val:
+                        setattr(obj, attr, val)
+                        fixed = True
+                if ADMIN_PASSWORD:
+                    obj.set_password(ADMIN_PASSWORD)
+                    fixed = True
+                if fixed:
+                    obj.save()
+            # Si un username custom est utilisé, désactive l'ancien 'admin'
+            # par défaut pour ne pas laisser un super admin avec pass123.
+            if is_admin and ADMIN_USERNAME != 'admin':
+                User.objects.filter(username='admin').exclude(pk=obj.pk).update(
+                    is_active=False, is_staff=False, is_superuser=False)
             users[u['username']] = obj
         self.stdout.write(f'Users: {len(users)} ready')
 

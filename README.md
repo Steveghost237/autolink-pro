@@ -184,7 +184,18 @@ PAYPAL_CLIENT_ID=...
 PAYPAL_CLIENT_SECRET=...
 PAYPAL_MODE=live
 PAYPAL_PAYOUTS_ENABLED=false
+
+# Super admin créé/maj automatiquement au démarrage (seed_demo)
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@autolink.com
+ADMIN_PASSWORD=<mot-de-passe-fort-unique>
 ```
+`ADMIN_USERNAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` définissent le compte
+super admin. Si le compte existe déjà, le seed ré-applique les droits
+(`is_staff`, `is_superuser`) et met à jour le mot de passe quand
+`ADMIN_PASSWORD` est défini. Si `ADMIN_USERNAME` n'est pas `admin`,
+l'ancien compte `admin` par défaut est désactivé automatiquement.
+
 Montez un volume persistant sur `/app/data` pour conserver SQLite,
 ou utilisez `DATABASE_URL=postgres://user:pass@host:5432/autolink` pour PostgreSQL.
 
