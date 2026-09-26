@@ -93,6 +93,12 @@ function BookingModal({ vehicle, onClose }) {
         payment_method: form.paymentMethod,
         notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
       });
+      // Stripe / PayPal : la réservation reste en attente — on redirige vers
+      // la page de paiement sécurisée ; confirmation au retour vérifié.
+      if (res.data?.payment_url) {
+        window.location.href = res.data.payment_url;
+        return;
+      }
       setSaved(res.data?.status === 'confirmed');
       setStep(3);
     } catch (err) {

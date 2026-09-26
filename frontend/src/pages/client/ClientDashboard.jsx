@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Car, Search, FileText, Star, Clock, CreditCard, ArrowRight, MapPin, Timer, Navigation, Calendar, Wallet, Plus, X, Loader, CheckCircle } from 'lucide-react';
@@ -29,10 +29,16 @@ function TopUpModal({ onClose, onDone }) {
     setLoading(true); setError('');
     try {
       const { data } = await walletAPI.topup(amount, method, phone);
+      // Stripe / PayPal : redirection vers la page de paiement sécurisée —
+      // le solde n'est crédité qu'au retour, après vérification serveur.
+      if (data.payment_url) {
+        window.location.href = data.payment_url;
+        return;
+      }
       setDone(data);
       onDone?.(data.balance);
-    } catch {
-      setError('API injoignable — recharge impossible hors ligne.');
+    } catch (e) {
+      setError(e.response?.data?.detail || 'API injoignable — recharge impossible hors ligne.');
     }
     setLoading(false);
   };
@@ -129,22 +135,44 @@ const RENTAL_QUICK = [
 
 const STATUS_LABELS = { completed: 'Terminé', pending: 'En attente', active: 'En cours', confirmed: 'Confirmé', cancelled: 'Annulé' };
 
+const TOPUP_BANNERS = {
+  success:  { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'Paiement confirmé — votre solde a été rechargé.' },
+  canceled: { cls: 'bg-amber-50 text-amber-700 border-amber-200',      text: 'Paiement annulé — aucun montant n\'a été débité.' },
+  pending:  { cls: 'bg-blue-50 text-blue-700 border-blue-200',          text: 'Paiement en cours de traitement — votre solde sera mis à jour automatiquement.' },
+  error:    { cls: 'bg-red-50 text-red-700 border-red-200',             text: 'Le paiement n\'a pas abouti. Réessayez ou choisissez un autre moyen.' },
+};
+
 export default function ClientDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [balance, setBalance] = useState(user?.balance ?? null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const topupResult = searchParams.get('topup');
   const totalSpent = RECENT_BOOKINGS.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
 
   useEffect(() => {
     walletAPI.get()
       .then(res => setBalance(Number(res.data.balance)))
       .catch(() => {});
-  }, []);
+    // Retour Stripe/PayPal : message + nettoyage de l'URL
+    if (topupResult) {
+      const t = setTimeout(() => setSearchParams({}, { replace: true }), 8000);
+      return () => clearTimeout(t);
+    }
+  }, [topupResult]);
 
   return (
     <DashboardLayout title="Tableau de bord">
       <div className="max-w-6xl mx-auto space-y-6">
+
+        {/* Retour de paiement externe (Stripe/PayPal) */}
+        {topupResult && TOPUP_BANNERS[topupResult] && (
+          <div className={`rounded-xl border px-4 py-3 text-sm font-semibold flex items-center gap-2 ${TOPUP_BANNERS[topupResult].cls}`}>
+            {topupResult === 'success' ? <CheckCircle size={16} /> : <X size={16} className="opacity-60" />}
+            {TOPUP_BANNERS[topupResult].text}
+          </div>
+        )}
 
         {/* Welcome banner */}
         <div className="relative rounded-2xl overflow-hidden">

@@ -29,7 +29,7 @@ class PayoutSerializer(serializers.ModelSerializer):
 class WalletTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WalletTransaction
-        fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note', 'created_at']
+        fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note', 'status', 'created_at']
 
 
 class TopUpSerializer(serializers.Serializer):

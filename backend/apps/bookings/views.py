@@ -64,6 +64,14 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Booking.objects.filter(vehicle__owner=user)
         return Booking.objects.none()
 
+    def create(self, request, *args, **kwargs):
+        # Ajoute payment_url à la réponse quand un checkout externe est créé
+        resp = super().create(request, *args, **kwargs)
+        if getattr(self, '_last_payment_url', None):
+            resp.data['payment_url'] = self._last_payment_url
+            self._last_payment_url = None
+        return resp
+
     def perform_create(self, serializer):
         request = self.request
         vehicle = serializer.validated_data['vehicle']
@@ -91,6 +99,12 @@ class BookingViewSet(viewsets.ModelViewSet):
 
             # Paiement → confirmation automatique (aucune validation admin)
             if payment_method:
+                if payment_method in ('stripe', 'paypal'):
+                    # Paiement externe : la réservation reste 'pending' jusqu'au
+                    # retour vérifié du provider (ou webhook Stripe).
+                    url = self._pay_external(booking, payment_method, request)
+                    self._last_payment_url = url
+                    return
                 self._pay(booking, payment_method)
                 booking.status = Booking.Status.CONFIRMED
                 booking.save(update_fields=['status', 'updated_at'])
@@ -145,6 +159,35 @@ class BookingViewSet(viewsets.ModelViewSet):
             transaction_ref=f'AL-{uuid.uuid4().hex[:12].upper()}',
             paid_at=timezone.now(),
         )
+
+    def _pay_external(self, booking, method, request):
+        """Crée une session Stripe/PayPal pour une réservation.
+        Retourne l'URL de paiement hébergée ; confirmation au retour vérifié."""
+        from apps.payments.models import Payment
+        from apps.payments import providers
+        base = request.build_absolute_uri('/api/payments/')
+        label = f'Location {booking.vehicle} — AutoLink BK-{booking.pk:04d}'
+        if method == 'stripe':
+            r = providers.stripe_create_checkout(
+                booking.subtotal + (booking.deposit_amount or 0), f'BK-{booking.pk:04d}', label,
+                success_url=f'{base}stripe-return/?ctx=booking',
+                cancel_url=f'{base}stripe-return/?canceled=1&ctx=booking',
+                email=booking.client.email)
+            ref, url = r['id'], r['url']
+        else:
+            r = providers.paypal_create_order(
+                booking.subtotal + (booking.deposit_amount or 0), f'BK-{booking.pk:04d}', label,
+                return_url=f'{base}paypal-return/?ctx=booking',
+                cancel_url=f'{base}paypal-return/?canceled=1&ctx=booking')
+            ref, url = r['id'], r['approval_url']
+        Payment.objects.create(
+            booking=booking, payer=booking.client, method=method,
+            status='pending', amount=booking.subtotal,
+            commission=booking.commission_amount, owner_payout=booking.owner_amount,
+            escrow_status='held', deposit_amount=booking.deposit_amount or 0,
+            deposit_status='held', transaction_ref=ref,
+        )
+        return url
 
     def perform_update(self, serializer):
         """Transitions de statut selon le rôle — l'admin n'intervient plus en routine."""

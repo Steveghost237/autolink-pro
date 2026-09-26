@@ -149,6 +149,16 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
   const [cancelling, setCancelling] = useState(null);
+  const [payBanner, setPayBanner] = useState(null);
+
+  // Retour d'un paiement externe (Stripe/PayPal) sur une réservation
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('payment');
+    if (q) {
+      setPayBanner(q);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -181,6 +191,18 @@ export default function MyBookings() {
   return (
     <DashboardLayout title="Mes réservations">
       <div className="max-w-4xl mx-auto space-y-6">
+        {payBanner === 'success' && (
+          <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-emerald-50 text-emerald-700 border-emerald-200">
+            Paiement confirmé — votre réservation est validée. Le propriétaire a été notifié.
+          </div>
+        )}
+        {(payBanner === 'canceled' || payBanner === 'error') && (
+          <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-amber-50 text-amber-700 border-amber-200">
+            {payBanner === 'canceled'
+              ? 'Paiement annulé — la réservation reste en attente et aucun montant n\'a été débité.'
+              : 'Le paiement n\'a pas abouti — la réservation reste en attente.'}
+          </div>
+        )}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
             {[['all', 'Toutes'], ['confirmed', 'Confirmées'], ['completed', 'Terminées'], ['cancelled', 'Annulées'], ['disputed', 'Litiges']].map(([val, label]) => (

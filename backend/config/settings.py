@@ -121,4 +121,18 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000').split(',')
 CORS_ALLOW_CREDENTIALS = True
 
-COMMISSION_RATE = config('COMMISSION_RATE', default=0.25, cast=float)
+COMMISSION_RATE = config('COMMISSION_RATE', default=0.50, cast=float)
+
+# ─── Paiements externes (LIVE) ────────────────────────────────────────────────
+# Les secrets ne sont JAMAIS commités : ils viennent des variables d'env (.env
+# local non versionné / variables Dokploy en production).
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+FCFA_PER_USD = config('FCFA_PER_USD', default=600, cast=int)  # conversion PayPal
+
+STRIPE_API_KEY = config('STRIPE_API_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+
+PAYPAL_CLIENT_ID = config('PAYPAL_CLIENT_ID', default='')
+PAYPAL_CLIENT_SECRET = config('PAYPAL_CLIENT_SECRET', default='')
+PAYPAL_MODE = config('PAYPAL_MODE', default='sandbox')  # 'live' | 'sandbox'
+PAYPAL_PAYOUTS_ENABLED = config('PAYPAL_PAYOUTS_ENABLED', default=False, cast=bool)

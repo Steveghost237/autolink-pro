@@ -171,6 +171,12 @@ class WalletTransaction(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     balance_after = models.DecimalField(max_digits=12, decimal_places=2)
     reference = models.CharField(max_length=100, blank=True)
+    # Suivi des recharges externes (Stripe/PayPal) : pending jusqu'à capture
+    status = models.CharField(
+        max_length=20, default='completed',
+        choices=[('pending', 'En attente'), ('completed', 'Confirmée'), ('failed', 'Échouée')])
+    provider_ref = models.CharField(max_length=200, blank=True,
+                                    help_text='ID session Stripe / commande PayPal')
     note = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

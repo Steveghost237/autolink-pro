@@ -7,7 +7,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList,
   TextInput, StatusBar, ActivityIndicator, Alert,
   Platform, Dimensions, Animated, Modal, Switch, Image, ImageBackground,
-  KeyboardAvoidingView, RefreshControl,
+  KeyboardAvoidingView, RefreshControl, Linking,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -882,10 +882,20 @@ function TopUpModal({ onClose, onDone }) {
     setBusy(true);
     try {
       const d = await api.topup(amt, method, phone);
+      // Stripe / PayPal : paiement sécurisé dans le navigateur, puis retour
+      // sur AutoLink — le solde est crédité après vérification serveur.
+      if (d.payment_url) {
+        onClose?.();
+        Alert.alert('Paiement securise',
+          'Vous allez etre redirige vers la page de paiement ' + method.toUpperCase() +
+          '. Votre solde sera credite automatiquement apres le paiement.',
+          [{ text: 'Continuer', onPress: () => Linking.openURL(d.payment_url) }]);
+        return;
+      }
       setDone(d);
       onDone?.(d.balance);
-    } catch {
-      Alert.alert('Erreur', 'API injoignable — recharge impossible hors ligne.');
+    } catch (e) {
+      Alert.alert('Erreur', e?.data?.detail || 'API injoignable — recharge impossible hors ligne.');
     }
     setBusy(false);
   };
@@ -1494,6 +1504,16 @@ function BookingModal({ vehicle, onClose, onDone }) {
         payment_method: pay,
         notes: `Type: ${rt.label} | Tel: ${phone || '—'}${agentCode ? ` | Agent: ${agentCode}` : ''}`,
       });
+      // Stripe / PayPal : la reservation attend le paiement externe
+      if (res?.payment_url) {
+        setBusy(false);
+        onClose?.();
+        Alert.alert('Paiement requis',
+          'Votre reservation est enregistree. Finalisez le paiement dans le navigateur pour la confirmer automatiquement.',
+          [{ text: 'Payer maintenant', onPress: () => Linking.openURL(res.payment_url) },
+           { text: 'Plus tard', style: 'cancel' }]);
+        return;
+      }
       setSaved(res?.status === 'confirmed' || !!res?.id);
       onDone?.();
     } catch (e) {
