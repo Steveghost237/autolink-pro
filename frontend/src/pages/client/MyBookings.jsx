@@ -3,12 +3,6 @@ import { Star, Download, Phone, X, Car, Calendar, CreditCard, ClipboardList, Loa
 import DashboardLayout from '../../components/DashboardLayout';
 import { bookingsAPI } from '../../services/api';
 
-const DEMO_BOOKINGS = [
-  { id: 'D1', vehicle: 'Toyota Corolla 2022', driver: 'Armand Traoré', driverPhone: '+237 690 88 99 00', startDate: '2025-08-18', endDate: '2025-08-20', days: 2, amount: 50000, status: 'completed', payMethod: 'MTN Money', rating: 5, commission: 12500 },
-  { id: 'D2', vehicle: 'Hyundai Tucson 2023', driver: 'Kofi Mensah', driverPhone: '+237 677 44 55 66', startDate: '2025-08-13', endDate: '2025-08-16', days: 3, amount: 135000, status: 'completed', payMethod: 'Orange Money', rating: 4, commission: 33750 },
-  { id: 'D3', vehicle: 'BMW Série 5 2022', driver: "En attente d'attribution", driverPhone: null, startDate: '2025-09-01', endDate: '2025-09-02', days: 1, amount: 80000, status: 'pending', payMethod: 'MTN Money', rating: null, commission: 20000 },
-];
-
 const STATUS = {
   completed: { label: 'Terminé', style: 'badge-success' },
   pending: { label: 'Attente paiement', style: 'badge-warning' },
@@ -145,11 +139,12 @@ export default function MyBookings() {
   const [tab, setTab] = useState('all');
   const [ratingBooking, setRatingBooking] = useState(null);
   const [disputeBooking, setDisputeBooking] = useState(null);
-  const [bookings, setBookings] = useState(DEMO_BOOKINGS);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [live, setLive] = useState(false);
+  const [offline, setOffline] = useState(false);
   const [cancelling, setCancelling] = useState(null);
   const [payBanner, setPayBanner] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   // Retour d'un paiement externe (Stripe/PayPal) sur une réservation
   useEffect(() => {
@@ -165,9 +160,8 @@ export default function MyBookings() {
       const res = await bookingsAPI.getAll();
       const list = (res.data.results || res.data || []).map(mapApiBooking);
       setBookings(list);
-      setLive(true);
     } catch {
-      // API injoignable — données démo
+      setOffline(true);
     } finally {
       setLoading(false);
     }
@@ -181,7 +175,7 @@ export default function MyBookings() {
       await bookingsAPI.updateStatus(id, 'cancelled');
       setBookings(bs => bs.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
     } catch {
-      setBookings(bs => bs.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+      setActionError('Annulation impossible — vérifiez votre connexion puis réessayez.');
     }
     setCancelling(null);
   };
@@ -194,6 +188,12 @@ export default function MyBookings() {
         {payBanner === 'success' && (
           <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-emerald-50 text-emerald-700 border-emerald-200">
             Paiement confirmé — votre réservation est validée. Le propriétaire a été notifié.
+          </div>
+        )}
+        {actionError && (
+          <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-red-50 text-red-700 border-red-200 flex justify-between items-center">
+            {actionError}
+            <button onClick={() => setActionError('')} className="text-red-400 hover:text-red-600"><X size={14} /></button>
           </div>
         )}
         {(payBanner === 'canceled' || payBanner === 'error') && (
@@ -298,8 +298,8 @@ export default function MyBookings() {
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ClipboardList size={28} className="text-slate-400" />
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">Aucune réservation</h3>
-              <p className="text-slate-500">Vous n'avez pas encore de réservation dans cette catégorie.</p>
+              <h3 className="font-bold text-slate-900 mb-2">{offline ? 'Serveur injoignable' : 'Aucune réservation'}</h3>
+              <p className="text-slate-500">{offline ? 'Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.' : "Vous n'avez pas encore de réservation dans cette catégorie."}</p>
             </div>
           )}
         </div>

@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Car, Search, FileText, Star, Clock, CreditCard, ArrowRight, MapPin, Timer, Navigation, Calendar, Wallet, Plus, X, Loader, CheckCircle } from 'lucide-react';
-import { SPECIFIC_CARS } from '../../utils/carImages';
-import { walletAPI } from '../../services/api';
+import { walletAPI, bookingsAPI, vehiclesAPI } from '../../services/api';
 
 const TOPUP_METHODS = [
   { id: 'mtn',    label: 'MTN MoMo',    color: 'bg-yellow-400', text: 'text-yellow-900' },
@@ -107,18 +106,6 @@ function TopUpModal({ onClose, onDone }) {
   );
 }
 
-const RECENT_BOOKINGS = [
-  { id: 'BK-0024', vehicle: 'Hyundai Tucson 2023', driver: 'Armand Nkounga', date: '2025-08-20', type: 'Journée', amount: 45000, status: 'completed', rating: 5 },
-  { id: 'BK-0025', vehicle: 'BMW Série 5 2022',    driver: 'Eric Mvondo',    date: '2025-08-15', type: '8 heures', amount: 24000, status: 'completed', rating: 4 },
-  { id: 'BK-0026', vehicle: 'Mercedes GLE 350',    driver: 'En attente',     date: '2025-09-05', type: 'Interurbain', amount: 95000, status: 'pending',   rating: null },
-];
-
-const FEATURED_VEHICLES = [
-  { name: 'Toyota Corolla 2022', category: 'Berline', price: 25000, rating: 4.8, image: SPECIFIC_CARS.corolla,     available: true  },
-  { name: 'Hyundai Tucson 2023', category: 'SUV',     price: 45000, rating: 4.7, image: SPECIFIC_CARS.tucson,      available: true  },
-  { name: 'BMW Série 5 2022',    category: 'Luxe',    price: 80000, rating: 5.0, image: SPECIFIC_CARS.bmw5,        available: false },
-];
-
 const STATUS_STYLES = {
   completed: 'badge-success',
   pending: 'badge-warning',
@@ -148,12 +135,43 @@ export default function ClientDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [balance, setBalance] = useState(user?.balance ?? null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [featuredVehicles, setFeaturedVehicles] = useState([]);
   const topupResult = searchParams.get('topup');
-  const totalSpent = RECENT_BOOKINGS.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
+  const totalSpent = recentBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
 
   useEffect(() => {
     walletAPI.get()
       .then(res => setBalance(Number(res.data.balance)))
+      .catch(() => {});
+    // Réservations récentes (vraies données API)
+    bookingsAPI.getAll()
+      .then(res => {
+        const list = (res.data.results || res.data || []);
+        setRecentBookings(list.slice(0, 3).map(b => ({
+          id: b.id,
+          vehicle: b.vehicle_name || 'Véhicule',
+          driver: b.driver_name || 'Sans chauffeur',
+          date: b.start_date,
+          type: `${b.days || 1} jour(s)`,
+          amount: Number(b.subtotal || 0),
+          status: b.status,
+        })));
+      })
+      .catch(() => {});
+    // Véhicules disponibles (vraies données API)
+    vehiclesAPI.getAll()
+      .then(res => {
+        const list = (res.data.results || res.data || []);
+        setFeaturedVehicles(list.slice(0, 3).map(v => ({
+          id: v.id,
+          name: `${v.brand} ${v.model} ${v.year}`,
+          category: v.tier_label || v.category || v.tier,
+          price: Number(v.daily_rate || 0),
+          rating: Number(v.rating) || 5.0,
+          image: v.image_url,
+        })));
+      })
       .catch(() => {});
     // Retour Stripe/PayPal : message + nettoyage de l'URL
     if (topupResult) {
@@ -243,7 +261,7 @@ export default function ClientDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: FileText,  label: 'Réservations totales', value: RECENT_BOOKINGS.length,            color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
+            { icon: FileText,  label: 'Réservations totales', value: recentBookings.length,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
             { icon: CreditCard,label: 'Total dépensé',        value: `${totalSpent.toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
             { icon: Star,      label: 'Note moyenne donnée',  value: '4.7 / 5',                          color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
             { icon: Car,       label: 'Véhicules essayés',    value: 3,                                   color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
@@ -268,7 +286,10 @@ export default function ClientDashboard() {
               </button>
             </div>
             <div className="space-y-3">
-              {RECENT_BOOKINGS.map(b => (
+              {recentBookings.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">Aucune réservation pour le moment.</p>
+              )}
+              {recentBookings.map(b => (
                 <div key={b.id} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                   <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/40 rounded-xl flex items-center justify-center shrink-0">
                     <Car size={20} className="text-primary-600" />
@@ -292,7 +313,10 @@ export default function ClientDashboard() {
           <div className="card">
             <h3 className="font-bold text-slate-900 dark:text-white mb-4">Véhicules disponibles</h3>
             <div className="space-y-3">
-              {FEATURED_VEHICLES.map(v => (
+              {featuredVehicles.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">Chargement du catalogue…</p>
+              )}
+              {featuredVehicles.map(v => (
                 <div key={v.name} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary-300 transition-colors">
                   <img src={v.image} alt={v.name} className="w-16 h-12 rounded-lg object-cover shrink-0" onError={e => { e.target.style.display='none'; }} />
                   <div className="flex-1 min-w-0">

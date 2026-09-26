@@ -98,7 +98,7 @@ export default function AdminDashboard() {
             {online ? <Wifi size={16} /> : <WifiOff size={16} />}
             {online
               ? `Connecté à l'API — dernière synchro ${lastSync ? lastSync.toLocaleTimeString('fr-FR') : '…'}`
-              : 'API injoignable — données démo'}
+              : 'API injoignable — vérifiez votre connexion'}
           </div>
           <button onClick={fetchAll} className="flex items-center gap-1 underline">
             <RefreshCw size={13} /> Actualiser

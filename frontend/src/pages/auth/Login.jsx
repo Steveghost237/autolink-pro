@@ -4,14 +4,6 @@ import { Car, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
 
-const DEMO_ACCOUNTS = [
-  { role: 'CLIENT', email: 'client@autolink.com', label: 'Client' },
-  { role: 'OWNER', email: 'owner@autolink.com', label: 'Propriétaire' },
-  { role: 'DRIVER', email: 'driver@autolink.com', label: 'Chauffeur' },
-  { role: 'ADMIN', email: 'admin@autolink.com', label: 'Admin' },
-  { role: 'CONTROLLER', email: 'controller@autolink.com', label: 'Contrôleur' },
-];
-
 export default function Login() {
   const navigate = useNavigate();
   const { login, getDashboardPath } = useAuth();
@@ -31,10 +23,6 @@ export default function Login() {
     } else {
       setError(result.error);
     }
-  };
-
-  const quickLogin = (email) => {
-    setForm({ email, password: 'pass123' });
   };
 
   return (
@@ -100,18 +88,7 @@ export default function Login() {
 
           <GoogleAuthButton />
 
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-xs text-slate-400 text-center mb-3">Comptes démo (mot de passe : pass123)</p>
-            <div className="grid grid-cols-3 gap-2">
-              {DEMO_ACCOUNTS.map(({ email, label }) => (
-                <button key={email} onClick={() => quickLogin(email)} className="text-xs bg-slate-50 hover:bg-primary-50 hover:text-primary-700 border border-slate-200 rounded-lg px-2 py-1.5 transition-colors font-medium">
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mt-5">
+          <p className="text-center text-sm text-slate-500 mt-6">
             Pas encore de compte ?{' '}
             <Link to="/register" className="text-primary-600 font-semibold hover:underline">S'inscrire gratuitement</Link>
           </p>

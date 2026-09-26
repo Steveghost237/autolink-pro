@@ -105,7 +105,6 @@ const IMG = {
   d3:      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80',
 };
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const RENTAL_TYPES = [
   { id:'3h',        label:'3 heures',    icon:'time-outline',     mult:0.15, minP:15000, km:100 },
   { id:'8h',        label:'8 heures',    icon:'sunny-outline',    mult:0.30, minP:25000, km:200 },
@@ -116,138 +115,11 @@ const RENTAL_TYPES = [
 
 const VALID_AGENT_CODES = ['AGT-DBL-001','AGT-YDE-002','AGT-DBL-003'];
 
-const DEMO_USERS = [
-  { id:1, email:'client@autolink.com',     password:'pass123', role:'CLIENT',
-    firstName:'Marie', lastName:'Mballa',  phone:'+237 6 75 12 34 56', bookings:12, spent:780000 },
-  { id:2, email:'driver@autolink.com',     password:'pass123', role:'DRIVER',
-    firstName:'Armand', lastName:'Nkounga', phone:'+237 6 99 88 77 00',
-    rating:4.8, trips:312, earned:2450000, acceptance:96, ontime:98 },
-  { id:3, email:'owner@autolink.com',      password:'pass123', role:'OWNER',
-    firstName:'Jean', lastName:'Kouassi', phone:'+237 6 55 22 33 44',
-    vehicles:2, totalEarned:1856000, locations:65 },
-  { id:4, email:'admin@autolink.com',      password:'pass123', role:'ADMIN',
-    firstName:'Admin', lastName:'AutoLink', phone:'+237 2 22 20 00 01' },
-  { id:5, email:'controller@autolink.com', password:'pass123', role:'CONTROLLER',
-    firstName:'Paul', lastName:'Diallo', phone:'+237 6 54 44 55 66', inspections:247 },
-];
 
-// 60+ véhicules réels les plus utilisés au Cameroun — gammes basic/standard/premium/gold/collection
-const _mv = (id, name, cat, tier, rate, fuel, seats, extra = {}) => ({
-  id, name, cat, tier, rate, fuel, seats,
-  plate: `LT-${1000 + id}-A`,
-  image: getModelPhoto(name) || (tier === 'gold' || tier === 'premium' || tier === 'collection' ? IMG.merGLE : cat === 'SUV' ? IMG.tucson : cat === 'Pickup' ? IMG.evoque : cat === 'Van' || cat === 'Minibus' ? IMG.sprinter || IMG.evoque : IMG.corolla),
-  kmIncluded: tier === 'gold' || tier === 'collection' ? 350 : tier === 'premium' ? 250 : 200,
-  kmRate: tier === 'collection' ? 500 : tier === 'gold' ? 400 : tier === 'premium' ? 250 : tier === 'standard' ? 150 : 100,
-  rating: extra.rating ?? 4.6, reviews: extra.reviews ?? 15,
-  status: extra.status ?? 'approved', score: extra.score ?? 90,
-});
 
-const VEHICLES = [
-  // BASIC
-  _mv(1, 'Toyota Yaris 2019', 'Citadine', 'basic', 18000, 'Essence', 5, { rating: 4.5 }),
-  _mv(2, 'Toyota Corolla 2016', 'Berline', 'basic', 20000, 'Essence', 5, { rating: 4.6 }),
-  _mv(3, 'Toyota Camry 2015', 'Berline', 'basic', 22000, 'Essence', 5, { rating: 4.4 }),
-  _mv(4, 'Toyota Avensis 2014', 'Berline', 'basic', 20000, 'Diesel', 5, { rating: 4.3 }),
-  _mv(5, 'Toyota Starlet 2021', 'Citadine', 'basic', 19000, 'Essence', 5, { rating: 4.7 }),
-  _mv(6, 'Honda Civic 2017', 'Berline', 'basic', 21000, 'Essence', 5, { rating: 4.5 }),
-  _mv(7, 'Honda Accord 2015', 'Berline', 'basic', 23000, 'Essence', 5, { rating: 4.4 }),
-  _mv(8, 'Hyundai Accent 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.3 }),
-  _mv(9, 'Hyundai Elantra 2018', 'Berline', 'basic', 20000, 'Essence', 5, { rating: 4.5 }),
-  _mv(10, 'Kia Rio 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.4 }),
-  _mv(11, 'Kia Picanto 2021', 'Citadine', 'basic', 15000, 'Essence', 5, { rating: 4.6 }),
-  _mv(12, 'Kia Cerato 2017', 'Berline', 'basic', 19000, 'Essence', 5, { rating: 4.4 }),
-  _mv(13, 'Nissan Almera 2018', 'Berline', 'basic', 18000, 'Essence', 5, { rating: 4.3 }),
-  _mv(14, 'Nissan Micra 2019', 'Citadine', 'basic', 15000, 'Essence', 5, { rating: 4.2 }),
-  _mv(15, 'Suzuki Swift 2020', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.6 }),
-  _mv(16, 'Peugeot 301 2018', 'Berline', 'basic', 19000, 'Diesel', 5, { rating: 4.4 }),
-  _mv(17, 'Peugeot 208 2020', 'Citadine', 'basic', 20000, 'Essence', 5, { rating: 4.5 }),
-  _mv(18, 'Renault Logan 2017', 'Berline', 'basic', 16000, 'Diesel', 5, { rating: 4.2 }),
-  _mv(19, 'Renault Clio 2019', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.4 }),
-  _mv(20, 'Volkswagen Golf 7 2017', 'Citadine', 'basic', 22000, 'Essence', 5, { rating: 4.6 }),
-  _mv(21, 'Volkswagen Polo 2019', 'Citadine', 'basic', 19000, 'Essence', 5, { rating: 4.5 }),
-  _mv(22, 'Mazda 3 2018', 'Berline', 'basic', 21000, 'Essence', 5, { rating: 4.5 }),
-  _mv(23, 'Ford Fiesta 2018', 'Citadine', 'basic', 17000, 'Essence', 5, { rating: 4.3 }),
-  _mv(24, 'Dacia Logan 2019', 'Berline', 'basic', 16000, 'Diesel', 5, { rating: 4.3 }),
-  // STANDARD
-  _mv(25, 'Toyota Corolla 2022', 'Berline', 'standard', 25000, 'Essence', 5, { rating: 4.8, image: IMG.corolla }),
-  _mv(26, 'Toyota RAV4 2021', 'SUV', 'standard', 42000, 'Hybride', 5, { rating: 4.7 }),
-  _mv(27, 'Toyota Camry 2021', 'Berline', 'standard', 35000, 'Hybride', 5, { rating: 4.7 }),
-  _mv(28, 'Toyota Hilux 2020', 'Pickup', 'standard', 50000, 'Diesel', 5, { rating: 4.8 }),
-  _mv(29, 'Toyota Fortuner 2019', 'SUV', 'standard', 52000, 'Diesel', 7, { rating: 4.6 }),
-  _mv(30, 'Toyota HiAce 2020', 'Minibus', 'standard', 55000, 'Diesel', 14, { rating: 4.6 }),
-  _mv(31, 'Hyundai Tucson 2023', 'SUV', 'standard', 45000, 'Diesel', 5, { rating: 4.7, image: IMG.tucson }),
-  _mv(32, 'Hyundai Santa Fe 2021', 'SUV', 'standard', 50000, 'Diesel', 7, { rating: 4.6 }),
-  _mv(33, 'Hyundai H-1 2019', 'Van', 'standard', 45000, 'Diesel', 9, { rating: 4.5 }),
-  _mv(34, 'Kia Sportage 2023', 'SUV', 'standard', 38000, 'Hybride', 5, { rating: 4.6, image: IMG.sportage }),
-  _mv(35, 'Kia Sorento 2021', 'SUV', 'standard', 48000, 'Diesel', 7, { rating: 4.6 }),
-  _mv(36, 'Nissan Qashqai 2021', 'SUV', 'standard', 35000, 'Essence', 5, { rating: 4.5 }),
-  _mv(37, 'Nissan X-Trail 2020', 'SUV', 'standard', 42000, 'Diesel', 7, { rating: 4.5 }),
-  _mv(38, 'Nissan Navara 2021', 'Pickup', 'standard', 48000, 'Diesel', 5, { rating: 4.6 }),
-  _mv(39, 'Honda CR-V 2021', 'SUV', 'standard', 40000, 'Essence', 5, { rating: 4.7 }),
-  _mv(40, 'Mazda CX-5 2022', 'SUV', 'standard', 43000, 'Essence', 5, { rating: 4.7 }),
-  _mv(41, 'Mitsubishi Outlander 2020', 'SUV', 'standard', 38000, 'Essence', 7, { rating: 4.4 }),
-  _mv(42, 'Mitsubishi L200 2021', 'Pickup', 'standard', 46000, 'Diesel', 5, { rating: 4.5 }),
-  _mv(43, 'Mitsubishi Pajero 2018', 'SUV', 'standard', 50000, 'Diesel', 7, { rating: 4.5 }),
-  _mv(44, 'Suzuki Vitara 2021', 'SUV', 'standard', 32000, 'Essence', 5, { rating: 4.4 }),
-  _mv(45, 'Peugeot 3008 2021', 'SUV', 'standard', 45000, 'Diesel', 5, { rating: 4.6 }),
-  _mv(46, 'Peugeot 508 2020', 'Berline', 'standard', 38000, 'Diesel', 5, { rating: 4.6 }),
-  _mv(47, 'Volkswagen Tiguan 2021', 'SUV', 'standard', 44000, 'Diesel', 5, { rating: 4.6 }),
-  _mv(48, 'Isuzu D-Max 2022', 'Pickup', 'standard', 47000, 'Diesel', 5, { rating: 4.6 }),
-  _mv(49, 'Ford Ranger 2021', 'Pickup', 'standard', 49000, 'Diesel', 5, { rating: 4.7 }),
-  _mv(50, 'Ford Everest 2020', 'SUV', 'standard', 53000, 'Diesel', 7, { rating: 4.5 }),
-  _mv(51, 'Mercedes Sprinter 2021', 'Van', 'standard', 55000, 'Diesel', 9, { rating: 4.9 }),
-  _mv(52, 'Dacia Duster 2021', 'SUV', 'standard', 28000, 'Diesel', 5, { rating: 4.4 }),
-  // PREMIUM
-  _mv(53, 'Toyota Land Cruiser Prado 2022', 'SUV', 'premium', 75000, 'Diesel', 7, { rating: 4.9 }),
-  _mv(54, 'Toyota Land Cruiser 2020', 'SUV', 'premium', 85000, 'Diesel', 7, { rating: 4.9 }),
-  _mv(55, 'Toyota Highlander 2022', 'SUV', 'premium', 68000, 'Hybride', 7, { rating: 4.7 }),
-  _mv(56, 'Toyota Sienna 2022', 'Van', 'premium', 65000, 'Hybride', 8, { rating: 4.8 }),
-  _mv(57, 'Mercedes Classe C 300 2022', 'Berline', 'premium', 70000, 'Essence', 5, { rating: 4.8 }),
-  _mv(58, 'Mercedes Classe E 350 2021', 'Berline', 'premium', 78000, 'Diesel', 5, { rating: 4.9 }),
-  _mv(59, 'Mercedes GLC 300 2022', 'SUV', 'premium', 80000, 'Essence', 5, { rating: 4.8 }),
-  _mv(60, 'BMW Serie 5 2022', 'Berline', 'premium', 80000, 'Essence', 5, { rating: 5.0, status: 'rented', image: IMG.bmw5 }),
-  _mv(61, 'BMW X3 2021', 'SUV', 'premium', 72000, 'Diesel', 5, { rating: 4.7 }),
-  _mv(62, 'BMW X5 2022', 'SUV', 'premium', 88000, 'Diesel', 7, { rating: 4.9 }),
-  _mv(63, 'Audi Q5 2022', 'SUV', 'premium', 75000, 'Diesel', 5, { rating: 4.8 }),
-  _mv(64, 'Audi A6 2021', 'Berline', 'premium', 70000, 'Diesel', 5, { rating: 4.7 }),
-  _mv(65, 'Lexus RX 350 2021', 'SUV', 'premium', 78000, 'Hybride', 5, { rating: 4.8 }),
-  _mv(66, 'Lexus GX 460 2020', 'SUV', 'premium', 82000, 'Essence', 7, { rating: 4.7 }),
-  _mv(67, 'Nissan Patrol 2020', 'SUV', 'premium', 85000, 'Essence', 7, { rating: 4.8 }),
-  _mv(68, 'Volkswagen Touareg 2021', 'SUV', 'premium', 76000, 'Diesel', 5, { rating: 4.7 }),
-  // GOLD
-  _mv(69, 'Mercedes GLE 350 2023', 'SUV', 'gold', 95000, 'Diesel', 7, { rating: 4.9, image: IMG.merGLE }),
-  _mv(70, 'Mercedes GLS 450 2022', 'SUV', 'gold', 120000, 'Essence', 7, { rating: 4.9 }),
-  _mv(71, 'Mercedes Classe S 500 2023', 'Berline', 'gold', 150000, 'Hybride', 5, { rating: 5.0 }),
-  _mv(72, 'Mercedes Classe G 63 2022', 'SUV', 'gold', 200000, 'Essence', 5, { rating: 4.9 }),
-  _mv(73, 'BMW X7 2023', 'SUV', 'gold', 130000, 'Essence', 7, { rating: 4.9 }),
-  _mv(74, 'BMW Serie 7 2022', 'Berline', 'gold', 125000, 'Hybride', 5, { rating: 4.8 }),
-  _mv(75, 'Lexus LX 570 2021', 'SUV', 'gold', 110000, 'Essence', 7, { rating: 4.8 }),
-  _mv(76, 'Range Rover Evoque 2022', 'SUV', 'gold', 110000, 'Essence', 5, { rating: 4.9, image: IMG.evoque }),
-  _mv(77, 'Range Rover Sport 2023', 'SUV', 'gold', 140000, 'Diesel', 5, { rating: 5.0 }),
-  _mv(78, 'Range Rover Velar 2022', 'SUV', 'gold', 105000, 'Essence', 5, { rating: 4.8 }),
-  _mv(79, 'Toyota Land Cruiser V8 VXR 2023', 'SUV', 'gold', 100000, 'Diesel', 7, { rating: 4.9 }),
-  _mv(80, 'Porsche Cayenne 2022', 'SUV', 'gold', 160000, 'Essence', 5, { rating: 4.9 }),
-  _mv(81, 'Audi Q7 2022', 'SUV', 'gold', 98000, 'Diesel', 7, { rating: 4.8 }),
-  _mv(82, 'Audi Q8 2023', 'SUV', 'gold', 135000, 'Essence', 5, { rating: 4.9 }),
-];
 
-const BOOKINGS = [
-  { id:'BK-0024', vehicle:'Hyundai Tucson 2023', type:'Journee',    amount:45000,  status:'completed', date:'08 Sep', driver:'Armand Nkounga', rating:5 },
-  { id:'BK-0025', vehicle:'BMW Serie 5 2022',    type:'8 heures',   amount:24000,  status:'completed', date:'06 Sep', driver:'Eric Mvondo',    rating:4 },
-  { id:'BK-0026', vehicle:'Mercedes GLE 350',    type:'Interurbain',amount:142500, status:'pending',   date:'12 Sep', driver:'En attente',     rating:null },
-];
 
-const TRIPS = [
-  { id:1, client:'Marie Mballa',  from:'Bonanjo',   to:'Akwa',  date:'Auj 09:30',  amount:15000, rating:5, km:'18 km', duration:'45 min', photo:IMG.d1 },
-  { id:2, client:'Eric Mvondo',   from:'Bonapriso', to:'Bali',  date:'Hier 14:20', amount:12000, rating:4, km:'14 km', duration:'38 min', photo:IMG.d2 },
-  { id:3, client:'Aline Ngono',   from:'Makepe',    to:'Kotto', date:'20 Sep',     amount:18000, rating:5, km:'22 km', duration:'62 min', photo:IMG.d3 },
-];
 
-const INSPECTIONS = [
-  { id:1, vehicle:'Toyota Corolla 2022', plate:'LT-1234-A', type:'Entree', date:'Auj 08:15', score:94, fuel:95,  km:45230 },
-  { id:2, vehicle:'Hyundai Tucson 2023', plate:'LT-5678-B', type:'Sortie', date:'Hier 16:45',score:91, fuel:60,  km:28750 },
-  { id:3, vehicle:'BMW Serie 5 2022',    plate:'CE-9012-C', type:'Entree', date:'20 Sep',    score:99, fuel:100, km:12400 },
-];
 
 const fmtNum = n => n >= 1000000
   ? (n/1000000).toFixed(1).replace('.0','') + ' M F'
@@ -468,12 +340,6 @@ function LoginScreen() {
     if (!r.success) Alert.alert('Inscription echouee', r.error);
   };
 
-  // Profils publics uniquement — admin/chauffeur/controleur se connectent par leurs
-  // identifiants (non affiches) et leurs comptes sont geres depuis l'espace Admin.
-  const QUICK = [
-    { label:'Client',        email:'client@autolink.com' },
-    { label:'Gestionnaire',  email:'owner@autolink.com' },
-  ];
 
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:C.primaryDark }}>
@@ -554,19 +420,6 @@ function LoginScreen() {
 
           <GoogleButton />
 
-          <Text style={{ color:C.muted, fontSize:11, textAlign:'center', marginTop:24, marginBottom:12 }}>
-            Comptes demo — mot de passe : pass123
-          </Text>
-          <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
-            {QUICK.map(q => (
-              <TouchableOpacity key={q.label}
-                onPress={() => { setEmail(q.email); setPwd('pass123'); setMode('login'); }}
-                style={{ backgroundColor:C.primaryDark+'15', borderWidth:1.5, borderColor:C.primary+'40',
-                  borderRadius:10, paddingVertical:7, paddingHorizontal:14 }}>
-                <Text style={{ color:C.primary, fontWeight:'700', fontSize:12 }}>{q.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -605,8 +458,8 @@ function ClientDash({ user, logout }) {
   const [search, setSearch] = useState('');
   const [selV, setSelV] = useState(null);
   const [tier, setTier] = useState('');
-  const [vehicles, setVehicles] = useState(VEHICLES);
-  const [bookings, setBookings] = useState(BOOKINGS);
+  const [vehicles, setVehicles] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [balance, setBalance] = useState(user.balance != null ? Number(user.balance) : null);
   const [showTopUp, setShowTopUp] = useState(false);
   const av = (user.firstName[0] || 'A') + (user.lastName[0] || 'L');
@@ -1212,22 +1065,6 @@ function DriverDash({ user, logout }) {
             </View>
           </View>
         ))}
-        <SectionTitle title="Dernieres courses" />
-        {TRIPS.map(t => (
-          <View key={t.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, flexDirection:'row', alignItems:'center', gap:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
-            <View style={{ width:44, height:44, borderRadius:22, overflow:'hidden', backgroundColor:C.border }}>
-              <Image source={{ uri:t.photo }} style={{ width:44, height:44 }} resizeMode="cover" />
-            </View>
-            <View style={{ flex:1 }}>
-              <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text }}>{t.client}</Text>
-              <Text numberOfLines={1} style={{ color:C.muted, fontSize:11 }}>{t.from} → {t.to} · {t.km}</Text>
-            </View>
-            <View style={{ alignItems:'flex-end' }}>
-              <Text style={{ fontWeight:'900', color:C.primary }}>{t.amount.toLocaleString()} F</Text>
-              <Stars rating={t.rating} size={12} />
-            </View>
-          </View>
-        ))}
         <TouchableOpacity onPress={logout} style={{ borderWidth:2, borderColor:C.error, borderRadius:14, paddingVertical:14, alignItems:'center', marginTop:8, flexDirection:'row', justifyContent:'center', gap:8 }}>
           <Ionicons name="log-out-outline" size={18} color={C.error} />
           <Text style={{ color:C.error, fontWeight:'700', fontSize:15 }}>Se deconnecter</Text>
@@ -1438,7 +1275,7 @@ function ControllerDash({ user, logout }) {
       </LinearGradient>
       <ScrollView style={{ padding:16 }}>
         <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
-          {[{l:'Inspections',v:user.inspections||247,c:C.primary},{l:'Ce mois',v:'18',c:C.success},{l:'Litiges',v:'3',c:C.warning}].map(s=>(
+          {[{l:'Inspections',v:user.inspections||0,c:C.primary},{l:'Ce mois',v:'0',c:C.success},{l:'Litiges',v:'0',c:C.warning}].map(s=>(
             <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
               <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
               <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
@@ -1446,21 +1283,9 @@ function ControllerDash({ user, logout }) {
           ))}
         </View>
         <SectionTitle title="Dernieres inspections" />
-        {INSPECTIONS.map(i => (
-          <View key={i.id} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
-            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:14, flex:1, marginRight:10 }}>{i.vehicle}</Text>
-              <View style={{ backgroundColor:(i.score>=90?C.success:C.warning)+'20', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
-                <Text style={{ color:i.score>=90?C.success:C.warning, fontWeight:'700', fontSize:12 }}>{i.score}/100</Text>
-              </View>
-            </View>
-            <Text style={{ color:C.muted, fontSize:11, fontFamily:Platform.OS==='ios'?'Courier':'monospace', marginBottom:4 }}>{i.plate}</Text>
-            <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
-              <Text numberOfLines={1} style={{ color:C.muted, fontSize:12, flex:1, marginRight:8 }}>{i.type} · {i.date}</Text>
-              <Text numberOfLines={1} style={{ color:C.muted, fontSize:12 }}>{i.km.toLocaleString()} km · Carbu: {i.fuel}%</Text>
-            </View>
-          </View>
-        ))}
+        <View style={{ backgroundColor:C.card, borderRadius:14, padding:18, alignItems:'center' }}>
+          <Text style={{ color:C.muted, fontSize:12, textAlign:'center' }}>Aucune inspection enregistree pour le moment.</Text>
+        </View>
         <TouchableOpacity onPress={logout} style={{ borderWidth:2, borderColor:C.error, borderRadius:14, paddingVertical:14, alignItems:'center', marginTop:8, flexDirection:'row', justifyContent:'center', gap:8 }}>
           <Ionicons name="log-out-outline" size={18} color={C.error} />
           <Text style={{ color:C.error, fontWeight:'700', fontSize:15 }}>Se deconnecter</Text>
@@ -1740,14 +1565,8 @@ function AppInner() {
       return { success: true };
     } catch (e) {
       if (e.status === 400 || e.status === 401) return { success: false, error: 'Email ou mot de passe incorrect.' };
+      return { success: false, error: 'Serveur injoignable — verifiez votre connexion puis reessayez.' };
     }
-    // API injoignable → repli comptes demo
-    const found = DEMO_USERS.find(u => u.email === email && u.password === password);
-    if (!found) return { success: false, error: 'API injoignable — compte demo introuvable.' };
-    const { password: _, ...safe } = found;
-    await AsyncStorage.setItem('autolink_user', JSON.stringify(safe));
-    setUser(safe);
-    return { success: true };
   };
 
   const googleLogin = async (profile) => {

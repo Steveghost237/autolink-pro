@@ -80,7 +80,7 @@ export default function OwnerDashboard() {
         <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium ${online ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
           <div className="flex items-center gap-2">
             {online ? <Wifi size={16} /> : <WifiOff size={16} />}
-            {online ? 'Connecté — vos réservations arrivent en temps réel' : 'API injoignable — données démo'}
+            {online ? 'Connecté — vos réservations arrivent en temps réel' : 'API injoignable — vérifiez votre connexion'}
           </div>
           <button onClick={load} className="flex items-center gap-1 underline"><RefreshCw size={13} /> Actualiser</button>
         </div>

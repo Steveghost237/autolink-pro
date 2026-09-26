@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
-import { CATALOG_VEHICLES, RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
+import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
 import { vehiclesAPI, bookingsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { TIERS } from '../../utils/carImages';
@@ -155,7 +155,7 @@ function BookingModal({ vehicle, onClose }) {
             Retrouvez-la dans « Mes réservations ».
           </p>
         ) : (
-          <p className="text-xs text-slate-400 mb-6">Enregistrée hors-ligne — elle sera synchronisée au retour de la connexion.</p>
+          <p className="text-xs text-slate-400 mb-6">Enregistrée — en attente de confirmation du paiement.</p>
         )}
         <button onClick={onClose} className="btn-primary w-full">Retour au catalogue</button>
       </div>
@@ -369,8 +369,9 @@ export default function SearchVehicles() {
   const [selectedVehicle, setSelected] = useState(null);
   const [selectedType, setType]       = useState('');
   const [selectedTier, setTier]       = useState('');
-  const [vehicles, setVehicles]       = useState(CATALOG_VEHICLES);
-  const [live, setLive]               = useState(false);
+  const [vehicles, setVehicles]       = useState([]);
+  const [offline, setOffline]         = useState(false);
+  const [loadingList, setLoadingList] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -384,9 +385,10 @@ export default function SearchVehicles() {
       .then(res => {
         if (!mounted) return;
         const list = (res.data.results || res.data || []).map(mapApiVehicle);
-        if (list.length) { setVehicles(list); setLive(true); }
+        setVehicles(list);
+        setLoadingList(false);
       })
-      .catch(() => {}); // repli sur le catalogue démo
+      .catch(() => { setOffline(true); setLoadingList(false); });
     return () => { mounted = false; };
   }, []);
 
@@ -510,14 +512,17 @@ export default function SearchVehicles() {
           ))}
         </div>
 
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !loadingList && (
           <div className="text-center py-20">
             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Car size={28} className="text-slate-400" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Aucun véhicule trouvé</h3>
-            <p className="text-slate-500 dark:text-slate-400">Modifiez vos filtres pour élargir la recherche.</p>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">{offline ? 'Serveur injoignable' : 'Aucun véhicule trouvé'}</h3>
+            <p className="text-slate-500 dark:text-slate-400">{offline ? 'Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.' : 'Modifiez vos filtres pour élargir la recherche.'}</p>
           </div>
+        )}
+        {loadingList && (
+          <div className="text-center py-20 text-slate-400 text-sm">Chargement des véhicules…</div>
         )}
       </div>
       {selectedVehicle && <BookingModal vehicle={selectedVehicle} onClose={() => setSelected(null)} />}
