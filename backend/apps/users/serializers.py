@@ -36,6 +36,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'password', 'password2', 'role', 'phone']
 
+    # Rôles ouverts à l'inscription publique — ADMIN/CONTROLLER sont créés
+    # uniquement par un admin existant, jamais via le formulaire public.
+    PUBLIC_ROLES = ('CLIENT', 'OWNER', 'DRIVER')
+
     def validate(self, attrs):
         if attrs['password'] != attrs.pop('password2'):
             raise serializers.ValidationError({'password': 'Les mots de passe ne correspondent pas.'})
@@ -43,6 +47,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         if email and User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError({'email': 'Un compte existe déjà avec cet email.'})
         attrs['email'] = email
+        if attrs.get('role') not in self.PUBLIC_ROLES:
+            attrs['role'] = 'CLIENT'
         return attrs
 
     def create(self, validated_data):

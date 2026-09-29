@@ -34,7 +34,7 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_demo    # crée les comptes demo + 82 véhicules + réservations
+python manage.py seed_demo    # crée le super admin + la flotte de 85 véhicules
 python manage.py runserver
 # → http://localhost:8000
 # Admin Django → http://localhost:8000/admin
@@ -59,15 +59,11 @@ eas build -p android --profile preview
 
 ---
 
-## Comptes de démonstration
+## Comptes utilisateurs
 
-| Rôle | Email | Mot de passe |
-|------|-------|--------------|
-| Client | client@autolink.com | pass123 |
-| Propriétaire | owner@autolink.com | pass123 |
-| Chauffeur | driver@autolink.com | pass123 |
-| Admin | admin@autolink.com | pass123 |
-| Contrôleur | controller@autolink.com | pass123 |
+**Aucun compte de démonstration** — chaque utilisateur s'inscrit réellement via le site ou l'application (email + mot de passe, Google, ou code de vérification par email).
+
+Seul le **super admin** est créé automatiquement au démarrage via les variables d'environnement `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Les autres rôles (propriétaire, chauffeur, contrôleur) sont attribués par l'admin depuis le tableau de bord ou `/admin/`.
 
 ---
 
@@ -209,7 +205,7 @@ l'ancien compte `admin` par défaut est désactivé automatiquement.
 Montez un volume persistant sur `/app/data` pour conserver SQLite,
 ou utilisez `DATABASE_URL=postgres://user:pass@host:5432/autolink` pour PostgreSQL.
 
-Le container migre la base, seed les comptes demo et lance gunicorn au démarrage.
+Le container migre la base, crée/répare le super admin, seed la flotte de véhicules et lance gunicorn au démarrage. Les anciens comptes démo (client/owner/driver*/controller) sont supprimés automatiquement s'ils existent encore.
 
 ---
 

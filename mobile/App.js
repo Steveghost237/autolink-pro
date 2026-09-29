@@ -363,8 +363,17 @@ function LoginScreen() {
     if (!email || !pwd || !reg.firstName || !reg.lastName) { Alert.alert('Requis', 'Remplissez tous les champs.'); return; }
     setLoading(true);
     const r = await register({ email, password: pwd, firstName: reg.firstName, lastName: reg.lastName, phone: reg.phone });
+    if (!r.success) { setLoading(false); Alert.alert('Inscription echouee', r.error); return; }
+    // Compte cree → envoi du code de validation par email, ecran de saisie
+    try {
+      await api.otpRequest({ email: email.trim(), first_name: reg.firstName.trim(), last_name: reg.lastName.trim() });
+      setOtpStep(2);
+      setMode('otp');
+      Alert.alert('Compte cree', 'Un code a 6 chiffres a ete envoye a ' + email.trim() + '. Entrez-le pour activer votre compte.');
+    } catch (_) {
+      Alert.alert('Compte cree', "Le code email n'a pas pu etre envoye — connectez-vous avec vos identifiants.");
+    }
     setLoading(false);
-    if (!r.success) Alert.alert('Inscription echouee', r.error);
   };
 
 

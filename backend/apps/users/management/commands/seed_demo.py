@@ -1,14 +1,15 @@
 import json
 import os
+import secrets
 
 from decouple import config
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 from apps.users.models import User
 from apps.vehicles.models import Vehicle
-from apps.bookings.models import Booking
 
 
 # Identifiants du super admin — configurables via les variables
@@ -17,14 +18,12 @@ ADMIN_USERNAME = config('ADMIN_USERNAME', default='admin')
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@autolink.com')
 ADMIN_PASSWORD = config('ADMIN_PASSWORD', default='')
 
-DEMO_USERS = [
-    dict(username='client',     email='client@autolink.com',     first_name='Marie',  last_name='Mballa',   role='CLIENT',     phone='+237675123456'),
-    dict(username='driver',     email='driver@autolink.com',     first_name='Armand', last_name='Nkounga',  role='DRIVER',     phone='+237699887700', is_verified=True),
-    dict(username='driver2',    email='driver2@autolink.com',    first_name='Samuel', last_name='Etoundi',  role='DRIVER',     phone='+237690112233', is_verified=True),
-    dict(username='driver3',    email='driver3@autolink.com',    first_name='Eric',   last_name='Fotso',    role='DRIVER',     phone='+237677889900', is_verified=True),
-    dict(username='owner',      email='owner@autolink.com',      first_name='Jean',   last_name='Kouassi',  role='OWNER',      phone='+237655223344', is_verified=True),
-    dict(username='admin',      email='admin@autolink.com',      first_name='Admin',  last_name='AutoLink', role='ADMIN',      phone='+237222200001', is_verified=True, is_staff=True, is_superuser=True),
-    dict(username='controller', email='controller@autolink.com', first_name='Paul',   last_name='Diallo',   role='CONTROLLER', phone='+237654445566', is_verified=True),
+# Anciens comptes démo — supprimés au démarrage : en production, chaque
+# utilisateur doit être une personne réelle enregistrée via le site/l'app.
+DEMO_IDENTITIES = [
+    'client', 'driver', 'driver2', 'driver3', 'owner', 'controller',
+    'client@autolink.com', 'driver@autolink.com', 'driver2@autolink.com',
+    'driver3@autolink.com', 'owner@autolink.com', 'controller@autolink.com',
 ]
 
 # 60+ véhicules réels parmi les plus utilisés au Cameroun
@@ -144,45 +143,67 @@ DEMO_VEHICLES = [
 
 
 class Command(BaseCommand):
-    help = 'Seed demo users + vehicles + bookings (idempotent)'
+    help = 'Seed : super admin (env) + flotte de véhicules plateforme (idempotent)'
 
     def handle(self, *args, **options):
-        users = {}
-        for u in DEMO_USERS:
-            u = dict(u)
-            password = 'pass123'
-            is_admin = u['username'] == 'admin'
-            if is_admin:
-                u['username'] = ADMIN_USERNAME
-                u['email'] = ADMIN_EMAIL
-                password = ADMIN_PASSWORD or 'pass123'
-            obj, created = User.objects.get_or_create(username=u['username'], defaults=u)
-            if created:
-                obj.set_password(password)
-                obj.save()
-            elif is_admin:
-                # Répare les droits admin si le compte existait déjà, et applique
-                # ADMIN_PASSWORD si la variable est explicitement définie.
-                fixed = False
-                for attr, val in (('role', 'ADMIN'), ('is_staff', True),
-                                  ('is_superuser', True), ('is_verified', True)):
-                    if getattr(obj, attr) != val:
-                        setattr(obj, attr, val)
-                        fixed = True
-                if ADMIN_PASSWORD:
-                    obj.set_password(ADMIN_PASSWORD)
+        admin, created = User.objects.get_or_create(
+            username=ADMIN_USERNAME,
+            defaults=dict(
+                email=ADMIN_EMAIL, first_name='Admin', last_name='AutoLink',
+                role='ADMIN', phone='+237222200001', is_verified=True,
+                is_staff=True, is_superuser=True,
+            ),
+        )
+        if created:
+            if ADMIN_PASSWORD:
+                admin.set_password(ADMIN_PASSWORD)
+            else:
+                generated = secrets.token_urlsafe(16)
+                admin.set_password(generated)
+                self.stdout.write(self.style.WARNING(
+                    f'ADMIN_PASSWORD non défini — mot de passe généré : {generated}\n'
+                    'Définissez ADMIN_PASSWORD dans Dokploy puis redéployez.'))
+            admin.save()
+        else:
+            # Répare les droits admin si le compte existait déjà, et applique
+            # ADMIN_PASSWORD si la variable est explicitement définie.
+            fixed = False
+            for attr, val in (('role', 'ADMIN'), ('email', ADMIN_EMAIL),
+                              ('is_staff', True), ('is_superuser', True),
+                              ('is_verified', True), ('is_active', True)):
+                if getattr(admin, attr) != val:
+                    setattr(admin, attr, val)
                     fixed = True
-                if fixed:
-                    obj.save()
-            # Si un username custom est utilisé, désactive l'ancien 'admin'
-            # par défaut pour ne pas laisser un super admin avec pass123.
-            if is_admin and ADMIN_USERNAME != 'admin':
-                User.objects.filter(username='admin').exclude(pk=obj.pk).update(
-                    is_active=False, is_staff=False, is_superuser=False)
-            users[u['username']] = obj
-        self.stdout.write(f'Users: {len(users)} ready')
+            if ADMIN_PASSWORD:
+                admin.set_password(ADMIN_PASSWORD)
+                fixed = True
+            if fixed:
+                admin.save()
+        # Si un username custom est utilisé, désactive l'ancien 'admin'
+        # par défaut pour ne pas laisser un super admin prévisible.
+        if ADMIN_USERNAME != 'admin':
+            User.objects.filter(username='admin').exclude(pk=admin.pk).update(
+                is_active=False, is_staff=False, is_superuser=False)
+        self.stdout.write(f'Admin: {admin.username} ready')
 
-        owner = users['owner']
+        # Nettoyage des anciens comptes démo : les véhicules sont réassignés à
+        # l'admin AVANT (FK protégée), puis les réservations/paiements/payouts
+        # démo liés (PROTECT) sont supprimés, puis les comptes eux-mêmes.
+        from apps.bookings.models import Booking
+        from apps.payments.models import Payment, Payout
+        demo_qs = User.objects.filter(
+            Q(username__in=DEMO_IDENTITIES) | Q(email__in=DEMO_IDENTITIES)
+        ).exclude(pk=admin.pk)
+        if demo_qs.exists():
+            Vehicle.objects.filter(owner__in=demo_qs).update(owner=admin)
+            Booking.objects.filter(Q(client__in=demo_qs) | Q(driver__in=demo_qs)).delete()
+            Payment.objects.filter(payer__in=demo_qs).delete()
+            Payout.objects.filter(recipient__in=demo_qs).delete()
+            count = demo_qs.count()
+            demo_qs.delete()
+            self.stdout.write(f'Demo cleanup: {count} comptes supprimés')
+
+        owner = admin  # la flotte plateforme appartient au compte admin
         # Photos réelles par modèle (vignettes allégées Wikimedia Commons)
         images = {}
         img_path = os.path.join(
@@ -199,7 +220,7 @@ class Command(BaseCommand):
                           'insurance_expiry': timezone.now().date() + timedelta(days=365)},
             )
             if not created:
-                # Données démo : resynchronise les champs objectifs puis reclassifie
+                # Flotte existante : resynchronise les champs objectifs puis reclassifie
                 for f in ('market_value', 'city', 'mileage', 'daily_rate', 'insurance_type', 'condition_score'):
                     setattr(obj, f, v[f])
                 if image_url:
@@ -210,23 +231,4 @@ class Command(BaseCommand):
                 obj.extra_km_rate = None
                 obj.save()  # reclassifie + recalcule prix indicatif
         self.stdout.write(f'Vehicles: {Vehicle.objects.count()} ready')
-
-        if not Booking.objects.exists():
-            client = users['client']
-            driver = users['driver']
-            vehicles = list(Vehicle.objects.all()[:3])
-            today = timezone.now().date()
-            samples = [
-                dict(vehicle=vehicles[0], start=today - timedelta(days=6), end=today - timedelta(days=5), status='completed', pickup='Bonanjo, Douala'),
-                dict(vehicle=vehicles[1], start=today - timedelta(days=2), end=today - timedelta(days=1), status='completed', pickup='Akwa, Douala'),
-                dict(vehicle=vehicles[2], start=today + timedelta(days=1), end=today + timedelta(days=2), status='pending',   pickup='Aeroport DLA'),
-            ]
-            for s in samples:
-                Booking.objects.create(
-                    client=client, driver=driver, vehicle=s['vehicle'],
-                    start_date=s['start'], end_date=s['end'], status=s['status'],
-                    pickup_address=s['pickup'], daily_rate=s['vehicle'].computed_rate or s['vehicle'].daily_rate, days=1,
-                )
-            self.stdout.write('Bookings: 3 seeded')
-
-        self.stdout.write(self.style.SUCCESS('Seed demo termine'))
+        self.stdout.write(self.style.SUCCESS('Seed termine'))

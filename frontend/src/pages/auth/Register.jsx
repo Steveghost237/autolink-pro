@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase } from 'lucide-react';
+import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase, MailCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { authAPI } from '../../services/api';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
 
 const ROLES = [
@@ -12,9 +13,11 @@ const ROLES = [
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register, getDashboardPath } = useAuth();
+  const { register, otpVerify, getDashboardPath } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '' });
+  const [code, setCode] = useState('');
+  const [emailSent, setEmailSent] = useState(true);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +31,13 @@ export default function Register() {
     setStep(2);
   };
 
+  const sendCode = async () => {
+    try {
+      await authAPI.otpRequest({ email: form.email.trim(), first_name: form.firstName, last_name: form.lastName });
+      return true;
+    } catch (_) { return false; }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return; }
@@ -35,9 +45,31 @@ export default function Register() {
     setError('');
     setLoading(true);
     const result = await register(form);
+    if (!result.success) { setLoading(false); setError(result.error); return; }
+    // Compte créé → on envoie le code de validation par email (étape 3)
+    setEmailSent(await sendCode());
+    setLoading(false);
+    setStep(3);
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    if (code.trim().length !== 6) { setError('Entrez le code à 6 chiffres reçu par email.'); return; }
+    setError('');
+    setLoading(true);
+    const result = await otpVerify(form.email.trim(), code.trim());
     setLoading(false);
     if (result.success) navigate(getDashboardPath(result.user.role));
     else setError(result.error);
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setLoading(true);
+    const ok = await sendCode();
+    setLoading(false);
+    setEmailSent(ok);
+    if (!ok) setError("Le code n'a pas pu être renvoyé — réessayez dans une minute.");
   };
 
   return (
@@ -51,12 +83,12 @@ export default function Register() {
             <span className="text-2xl font-black text-white">Auto<span className="text-primary-400">Link</span> <span className="text-accent-400 text-sm">PRO</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-1">Créer votre compte</h1>
-          <p className="text-primary-300 text-sm">Étape {step}/2 — {step === 1 ? 'Choisissez votre rôle' : 'Vos informations'}</p>
+          <p className="text-primary-300 text-sm">Étape {step}/3 — {step === 1 ? 'Choisissez votre rôle' : step === 2 ? 'Vos informations' : 'Vérification email'}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="flex gap-2 mb-6">
-            {[1, 2].map(n => (
+            {[1, 2, 3].map(n => (
               <div key={n} className={`flex-1 h-1.5 rounded-full transition-colors ${n <= step ? 'bg-primary-600' : 'bg-slate-200'}`} />
             ))}
           </div>
@@ -97,6 +129,30 @@ export default function Register() {
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
               <GoogleAuthButton label="S'inscrire avec Google" />
+            </form>
+          ) : step === 3 ? (
+            <form onSubmit={handleVerify} className="text-center">
+              <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <MailCheck size={26} className="text-primary-600" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mb-1">Vérifiez votre email</h2>
+              <p className="text-sm text-slate-500 mb-5">
+                {emailSent
+                  ? <>Un code à 6 chiffres a été envoyé à <span className="font-semibold text-slate-700">{form.email}</span>. Copiez-le ici pour activer votre compte.</>
+                  : <>Votre compte est créé, mais l'email de validation n'a pas pu être envoyé. Vous pouvez réessayer ou vous connecter plus tard.</>}
+              </p>
+              <input
+                type="text" inputMode="numeric" maxLength={6} required autoFocus
+                className="input-field text-center text-2xl font-black tracking-[0.5em] mb-4"
+                placeholder="••••••" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+              <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Valider mon compte'}
+              </button>
+              <button type="button" onClick={handleResend} disabled={loading} className="text-sm text-primary-600 font-semibold hover:underline mt-4">
+                Renvoyer le code
+              </button>
+              <p className="text-xs text-slate-400 mt-3">Le code expire dans 10 minutes.</p>
             </form>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
