@@ -52,6 +52,8 @@ export const authAPI = {
   login: (email, password) => api.post('/users/login/', { email, password }),
   register: (payload) => api.post('/users/register/', payload),
   google: (payload) => api.post('/users/google/', payload),
+  otpRequest: (payload) => api.post('/users/otp/request/', payload),
+  otpVerify: (email, code) => api.post('/users/otp/verify/', { email, code }),
   me: () => api.get('/users/me/'),
 };
 

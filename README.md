@@ -189,6 +189,16 @@ PAYPAL_PAYOUTS_ENABLED=false
 ADMIN_USERNAME=admin
 ADMIN_EMAIL=admin@autolink.com
 ADMIN_PASSWORD=<mot-de-passe-fort-unique>
+
+# Envoi d'emails — code de connexion OTP (login sans mot de passe)
+# Gmail : EMAIL_HOST_USER=votre@gmail.com + mot de passe d'application
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+DEFAULT_FROM_EMAIL=AutoLink Pro <no-reply@autolink-pro.worldwide-international.business>
 ```
 `ADMIN_USERNAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` définissent le compte
 super admin. Si le compte existe déjà, le seed ré-applique les droits

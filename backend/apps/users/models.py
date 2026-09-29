@@ -44,3 +44,21 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'{self.title} → {self.user}'
+
+
+class LoginCode(models.Model):
+    """Code OTP de connexion envoyé par email (connexion sans mot de passe)."""
+    email = models.EmailField(db_index=True)
+    code = models.CharField(max_length=6)
+    first_name = models.CharField(max_length=80, blank=True)
+    last_name = models.CharField(max_length=80, blank=True)
+    expires_at = models.DateTimeField()
+    attempts = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Code de connexion'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'OTP {self.email} ({self.code})'

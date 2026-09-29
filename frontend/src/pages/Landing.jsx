@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AutoLinkLogo from '../components/AutoLinkLogo';
+import PromoPopup from '../components/PromoPopup';
 
 /* ────────────────────────────────────────────────
    IMAGES — Unsplash (libres, haute résolution)
@@ -972,6 +973,7 @@ export default function Landing() {
       <AppSection />
       <ContactSection />
       <Footer navigate={navigate} />
+      <PromoPopup />
     </div>
   );
 }

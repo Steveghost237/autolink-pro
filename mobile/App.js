@@ -56,6 +56,8 @@ const apiFetch = async (path, { method = 'GET', body, auth = true } = {}) => {
 const api = {
   login:      (email, password) => apiFetch('/users/login/', { method: 'POST', body: { email, password }, auth: false }),
   google:     (profile)         => apiFetch('/users/google/', { method: 'POST', body: profile, auth: false }),
+  otpRequest: (payload)         => apiFetch('/users/otp/request/', { method: 'POST', body: payload, auth: false }),
+  otpVerify:  (email, code)     => apiFetch('/users/otp/verify/', { method: 'POST', body: { email, code }, auth: false }),
   register:   (payload)         => apiFetch('/users/register/', { method: 'POST', body: payload, auth: false }),
   me:         ()                => apiFetch('/users/me/'),
   vehicles:   ()                => apiFetch('/vehicles/?page_size=100', { auth: false }),
@@ -319,13 +321,35 @@ function GoogleButton() {
 }
 
 function LoginScreen() {
-  const { login } = useAuth();
+  const { login, register, otpVerify } = useAuth();
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'otp'
   const [reg, setReg] = useState({ firstName: '', lastName: '', phone: '' });
-  const { register } = useAuth();
+  const [otpStep, setOtpStep] = useState(1);
+  const [otpCode, setOtpCode] = useState('');
+  const [promo, setPromo] = useState(true); // popup campagne à l'ouverture
+
+  const sendOtp = async () => {
+    if (!email.includes('@')) { Alert.alert('Requis', 'Entrez une adresse email valide.'); return; }
+    setLoading(true);
+    try {
+      await api.otpRequest({ email: email.trim(), first_name: reg.firstName.trim(), last_name: reg.lastName.trim() });
+      setOtpStep(2);
+    } catch (e) {
+      Alert.alert('Envoi impossible', e.data?.detail || 'Verifiez votre connexion puis reessayez.');
+    }
+    setLoading(false);
+  };
+
+  const confirmOtp = async () => {
+    if (otpCode.length !== 6) { Alert.alert('Code incomplet', 'Entrez le code a 6 chiffres.'); return; }
+    setLoading(true);
+    const r = await otpVerify(email.trim(), otpCode);
+    setLoading(false);
+    if (!r.success) Alert.alert('Connexion echouee', r.error);
+  };
 
   const handle = async () => {
     if (!email || !pwd) { Alert.alert('Requis', 'Remplissez tous les champs.'); return; }
@@ -366,10 +390,10 @@ function LoginScreen() {
         <View style={{ backgroundColor:C.bg, borderTopLeftRadius:24, borderTopRightRadius:24,
           marginTop:-20, padding:24 }}>
           <Text style={{ fontSize:20, fontWeight:'800', color:C.text, marginBottom:20 }}>
-            {mode === 'login' ? 'Connexion' : 'Creer un compte'}
+            {mode === 'login' ? 'Connexion' : mode === 'register' ? 'Creer un compte' : 'Code par email'}
           </Text>
 
-          {mode === 'register' && (
+          {(mode === 'register' || (mode === 'otp' && otpStep === 1)) && (
             <>
               <View style={{ flexDirection:'row', gap:10 }}>
                 <View style={{ flex:1 }}>
@@ -383,33 +407,70 @@ function LoginScreen() {
                     placeholderTextColor={C.muted} style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
                 </View>
               </View>
-              <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Telephone</Text>
-              <TextInput value={reg.phone} onChangeText={v => setReg(r => ({...r, phone: v}))} placeholder="+237 6XX XX XX XX"
-                placeholderTextColor={C.muted} keyboardType="phone-pad"
-                style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
+              {mode === 'register' && (
+                <>
+                  <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Telephone</Text>
+                  <TextInput value={reg.phone} onChangeText={v => setReg(r => ({...r, phone: v}))} placeholder="+237 6XX XX XX XX"
+                    placeholderTextColor={C.muted} keyboardType="phone-pad"
+                    style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
+                </>
+              )}
             </>
           )}
 
-          <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Email</Text>
-          <TextInput value={email} onChangeText={setEmail} placeholder="votre@email.com"
-            placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none"
-            style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13,
-              fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:14 }} />
+          {mode === 'otp' && otpStep === 2 ? (
+            <>
+              <View style={{ backgroundColor:C.primary+'10', borderRadius:12, padding:12, marginBottom:14, flexDirection:'row', alignItems:'center', gap:8 }}>
+                <Ionicons name="mail" size={18} color={C.primary} />
+                <Text style={{ color:C.text, fontSize:12, flex:1 }}>Code envoye a <Text style={{ fontWeight:'800' }}>{email}</Text></Text>
+              </View>
+              <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Code a 6 chiffres</Text>
+              <TextInput value={otpCode} onChangeText={v => setOtpCode(v.replace(/\D/g, '').slice(0, 6))}
+                placeholder="——————" placeholderTextColor={C.muted}
+                keyboardType="number-pad" autoFocus maxLength={6}
+                style={{ borderWidth:1.5, borderColor:C.primary, borderRadius:12, padding:13,
+                  fontSize:22, fontWeight:'800', letterSpacing:8, textAlign:'center',
+                  backgroundColor:C.card, color:C.text, marginBottom:20 }} />
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Email</Text>
+              <TextInput value={email} onChangeText={setEmail} placeholder="votre@email.com"
+                placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none"
+                style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13,
+                  fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:14 }} />
+            </>
+          )}
 
-          <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Mot de passe</Text>
-          <TextInput value={pwd} onChangeText={setPwd} placeholder="••••••••"
-            placeholderTextColor={C.muted} secureTextEntry
-            style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13,
-              fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:20 }} />
+          {mode !== 'otp' && (
+            <>
+              <Text style={{ fontSize:13, fontWeight:'600', color:C.muted, marginBottom:6 }}>Mot de passe</Text>
+              <TextInput value={pwd} onChangeText={setPwd} placeholder="••••••••"
+                placeholderTextColor={C.muted} secureTextEntry
+                style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:13,
+                  fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:20 }} />
+            </>
+          )}
 
-          <TouchableOpacity onPress={mode === 'login' ? handle : handleRegister} disabled={loading}
+          <TouchableOpacity
+            onPress={mode === 'otp' ? (otpStep === 1 ? sendOtp : confirmOtp) : (mode === 'login' ? handle : handleRegister)}
+            disabled={loading}
             style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14,
               alignItems:'center', opacity:loading?0.7:1 }}>
             {loading ? <ActivityIndicator color="#fff" />
-              : <Text style={{ color:'#fff', fontWeight:'700', fontSize:16 }}>{mode === 'login' ? 'Se connecter' : "S'inscrire"}</Text>}
+              : <Text style={{ color:'#fff', fontWeight:'700', fontSize:16 }}>
+                  {mode === 'otp' ? (otpStep === 1 ? 'Recevoir mon code' : 'Valider et me connecter')
+                    : mode === 'login' ? 'Se connecter' : "S'inscrire"}
+                </Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setMode(m => m === 'login' ? 'register' : 'login')} style={{ marginTop:14 }}>
+          {mode === 'otp' && otpStep === 2 && (
+            <TouchableOpacity onPress={sendOtp} disabled={loading} style={{ marginTop:12 }}>
+              <Text style={{ color:C.primary, fontWeight:'700', fontSize:13, textAlign:'center' }}>Renvoyer le code</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity onPress={() => { setMode(m => m === 'login' ? 'register' : 'login'); setOtpStep(1); }} style={{ marginTop:14 }}>
             <Text style={{ color:C.primary, fontWeight:'700', fontSize:13, textAlign:'center' }}>
               {mode === 'login' ? "Pas de compte ? S'inscrire" : 'Deja un compte ? Se connecter'}
             </Text>
@@ -421,10 +482,77 @@ function LoginScreen() {
             <View style={{ flex:1, height:1, backgroundColor:C.border }} />
           </View>
 
-          <GoogleButton />
+          {mode !== 'otp' && (
+            <>
+              <GoogleButton />
+              <TouchableOpacity onPress={() => { setMode('otp'); setOtpStep(1); }}
+                style={{ marginTop:10, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8,
+                  borderWidth:1.5, borderStyle:'dashed', borderColor:C.primary+'60', borderRadius:12, paddingVertical:12 }}>
+                <Ionicons name="key-outline" size={16} color={C.primary} />
+                <Text style={{ color:C.primary, fontWeight:'700', fontSize:13 }}>Recevoir un code par email</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {mode === 'otp' && (
+            <TouchableOpacity onPress={() => { setMode('login'); setOtpStep(1); setOtpCode(''); }} style={{ marginTop:6 }}>
+              <Text style={{ color:C.muted, fontWeight:'600', fontSize:12, textAlign:'center' }}>← Retour a la connexion classique</Text>
+            </TouchableOpacity>
+          )}
 
         </View>
       </ScrollView>
+
+      {/* ── Popup promo à l'ouverture ─────────────────────────────── */}
+      <Modal visible={promo} transparent animationType="fade" onRequestClose={() => setPromo(false)}>
+        <View style={{ flex:1, backgroundColor:'rgba(2,6,23,0.75)', justifyContent:'center', padding:24 }}>
+          <View style={{ backgroundColor:C.dark, borderRadius:24, overflow:'hidden' }}>
+            <LinearGradient colors={[C.primary, '#1E3A8A', C.dark]} style={{ height:120, alignItems:'center', justifyContent:'center' }}>
+              <View style={{ width:56, height:56, borderRadius:16, backgroundColor:'rgba(255,255,255,0.15)',
+                alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:'rgba(255,255,255,0.25)' }}>
+                <Ionicons name="car-sport" size={30} color="#fff" />
+              </View>
+              <View style={{ position:'absolute', top:12, left:12, backgroundColor:'#D97706', borderRadius:20, paddingHorizontal:10, paddingVertical:3 }}>
+                <Text style={{ color:'#fff', fontSize:9, fontWeight:'900', letterSpacing:1 }}>OFFRE DE LANCEMENT</Text>
+              </View>
+              <TouchableOpacity onPress={() => setPromo(false)}
+                style={{ position:'absolute', top:12, right:12, width:30, height:30, borderRadius:15,
+                  backgroundColor:'rgba(0,0,0,0.3)', alignItems:'center', justifyContent:'center' }}>
+                <Ionicons name="close" size={16} color="#fff" />
+              </TouchableOpacity>
+            </LinearGradient>
+            <View style={{ padding:22 }}>
+              <Text style={{ color:'#fff', fontSize:20, fontWeight:'900', lineHeight:27 }}>
+                Votre vehicule vous attend.{'\n'}<Text style={{ color:'#FBBF24' }}>Reservation en 2 minutes.</Text>
+              </Text>
+              <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12, marginTop:6 }}>
+                Berlines, 4x4, vans — avec ou sans chauffeur, partout au Cameroun.
+              </Text>
+              <View style={{ flexDirection:'row', gap:8, marginTop:14, marginBottom:16 }}>
+                {[['flash','Confirmation immediate'],['shield-checkmark','Caution securisee'],['key','Sans mot de passe']].map(([ic, l]) => (
+                  <View key={l} style={{ flex:1, backgroundColor:'rgba(255,255,255,0.06)', borderWidth:1,
+                    borderColor:'rgba(255,255,255,0.1)', borderRadius:12, padding:10, alignItems:'center' }}>
+                    <Ionicons name={ic} size={16} color="#FBBF24" />
+                    <Text style={{ color:'#fff', fontSize:9, fontWeight:'700', marginTop:4, textAlign:'center' }}>{l}</Text>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity onPress={() => { setPromo(false); setMode('register'); }}
+                style={{ backgroundColor:C.primary, borderRadius:14, paddingVertical:14, alignItems:'center', marginBottom:10 }}>
+                <Text style={{ color:'#fff', fontWeight:'800', fontSize:15 }}>Reserver mon vehicule</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setPromo(false); setMode('otp'); setOtpStep(1); }}
+                style={{ borderWidth:1.5, borderColor:'rgba(255,255,255,0.2)', borderRadius:14, paddingVertical:12,
+                  alignItems:'center', flexDirection:'row', justifyContent:'center', gap:8 }}>
+                <Ionicons name="key-outline" size={15} color="#fff" />
+                <Text style={{ color:'#fff', fontWeight:'700', fontSize:13 }}>Recevoir un code par email</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPromo(false)} style={{ marginTop:12 }}>
+                <Text style={{ color:'rgba(255,255,255,0.5)', fontSize:11, textAlign:'center' }}>Continuer sans compte</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1585,6 +1713,17 @@ function AppInner() {
     }
   };
 
+  const otpVerify = async (email, code) => {
+    try {
+      const data = await api.otpVerify(email, code);
+      await saveSession(data);
+      return { success: true };
+    } catch (e) {
+      const first = e.data && (e.data.detail || Object.values(e.data)[0]);
+      return { success: false, error: first || 'Verification impossible — reessayez.' };
+    }
+  };
+
   const register = async ({ email, password, firstName, lastName, phone }) => {
     try {
       const data = await api.register({
@@ -1622,7 +1761,7 @@ function AppInner() {
   };
 
   return (
-    <AuthCtx.Provider value={{ user, login, logout, register, googleLogin }}>
+    <AuthCtx.Provider value={{ user, login, logout, register, googleLogin, otpVerify }}>
       {renderByRole()}
     </AuthCtx.Provider>
   );

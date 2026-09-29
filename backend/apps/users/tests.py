@@ -1,5 +1,8 @@
+from django.core import mail
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.test import APITestCase
-from apps.users.models import User
+from apps.users.models import User, LoginCode
 
 
 class AuthTests(APITestCase):
@@ -60,6 +63,77 @@ class AuthTests(APITestCase):
         self.assertIn(self.client.get('/api/users/').status_code, (401, 403))
         self.client.force_authenticate(admin)
         self.assertEqual(self.client.get('/api/users/').status_code, 200)
+
+
+class OTPLoginTests(APITestCase):
+    """Connexion par code email — type agence : nom + email → code → JWT."""
+
+    def _request(self, email='voyageur@gmail.com', **extra):
+        return self.client.post('/api/users/otp/request/', {
+            'email': email, 'first_name': 'Jean', 'last_name': 'Dupont', **extra},
+            format='json')
+
+    def test_request_sends_email(self):
+        r = self._request()
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('AutoLink', mail.outbox[0].subject)
+        otp = LoginCode.objects.get(email='voyageur@gmail.com')
+        self.assertEqual(len(otp.code), 6)
+        self.assertIn(otp.code, mail.outbox[0].subject)
+
+    def test_request_rate_limited(self):
+        self._request()
+        r = self._request()
+        self.assertEqual(r.status_code, 429)
+
+    def test_request_rejects_bad_email(self):
+        r = self._request(email='pas-un-email')
+        self.assertEqual(r.status_code, 400)
+
+    def test_verify_creates_account_and_returns_jwt(self):
+        self._request()
+        otp = LoginCode.objects.get(email='voyageur@gmail.com')
+        r = self.client.post('/api/users/otp/verify/', {
+            'email': 'voyageur@gmail.com', 'code': otp.code}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertIn('access', r.data)
+        user = User.objects.get(email='voyageur@gmail.com')
+        self.assertEqual(user.role, 'CLIENT')
+        self.assertEqual(user.first_name, 'Jean')
+        self.assertTrue(user.is_verified)  # email prouvé par le code
+        # le code est consommé
+        self.assertFalse(LoginCode.objects.filter(email='voyageur@gmail.com').exists())
+
+    def test_verify_existing_user_logs_in(self):
+        User.objects.create_user(username='ex', email='voyageur@gmail.com',
+                                 password='x', role='CLIENT')
+        self._request()
+        otp = LoginCode.objects.get(email='voyageur@gmail.com')
+        r = self.client.post('/api/users/otp/verify/', {
+            'email': 'voyageur@gmail.com', 'code': otp.code}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(User.objects.filter(email='voyageur@gmail.com').count(), 1)
+
+    def test_wrong_code_then_lockout(self):
+        self._request()
+        for _ in range(5):
+            r = self.client.post('/api/users/otp/verify/', {
+                'email': 'voyageur@gmail.com', 'code': '000000'}, format='json')
+        self.assertEqual(r.status_code, 400)
+        # 6e tentative → code supprimé / trop de tentatives
+        r = self.client.post('/api/users/otp/verify/', {
+            'email': 'voyageur@gmail.com', 'code': '000000'}, format='json')
+        self.assertIn(r.status_code, (400, 429))
+
+    def test_expired_code_rejected(self):
+        self._request()
+        otp = LoginCode.objects.get(email='voyageur@gmail.com')
+        otp.expires_at = timezone.now() - timedelta(minutes=1)
+        otp.save()
+        r = self.client.post('/api/users/otp/verify/', {
+            'email': 'voyageur@gmail.com', 'code': otp.code}, format='json')
+        self.assertEqual(r.status_code, 400)
 
 
 class NotificationTests(APITestCase):

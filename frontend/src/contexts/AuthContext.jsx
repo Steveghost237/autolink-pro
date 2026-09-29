@@ -32,17 +32,23 @@ export const AuthProvider = ({ children }) => {
     lastName: u.lastName || u.last_name || '',
   });
 
+  // Persiste la session JWT retournée par login/google/otp/register
+  const persistSession = (data) => {
+    const safeUser = normalizeUser(data.user);
+    localStorage.setItem('autolink_user', JSON.stringify(safeUser));
+    localStorage.setItem('autolink_access', data.access);
+    localStorage.setItem('autolink_refresh', data.refresh);
+    localStorage.setItem('autolink_token', data.access);
+    setUser(safeUser);
+    setIsAuthenticated(true);
+    return safeUser;
+  };
+
   const login = async ({ email, password }) => {
     // 1) Tentative API réelle (backend Django)
     try {
       const { data } = await authAPI.login(email, password);
-      const safeUser = normalizeUser(data.user);
-      localStorage.setItem('autolink_user', JSON.stringify(safeUser));
-      localStorage.setItem('autolink_access', data.access);
-      localStorage.setItem('autolink_refresh', data.refresh);
-      localStorage.setItem('autolink_token', data.access);
-      setUser(safeUser);
-      setIsAuthenticated(true);
+      const safeUser = persistSession(data);
       return { success: true, user: safeUser };
     } catch (err) {
       // Identifiants invalides confirmés par l'API → erreur directe
@@ -81,6 +87,20 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
       }
       return { success: false, error: 'Connexion Google impossible — API injoignable.' };
+    }
+  };
+
+  const otpVerify = async (email, code) => {
+    try {
+      const { data } = await authAPI.otpVerify(email, code);
+      const safeUser = persistSession(data);
+      return { success: true, user: safeUser };
+    } catch (err) {
+      if (err.response?.data) {
+        const first = Object.values(err.response.data)[0];
+        return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
+      }
+      return { success: false, error: 'Serveur injoignable — réessayez.' };
     }
   };
 
@@ -155,7 +175,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, register, googleLogin, updateUser, refreshUser, getDashboardPath }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, register, googleLogin, otpVerify, updateUser, refreshUser, getDashboardPath }}>
       {children}
     </AuthContext.Provider>
   );
