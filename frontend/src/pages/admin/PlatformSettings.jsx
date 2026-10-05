@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings2, Save, Percent, UserCheck, LifeBuoy } from 'lucide-react';
+import { Save, Percent, UserCheck, LifeBuoy } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { settingsAPI } from '../../services/api';
 

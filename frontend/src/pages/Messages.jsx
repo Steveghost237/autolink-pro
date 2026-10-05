@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MessageSquare, Send, Plus, LifeBuoy, ArrowLeft, Inbox } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
@@ -80,6 +81,13 @@ export default function Messages() {
   }, [peer]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Ouverture directe d'une conversation : /messages?peer=<id|support>
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const p = searchParams.get('peer');
+    if (p && !peer) openThread(p === 'support' ? 'support' : Number(p));
+  }, [searchParams, peer, openThread]);
 
   const send = async () => {
     const text = body.trim();
