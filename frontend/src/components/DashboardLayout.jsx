@@ -7,7 +7,8 @@ import AutoLinkLogo from './AutoLinkLogo';
 import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck,
   LayoutDashboard, Search, FileText, Settings,
-  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Image, Tag
+  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag,
+  MessageSquare, Wrench, SlidersHorizontal
 } from 'lucide-react';
 
 const NAV_ITEMS = {
@@ -15,15 +16,19 @@ const NAV_ITEMS = {
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/client/dashboard' },
     { icon: Search, label: 'Chercher un véhicule', path: '/client/search' },
     { icon: FileText, label: 'Mes réservations', path: '/client/bookings' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
   ],
   OWNER: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },
     { icon: Car, label: 'Mes véhicules', path: '/owner/vehicles' },
     { icon: PlusCircle, label: 'Ajouter un véhicule', path: '/owner/add-vehicle' },
     { icon: UserCheck, label: 'Service chauffeur', path: '/owner/driver-service' },
+    { icon: Wrench, label: 'Maintenance', path: '/owner/maintenance' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
   ],
   INTERMEDIARY: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/intermediary/dashboard' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
   ],
   ADMIN: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin/dashboard' },
@@ -33,10 +38,14 @@ const NAV_ITEMS = {
     { icon: DollarSign, label: 'Finance', path: '/admin/finance' },
     { icon: Tag, label: 'Agents affiliés', path: '/admin/agents' },
     { icon: ClipboardList, label: 'Inspections', path: '/admin/inspections' },
+    { icon: Wrench, label: 'Maintenance', path: '/admin/maintenance' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
+    { icon: SlidersHorizontal, label: 'Paramètres', path: '/admin/platform-settings' },
   ],
   CONTROLLER: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/controller/dashboard' },
     { icon: ClipboardList, label: 'Inspections', path: '/admin/inspections' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
   ],
 };
 

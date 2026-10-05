@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Notification
+from .models import User, Notification, Message, PlatformSettings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -24,6 +24,41 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id', 'title', 'message', 'is_read', 'created_at']
         read_only_fields = ['title', 'message', 'created_at']
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField()
+    sender_role = serializers.CharField(source='sender.role', read_only=True)
+    recipient_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Message
+        fields = ['id', 'sender', 'recipient', 'booking', 'body', 'is_read', 'created_at',
+                  'sender_name', 'sender_role', 'recipient_name']
+        read_only_fields = ['sender', 'is_read', 'created_at']
+
+    def get_sender_name(self, obj):
+        return obj.sender.get_full_name()
+
+    def get_recipient_name(self, obj):
+        return obj.recipient.get_full_name() if obj.recipient else 'Support AutoLink'
+
+
+class MiniUserSerializer(serializers.ModelSerializer):
+    """Contact léger pour la messagerie."""
+    name = serializers.CharField(source='get_full_name', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'role', 'email']
+
+
+class PlatformSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlatformSettings
+        fields = ['commission_rate', 'intermediary_default_rate', 'driver_service_price',
+                  'support_email', 'support_phone', 'updated_at']
+        read_only_fields = ['updated_at']
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -76,6 +111,14 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        # Taux de commission par défaut configurable via PlatformSettings
+        if validated_data.get('role') == 'INTERMEDIARY' and 'commission_rate' not in validated_data:
+            try:
+                from decimal import Decimal
+                validated_data['commission_rate'] = Decimal(
+                    str(PlatformSettings.load().intermediary_default_rate))
+            except Exception:
+                pass
         return User.objects.create_user(**validated_data)
 
 

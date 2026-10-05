@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Vehicle, VehiclePhoto, VehicleAvailability
+from .models import Vehicle, VehiclePhoto, VehicleAvailability, MaintenanceRequest
 
 
 class VehiclePhotoInline(admin.TabularInline):
@@ -17,3 +17,11 @@ class VehicleAdmin(admin.ModelAdmin):
 
 
 admin.site.register(VehicleAvailability)
+
+
+@admin.register(MaintenanceRequest)
+class MaintenanceRequestAdmin(admin.ModelAdmin):
+    list_display = ['id', 'vehicle', 'owner', 'priority', 'status', 'created_at']
+    list_filter = ['status', 'priority']
+    search_fields = ['title', 'vehicle__brand', 'vehicle__plate', 'owner__username']
+    readonly_fields = ['created_at', 'updated_at']

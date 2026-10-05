@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Vehicle, VehiclePhoto, VehicleAvailability
+from .models import Vehicle, VehiclePhoto, VehicleAvailability, MaintenanceRequest
 
 
 class VehiclePhotoSerializer(serializers.ModelSerializer):
@@ -30,3 +30,21 @@ class VehicleAvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = VehicleAvailability
         fields = '__all__'
+
+
+class MaintenanceRequestSerializer(serializers.ModelSerializer):
+    owner_name = serializers.SerializerMethodField()
+    vehicle_label = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    priority_label = serializers.CharField(source='get_priority_display', read_only=True)
+
+    class Meta:
+        model = MaintenanceRequest
+        fields = '__all__'
+        read_only_fields = ['owner', 'admin_notes', 'created_at', 'updated_at']
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name()
+
+    def get_vehicle_label(self, obj):
+        return str(obj.vehicle)

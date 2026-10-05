@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
-import { driversAPI } from '../../services/api';
+import { driversAPI, settingsAPI } from '../../services/api';
 import {
   Shield, CheckCircle, Clock, Users, FileText, Award,
   UserCheck, AlertCircle, Plus, Phone
 } from 'lucide-react';
 
-const PRICE_PER_DRIVER = 75000;
+const DEFAULT_PRICE = 75000;
 
 const STEPS = [
   { icon: FileText, title: '1. Recrutement', desc: 'Sourcing et présélection de candidats chauffeurs dans votre ville.' },
@@ -32,6 +32,7 @@ export default function DriverService() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ drivers_count: 1, city: 'Douala', requirements: '' });
+  const [pricePerDriver, setPricePerDriver] = useState(DEFAULT_PRICE);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +43,12 @@ export default function DriverService() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    settingsAPI.publicConfig()
+      .then(({ data }) => { if (data.driver_service_price) setPricePerDriver(Number(data.driver_service_price)); })
+      .catch(() => {});
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -77,7 +84,7 @@ export default function DriverService() {
                 Après transmission, vous les gérez <strong>entièrement et exclusivement</strong>.
               </p>
               <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-xl px-4 py-2">
-                <span className="text-2xl font-black">{PRICE_PER_DRIVER.toLocaleString()} F</span>
+                <span className="text-2xl font-black">{pricePerDriver.toLocaleString()} F</span>
                 <span className="text-xs text-emerald-100">forfait par chauffeur<br />recruté et formé</span>
               </div>
             </div>
@@ -197,7 +204,7 @@ export default function DriverService() {
                 onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} />
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-sm text-emerald-800 dark:text-emerald-300 font-semibold text-center">
-              Total estimé : {(PRICE_PER_DRIVER * form.drivers_count).toLocaleString()} FCFA
+              Total estimé : {(pricePerDriver * form.drivers_count).toLocaleString()} FCFA
             </div>
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowForm(false)} className="btn-outline flex-1 py-3">Annuler</button>

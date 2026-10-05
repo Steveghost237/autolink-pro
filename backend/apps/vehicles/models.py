@@ -282,3 +282,40 @@ class VehicleAvailability(models.Model):
 
     def __str__(self):
         return f'{self.vehicle} — {self.start_date} au {self.end_date}'
+
+
+class MaintenanceRequest(models.Model):
+    """Demande de réparation/maintenance déposée par un propriétaire.
+    L'admin suit le ticket jusqu'à résolution."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'En attente'
+        IN_PROGRESS = 'in_progress', 'En cours de traitement'
+        RESOLVED = 'resolved', 'Résolue'
+        CANCELLED = 'cancelled', 'Annulée'
+
+    class Priority(models.TextChoices):
+        LOW = 'low', 'Basse'
+        NORMAL = 'normal', 'Normale'
+        HIGH = 'high', 'Haute'
+        URGENT = 'urgent', 'Urgente'
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='maintenance_requests')
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE,
+                                related_name='maintenance_requests')
+    title = models.CharField(max_length=120)
+    description = models.TextField()
+    priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.NORMAL)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    admin_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Demande de maintenance'
+        verbose_name_plural = 'Demandes de maintenance'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'MNT-{self.pk:04d} — {self.vehicle} ({self.get_status_display()})'

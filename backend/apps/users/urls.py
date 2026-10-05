@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import RegisterView, MeView, UserListView, LoginView, UserDetailView, GoogleAuthView, NotificationListView, NotificationReadView, OTPRequestView, OTPVerifyView
+from .views import (RegisterView, MeView, UserListView, LoginView, UserDetailView,
+                    GoogleAuthView, NotificationListView, NotificationReadView,
+                    OTPRequestView, OTPVerifyView, MessageListView, MessageThreadsView,
+                    MessageContactsView, MessageReadView, PlatformSettingsView,
+                    PublicConfigView)
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -11,6 +15,13 @@ urlpatterns = [
     path('notifications/', NotificationListView.as_view(), name='notifications'),
     path('notifications/read/', NotificationReadView.as_view(), name='notifications-read-all'),
     path('notifications/<int:pk>/read/', NotificationReadView.as_view(), name='notification-read'),
+    # Messagerie interne + paramètres plateforme
+    path('messages/threads/', MessageThreadsView.as_view(), name='message-threads'),
+    path('messages/contacts/', MessageContactsView.as_view(), name='message-contacts'),
+    path('messages/read/', MessageReadView.as_view(), name='message-read'),
+    path('messages/', MessageListView.as_view(), name='messages'),
+    path('settings/', PlatformSettingsView.as_view(), name='platform-settings'),
+    path('public-config/', PublicConfigView.as_view(), name='public-config'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('', UserListView.as_view(), name='user-list'),
 ]

@@ -24,6 +24,10 @@ import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Messages from './pages/Messages';
+import Maintenance from './pages/owner/Maintenance';
+import AdminMaintenance from './pages/admin/AdminMaintenance';
+import PlatformSettings from './pages/admin/PlatformSettings';
 import NotFound from './pages/NotFound';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -51,6 +55,7 @@ function AppRoutes() {
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
       <Route path="/owner/driver-service" element={<Guard roles={['OWNER']}><DriverService /></Guard>} />
+      <Route path="/owner/maintenance" element={<Guard roles={['OWNER']}><Maintenance /></Guard>} />
 
       <Route path="/intermediary/dashboard" element={<Guard roles={['INTERMEDIARY']}><IntermediaryDashboard /></Guard>} />
 
@@ -61,12 +66,15 @@ function AppRoutes() {
       <Route path="/admin/users" element={<Guard roles={['ADMIN']}><ManageUsers /></Guard>} />
       <Route path="/admin/catalog" element={<Guard roles={['ADMIN']}><CatalogManager /></Guard>} />
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
+      <Route path="/admin/maintenance" element={<Guard roles={['ADMIN']}><AdminMaintenance /></Guard>} />
+      <Route path="/admin/platform-settings" element={<Guard roles={['ADMIN']}><PlatformSettings /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
       <Route path="/profile" element={<Guard><Profile /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
+      <Route path="/messages" element={<Guard><Messages /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

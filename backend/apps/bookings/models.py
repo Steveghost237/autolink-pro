@@ -8,6 +8,16 @@ from decimal import Decimal
 COMMISSION_RATE = Decimal('0.50')
 
 
+def get_commission_rate():
+    """Taux de commission AutoLink — lisible dans PlatformSettings (admin),
+    avec repli sur la constante si la table n'est pas encore créée."""
+    try:
+        from apps.users.models import PlatformSettings
+        return Decimal(str(PlatformSettings.load().commission_rate))
+    except Exception:
+        return COMMISSION_RATE
+
+
 class Booking(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'En attente de paiement'
@@ -80,7 +90,7 @@ class Booking(models.Model):
         self.discount_percent = 10 if self.days >= 30 else 5 if self.days >= 7 else 0
         gross = self.daily_rate * self.days
         self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
-        self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))
+        self.commission_amount = (self.subtotal * get_commission_rate()).quantize(Decimal('0.01'))
         self.owner_amount = self.subtotal - self.commission_amount
         # Commission intermédiaire : % du montant location, prélevée sur la
         # part AutoLink (le propriétaire n'est pas impacté).

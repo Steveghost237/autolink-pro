@@ -1,13 +1,17 @@
 import random
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Notification, LoginCode
-from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer
+from .models import User, Notification, LoginCode, Message, PlatformSettings
+from .serializers import (UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer,
+                          AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer,
+                          MessageSerializer, MiniUserSerializer, PlatformSettingsSerializer)
 
 
 class LoginView(APIView):
@@ -212,3 +216,153 @@ class NotificationReadView(APIView):
             qs = qs.filter(pk=pk)
         qs.update(is_read=True)
         return Response({'unread': request.user.notifications.filter(is_read=False).count()})
+
+
+# ─── Messagerie interne (client ↔ propriétaire ↔ support) ────────────────────
+
+def _my_messages(user):
+    """Tous les messages visibles par l'utilisateur.
+    recipient=None = message pour le support → visible par les admins."""
+    qs = Message.objects.select_related('sender', 'recipient')
+    if user.role == 'ADMIN':
+        return qs.filter(Q(sender=user) | Q(recipient=user) | Q(recipient__isnull=True))
+    return qs.filter(Q(sender=user) | Q(recipient=user))
+
+
+def _contact_ids(user):
+    """Utilisateurs avec qui user peut discuter (hors support)."""
+    if user.role == 'ADMIN':
+        return User.objects.exclude(pk=user.pk).values_list('id', flat=True)
+    if user.role == 'OWNER':
+        return User.objects.filter(bookings__vehicle__owner=user).values_list('id', flat=True).distinct()
+    if user.role == 'INTERMEDIARY':
+        return User.objects.filter(bookings__intermediary=user).values_list('id', flat=True).distinct()
+    # CLIENT / autres : propriétaires des véhicules réservés
+    return User.objects.filter(vehicles__bookings__client=user).values_list('id', flat=True).distinct()
+
+
+class MessageListView(generics.ListCreateAPIView):
+    """GET : conversation filtrée par ?peer=<user_id> ou ?peer=support.
+    POST : envoie un message (recipient vide = équipe support)."""
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        u = self.request.user
+        qs = _my_messages(u)
+        peer = self.request.query_params.get('peer')
+        if peer == 'support' and u.role != 'ADMIN':
+            qs = qs.filter(Q(sender=u, recipient__isnull=True)
+                           | Q(sender=u, recipient__role='ADMIN')
+                           | Q(recipient=u, sender__role='ADMIN'))
+        elif peer and str(peer).isdigit():
+            p = int(peer)
+            if u.role == 'ADMIN':
+                qs = qs.filter(Q(sender=u, recipient_id=p)
+                               | Q(recipient=u, sender_id=p)
+                               | Q(sender_id=p, recipient__isnull=True))
+            else:
+                qs = qs.filter(Q(sender=u, recipient_id=p) | Q(recipient=u, sender_id=p))
+        return qs
+
+    def perform_create(self, serializer):
+        u = self.request.user
+        recipient_id = self.request.data.get('recipient')
+        if recipient_id:
+            allowed = set(_contact_ids(u)) | set(
+                User.objects.filter(role='ADMIN', is_active=True).values_list('id', flat=True))
+            if u.role != 'ADMIN' and int(recipient_id) not in allowed:
+                raise PermissionDenied('Vous ne pouvez écrire qu\'à vos contacts ou au support.')
+            recipient = User.objects.filter(pk=recipient_id, is_active=True).first()
+            if recipient is None:
+                raise ValidationError({'recipient': 'Destinataire introuvable.'})
+            serializer.save(sender=u, recipient=recipient)
+        else:
+            serializer.save(sender=u, recipient=None)
+
+
+class MessageThreadsView(APIView):
+    """Liste des conversations : {key, peer_id, peer_name, peer_role,
+    last_body, last_at, unread}."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        u = request.user
+        threads = {}
+        for m in _my_messages(u):
+            other = m.recipient if m.sender_id == u.id else m.sender
+            if u.role != 'ADMIN' and (other is None or other.role == 'ADMIN'):
+                key, peer_id, name, role = 'support', 'support', 'Support AutoLink', 'ADMIN'
+            else:
+                key = f'user-{other.id}'
+                peer_id, name, role = other.id, other.get_full_name() or other.email, other.role
+            t = threads.setdefault(key, {
+                'key': key, 'peer_id': peer_id, 'peer_name': name, 'peer_role': role,
+                'last_body': '', 'last_at': None, 'unread': 0})
+            t['last_body'] = m.body
+            t['last_at'] = m.created_at
+            incoming = (m.recipient_id == u.id) or (u.role == 'ADMIN' and m.sender_id != u.id and m.recipient_id is None)
+            if incoming and not m.is_read:
+                t['unread'] += 1
+        data = sorted(threads.values(), key=lambda t: t['last_at'] or '', reverse=True)
+        return Response({'results': data})
+
+
+class MessageContactsView(APIView):
+    """Contacts avec qui démarrer une conversation (+ support pour non-admins)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        u = request.user
+        users = User.objects.filter(pk__in=_contact_ids(u), is_active=True).order_by('first_name')[:100]
+        return Response({'results': MiniUserSerializer(users, many=True).data})
+
+
+class MessageReadView(APIView):
+    """Marque comme lus tous les messages reçus d'un interlocuteur."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        u = request.user
+        peer = request.query_params.get('peer')
+        qs = Message.objects.filter(is_read=False)
+        if u.role == 'ADMIN':
+            if not (peer and str(peer).isdigit()):
+                return Response({'detail': 'peer requis.'}, status=400)
+            qs = qs.filter(sender_id=int(peer)).filter(Q(recipient=u) | Q(recipient__isnull=True))
+        elif peer == 'support':
+            qs = qs.filter(recipient=u, sender__role='ADMIN')
+        elif peer and str(peer).isdigit():
+            qs = qs.filter(recipient=u, sender_id=int(peer))
+        else:
+            return Response({'detail': 'peer requis.'}, status=400)
+        qs.update(is_read=True)
+        return Response({'ok': True})
+
+
+# ─── Paramètres de la plateforme ─────────────────────────────────────────────
+
+class PlatformSettingsView(generics.RetrieveUpdateAPIView):
+    """GET/PATCH des paramètres globaux — réservé à l'admin."""
+    serializer_class = PlatformSettingsSerializer
+    permission_classes = [IsAdminRole]
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_object(self):
+        return PlatformSettings.load()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class PublicConfigView(APIView):
+    """Configuration publique (tarif service chauffeur, contacts support)."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        s = PlatformSettings.load()
+        return Response({
+            'driver_service_price': s.driver_service_price,
+            'support_email': s.support_email,
+            'support_phone': s.support_phone,
+        })

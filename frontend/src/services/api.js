@@ -104,4 +104,27 @@ export const driversAPI = {
   updateServiceRequest: (id, payload) => api.patch(`/drivers/service-requests/${id}/`, payload),
 };
 
+// Messagerie interne — ?peer=<user_id> ou ?peer=support
+export const messagesAPI = {
+  list: (peer) => api.get('/users/messages/', { params: peer ? { peer } : {} }),
+  threads: () => api.get('/users/messages/threads/'),
+  contacts: () => api.get('/users/messages/contacts/'),
+  send: (body, recipient) => api.post('/users/messages/', { body, recipient }),
+  markRead: (peer) => api.post('/users/messages/read/', {}, { params: { peer } }),
+};
+
+// Tickets de maintenance/réparation véhicules (propriétaires + admin)
+export const maintenanceAPI = {
+  list: () => api.get('/vehicles/maintenance/'),
+  create: (payload) => api.post('/vehicles/maintenance/', payload),
+  update: (id, payload) => api.patch(`/vehicles/maintenance/${id}/`, payload),
+};
+
+// Paramètres plateforme (admin) + config publique
+export const settingsAPI = {
+  get: () => api.get('/users/settings/'),
+  update: (payload) => api.patch('/users/settings/', payload),
+  publicConfig: () => api.get('/users/public-config/'),
+};
+
 export default api;
