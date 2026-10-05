@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
+import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
 import { vehiclesAPI, bookingsAPI } from '../../services/api';
@@ -480,8 +480,15 @@ export default function SearchVehicles() {
                     {TIER_STYLE[v.tier]?.label || 'Standard'}
                   </span>
                 </div>
-                <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                  <Star size={10} className="fill-amber-400 text-amber-400" />{v.rating}
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
+                  <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                    <Star size={10} className="fill-amber-400 text-amber-400" />{v.rating}
+                  </div>
+                  {v.available && (
+                    <span className="flex items-center gap-1 bg-emerald-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <ShieldCheck size={10} /> Vérifié AutoLink
+                    </span>
+                  )}
                 </div>
                 <div className="absolute bottom-2 left-2 text-white text-xs font-mono">{v.plate}</div>
               </div>
