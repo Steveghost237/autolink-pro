@@ -62,6 +62,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Booking.objects.filter(driver=user)
         if user.role == 'OWNER':
             return Booking.objects.filter(vehicle__owner=user)
+        if user.role == 'INTERMEDIARY':
+            return Booking.objects.filter(intermediary=user)
         return Booking.objects.none()
 
     def create(self, request, *args, **kwargs):
@@ -80,6 +82,37 @@ class BookingViewSet(viewsets.ModelViewSet):
         driver_type = serializer.validated_data.get('driver_type', 'none')
         payment_method = request.data.get('payment_method')
 
+        from apps.users.models import User
+        # ── Intermédiaire / code parrain ────────────────────────────────────
+        # 1) Un intermédiaire peut réserver pour le compte d'un client existant
+        #    (rôle d'apporteur d'affaires) : la réservation lui est attribuée et
+        #    le client est notifié pour payer depuis son propre compte.
+        on_behalf_email = (request.data.get('on_behalf_email') or '').strip().lower()
+        client = request.user
+        intermediary = None
+        if request.user.role == 'INTERMEDIARY':
+            intermediary = request.user
+            if on_behalf_email:
+                target = User.objects.filter(email__iexact=on_behalf_email).first()
+                if target is None:
+                    raise ValidationError({
+                        'on_behalf_email': 'Aucun compte client avec cet email — '
+                                           'le client doit d\'abord s\'inscrire.'})
+                client = target
+                # Réservation laissée en attente : c'est le client qui paie.
+                payment_method = None
+        else:
+            # 2) Code parrain saisi par le client à la réservation, sinon le
+            #    parrain enregistré à son inscription.
+            agent_code = (request.data.get('agent_code') or '').strip().upper()
+            if agent_code:
+                intermediary = User.objects.filter(
+                    referral_code=agent_code, role='INTERMEDIARY', is_active=True).first()
+                if intermediary is None:
+                    raise ValidationError({'agent_code': 'Code intermédiaire invalide.'})
+            else:
+                intermediary = getattr(request.user, 'referred_by', None)
+
         # Conflit de dates : une réservation confirmée/active bloque la période
         conflict = Booking.objects.filter(
             vehicle=vehicle,
@@ -95,7 +128,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             raise ValidationError({'driver_type': 'Ce propriétaire ne propose pas de chauffeur.'})
 
         with db_transaction.atomic():
-            booking = serializer.save(client=request.user)
+            booking = serializer.save(client=client, intermediary=intermediary)
 
             # Paiement → confirmation automatique (aucune validation admin)
             if payment_method:
@@ -121,6 +154,17 @@ class BookingViewSet(viewsets.ModelViewSet):
                     f'Votre véhicule {vehicle} a été réservé par {booking.client.get_full_name()} '
                     f'du {start} au {end}.{suffix} '
                     f'Merci de le mettre à disposition à la date prévue.')
+
+            # Réservation apportée par un intermédiaire : le client doit payer
+            if intermediary and client.id != request.user.id:
+                _notify(client, 'Réservation créée pour vous',
+                        f'{request.user.get_full_name()} a réservé le véhicule {vehicle} '
+                        f'pour vous du {start} au {end}. '
+                        f'Rendez-vous dans « Mes réservations » pour confirmer et payer.')
+                _notify(intermediary, 'Réservation transmise',
+                        f'Votre réservation pour {client.get_full_name()} ({vehicle}) '
+                        f'est enregistrée — en attente de son paiement. '
+                        f'Commission estimée : {booking.intermediary_commission} FCFA.')
 
             booking.sync_vehicle_status()
 

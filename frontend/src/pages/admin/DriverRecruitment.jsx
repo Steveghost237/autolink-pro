@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, FileText, Shield, Award, X, Car, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, FileText, Shield, Award, X, Car, Calendar, UserCheck } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import { driversAPI } from '../../services/api';
 
 const CRITERIA = [
   { id: 'license', label: 'Permis de conduire valide (catégorie B min.)', required: true },
@@ -112,8 +113,84 @@ function CandidateModal({ candidate, onClose }) {
   );
 }
 
+const REQUEST_STATUS = {
+  pending:    { label: 'En attente',           style: 'bg-amber-100 text-amber-700' },
+  recruiting: { label: 'Recrutement en cours', style: 'bg-blue-100 text-blue-700' },
+  training:   { label: 'Formation en cours',   style: 'bg-purple-100 text-purple-700' },
+  delivered:  { label: 'Chauffeur transmis',   style: 'bg-emerald-100 text-emerald-700' },
+  cancelled:  { label: 'Annulée',              style: 'bg-red-100 text-red-600' },
+};
+
+function OwnerRequests() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await driversAPI.serviceRequests();
+      setRequests(data.results || data || []);
+    } catch (_) {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setStatus = async (r, status) => {
+    try {
+      const { data } = await driversAPI.updateServiceRequest(r.id, { status });
+      setRequests(prev => prev.map(x => x.id === r.id ? data : x));
+    } catch (_) {}
+  };
+
+  if (loading) return <p className="text-center py-10 text-slate-400 text-sm">Chargement…</p>;
+  if (requests.length === 0) return (
+    <div className="text-center py-16">
+      <UserCheck size={48} className="mx-auto text-slate-300 mb-4" />
+      <h3 className="font-bold text-slate-900 mb-2">Aucune demande de service chauffeur</h3>
+      <p className="text-sm text-slate-500">Les demandes des propriétaires apparaîtront ici.</p>
+    </div>
+  );
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-100 dark:border-slate-700">
+            <tr>
+              {['Propriétaire', 'Chauffeurs', 'Ville', 'Critères', 'Montant', 'Statut'].map(h => (
+                <th key={h} className="text-left text-xs font-bold text-slate-500 dark:text-slate-400 px-4 py-3 uppercase tracking-wide">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            {requests.map(r => (
+              <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                <td className="px-4 py-3">
+                  <div className="font-semibold text-slate-900 dark:text-white text-sm">{r.owner_name}</div>
+                  <div className="text-xs text-slate-500">{r.owner_phone || r.owner_email}</div>
+                </td>
+                <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{r.drivers_count}</td>
+                <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">{r.city}</td>
+                <td className="px-4 py-3 text-xs text-slate-500 max-w-48 truncate">{r.requirements || '—'}</td>
+                <td className="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">{Number(r.total_price).toLocaleString()} F</td>
+                <td className="px-4 py-3">
+                  <select value={r.status} onChange={e => setStatus(r, e.target.value)}
+                    className={`text-xs font-bold px-2 py-1 rounded-lg border-0 cursor-pointer ${REQUEST_STATUS[r.status]?.style}`}>
+                    {Object.entries(REQUEST_STATUS).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function DriverRecruitment() {
   const [tab, setTab] = useState('pending');
+  const [view, setView] = useState('candidates');
   const [selected, setSelected] = useState(null);
 
   const filtered = CANDIDATES.filter(c => tab === 'all' || c.status === tab);
@@ -140,6 +217,18 @@ export default function DriverRecruitment() {
           </div>
         </div>
 
+        {/* Vue : candidatures internes / demandes de service propriétaires */}
+        <div className="flex flex-wrap gap-2">
+          {[['candidates', 'Candidatures chauffeurs'], ['requests', 'Demandes propriétaires (service)']].map(([val, label]) => (
+            <button key={val} onClick={() => setView(val)} className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${view === val ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'requests' && <OwnerRequests />}
+
+        {view === 'candidates' && (<>
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
           {[['all', 'Tous'], ['pending', 'En attente'], ['review', 'En examen'], ['approved', 'Approuvés'], ['rejected', 'Refusés']].map(([val, label]) => (
@@ -203,6 +292,7 @@ export default function DriverRecruitment() {
             </div>
           )}
         </div>
+        </>)}
       </div>
       {selected && <CandidateModal candidate={selected} onClose={() => setSelected(null)} />}
     </DashboardLayout>

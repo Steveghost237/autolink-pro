@@ -71,11 +71,9 @@ function BookingModal({ vehicle, onClose }) {
   const [step, setStep] = useState(1);
   const [rentalType, setRentalType] = useState(RENTAL_TYPES[2]);
   const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: 1, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
-  const [agentValid, setAgentValid] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [saved, setSaved] = useState(false);
-  const VALID_CODES = ['AGT-DBL-001', 'AGT-YDE-002', 'AGT-DBL-003'];
 
   const submitBooking = async () => {
     setSubmitting(true);
@@ -91,7 +89,8 @@ function BookingModal({ vehicle, onClose }) {
         dropoff_address: form.destination,
         driver_type: form.driverType,
         payment_method: form.paymentMethod,
-        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
+        agent_code: form.agentCode || '',
+        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}`,
       });
       // Stripe / PayPal : la réservation reste en attente — on redirige vers
       // la page de paiement sécurisée ; confirmation au retour vérifié.
@@ -108,7 +107,7 @@ function BookingModal({ vehicle, onClose }) {
         setApiError('Serveur injoignable — vérifiez votre connexion puis réessayez.');
       } else {
         const data = err.response?.data;
-        setApiError(data?.payment || data?.vehicle || data?.driver_type || 'Erreur lors de la réservation — réessayez.');
+        setApiError(data?.payment || data?.vehicle || data?.driver_type || data?.agent_code || 'Erreur lors de la réservation — réessayez.');
       }
     }
     setSubmitting(false);
@@ -129,10 +128,6 @@ function BookingModal({ vehicle, onClose }) {
   const commission  = Math.round(basePrice * 0.50);
   const deposit     = vehicle.deposit || 0;
 
-  const checkAgent = (code) => {
-    if (!code) { setAgentValid(null); return; }
-    setAgentValid(VALID_CODES.includes(code.toUpperCase()) ? true : false);
-  };
 
   if (step === 3) return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
@@ -147,7 +142,7 @@ function BookingModal({ vehicle, onClose }) {
         <p className="text-slate-500 dark:text-slate-400 mb-1 text-sm">Prise en charge : {form.pickup || 'Non précisé'}</p>
         {form.driverType === 'internal' && <p className="text-xs text-blue-600 font-medium">Un chauffeur AutoLink vous sera assigné automatiquement.</p>}
         {form.driverType === 'owner' && <p className="text-xs text-blue-600 font-medium">Le propriétaire se présentera avec son chauffeur.</p>}
-        {agentValid === true && <p className="text-xs text-emerald-600 font-medium mb-1">Code agent {form.agentCode} appliqué</p>}
+        {form.agentCode && <p className="text-xs text-emerald-600 font-medium mb-1">Code intermédiaire {form.agentCode} appliqué</p>}
         <p className="text-xl font-black text-primary-600 my-3">{basePrice.toLocaleString()} FCFA</p>
         {saved ? (
           <p className="text-xs text-emerald-600 font-medium mb-6">
@@ -275,13 +270,12 @@ function BookingModal({ vehicle, onClose }) {
                   <Tag size={13} /> Code agent partenaire <span className="text-slate-400">(optionnel)</span>
                 </label>
                 <div className="relative">
-                  <input type="text" className="input-field uppercase" placeholder="Ex: AGT-DBL-001" maxLength={12}
+                  <input type="text" className="input-field uppercase" placeholder="Ex: AL-4F2K9B" maxLength={12}
                     value={form.agentCode}
-                    onChange={e => { setForm(f => ({ ...f, agentCode: e.target.value.toUpperCase() })); checkAgent(e.target.value); }} />
+                    onChange={e => setForm(f => ({ ...f, agentCode: e.target.value.toUpperCase() }))} />
                   {form.agentCode && (
-                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold flex items-center gap-1 ${agentValid ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {agentValid ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
-                      {agentValid ? 'Valide' : 'Invalide'}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold flex items-center gap-1 text-slate-400" title="Le code est vérifié à la validation">
+                      <Tag size={14} />
                     </div>
                   )}
                 </div>
@@ -304,7 +298,7 @@ function BookingModal({ vehicle, onClose }) {
               <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-medium">{form.date || '—'} à {form.time}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Prise en charge</span><span className="font-medium">{form.pickup || '—'}</span></div>
               <div className="flex justify-between text-slate-500"><span>Km inclus</span><span>{kmIncluded} km · {vehicle.kmRate} F/km supp.</span></div>
-              {agentValid === true && <div className="flex justify-between text-emerald-600"><span>Code agent</span><span>{form.agentCode}</span></div>}
+              {form.agentCode && <div className="flex justify-between text-emerald-600"><span>Code intermédiaire</span><span>{form.agentCode}</span></div>}
               <div className="flex justify-between text-slate-500"><span>Location</span><span className="font-medium">{basePrice.toLocaleString()} F</span></div>
               {deposit > 0 && <div className="flex justify-between text-amber-700 dark:text-amber-400"><span>Caution (restituée au retour)</span><span className="font-medium">+{deposit.toLocaleString()} F</span></div>}
               <div className="flex justify-between font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-600 pt-2 mt-2 text-base">

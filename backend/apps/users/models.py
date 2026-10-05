@@ -1,3 +1,5 @@
+import secrets
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -6,9 +8,12 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         CLIENT = 'CLIENT', 'Client'
         OWNER = 'OWNER', 'Propriétaire'
+        # DRIVER : rôle retiré de l'interface publique — les comptes et données
+        # existants sont conservés en base (historiques, contrats, évaluations).
         DRIVER = 'DRIVER', 'Chauffeur'
         ADMIN = 'ADMIN', 'Administrateur'
         CONTROLLER = 'CONTROLLER', 'Contrôleur'
+        INTERMEDIARY = 'INTERMEDIARY', 'Intermédiaire'
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
     phone = models.CharField(max_length=20, blank=True)
@@ -19,12 +24,37 @@ class User(AbstractUser):
     id_document_verified = models.BooleanField(default=False)
     date_of_birth = models.DateField(null=True, blank=True)
     address = models.TextField(blank=True)
+
+    # ── Intermédiaire (apporteur d'affaires) ────────────────────────────────
+    # Code unique à partager : toute inscription ou réservation faite avec ce
+    # code est rattachée à l'intermédiaire et génère une commission.
+    referral_code = models.CharField(
+        max_length=12, unique=True, null=True, blank=True,
+        help_text="Code parrain de l'intermédiaire (ex. AL-4F2K9B).")
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=5,
+        help_text='Commission intermédiaire en % du montant location — prélevée sur la part AutoLink.')
+    referred_by = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='referrals',
+        help_text='Intermédiaire dont le code a été utilisé à l\'inscription.')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Utilisateur'
         verbose_name_plural = 'Utilisateurs'
+
+    def save(self, *args, **kwargs):
+        # Génère un code parrain pour tout intermédiaire qui n'en a pas.
+        if self.role == self.Role.INTERMEDIARY and not self.referral_code:
+            while True:
+                code = f'AL-{secrets.token_hex(3).upper()}'
+                if not User.objects.filter(referral_code=code).exists():
+                    self.referral_code = code
+                    break
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.get_full_name()} ({self.role})'

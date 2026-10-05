@@ -86,6 +86,7 @@ export const notificationsAPI = {
 export const usersAPI = {
   list: (params) => api.get('/users/', { params }),
   getAll: (params) => api.get('/users/', { params }),
+  create: (payload) => api.post('/users/', payload),
   update: (id, payload) => api.patch(`/users/${id}/`, payload),
   me: () => api.get('/users/me/'),
   updateMe: (payload) => api.patch('/users/me/', payload),
@@ -94,6 +95,13 @@ export const usersAPI = {
 export const walletAPI = {
   get: () => api.get('/payments/wallet/'),
   topup: (amount, method, phone) => api.post('/payments/wallet/topup/', { amount, method, phone }),
+};
+
+// Service recrutement/formation de chauffeurs (propriétaires + admin)
+export const driversAPI = {
+  serviceRequests: () => api.get('/drivers/service-requests/'),
+  requestService: (payload) => api.post('/drivers/service-requests/', payload),
+  updateServiceRequest: (id, payload) => api.patch(`/drivers/service-requests/${id}/`, payload),
 };
 
 export default api;

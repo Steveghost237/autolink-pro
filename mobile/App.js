@@ -7,7 +7,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList,
   TextInput, StatusBar, ActivityIndicator, Alert,
   Platform, Dimensions, Animated, Modal, Switch, Image, ImageBackground,
-  KeyboardAvoidingView, RefreshControl, Linking,
+  KeyboardAvoidingView, RefreshControl, Linking, Share,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -116,7 +116,7 @@ const RENTAL_TYPES = [
   { id:'longhaul',  label:'Longue duree',icon:'moon-outline',     mult:null, minP:0,     km:500 },
 ];
 
-const VALID_AGENT_CODES = ['AGT-DBL-001','AGT-YDE-002','AGT-DBL-003'];
+
 
 
 
@@ -1438,6 +1438,76 @@ function ControllerDash({ user, logout }) {
   );
 }
 
+function IntermediaryDash({ user, logout }) {
+  const [bookings, setBookings] = useState([]);
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    try { const b = await api.bookings(); setBookings(b.results || b || []); } catch {}
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const code = user.referral_code || '—';
+  const earned = bookings.filter(b => ['confirmed','active','completed'].includes(b.status))
+    .reduce((s,b) => s + Number(b.intermediary_commission || 0), 0);
+  const B_ST = { pending:'En attente', confirmed:'Confirme', active:'En cours', completed:'Termine', cancelled:'Annule', disputed:'Litige' };
+
+  const copyCode = () => {
+    Share.share({ message: `Mon code intermediaire AutoLink Pro : ${code}\nInscrivez-vous avec ce code pour soutenir mon activite.` })
+      .catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
+      <LinearGradient colors={['#2E1065', '#7C3AED']} style={{ padding:20, paddingTop:14 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+          <View style={{ flex:1, marginRight:10 }}>
+            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Intermediaire</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+          </View>
+          <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
+            <Ionicons name="log-out-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={copyCode} style={{ marginTop:14, backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12, padding:12, alignItems:'center' }}>
+          <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:11, marginBottom:2 }}>Votre code intermediaire — touchez pour partager</Text>
+          <Text style={{ color:'#fff', fontWeight:'900', fontSize:22, letterSpacing:2 }}>
+            {code} {copied ? ' ✓' : ''}
+          </Text>
+        </TouchableOpacity>
+      </LinearGradient>
+      <ScrollView style={{ padding:16 }}>
+        <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
+          {[{l:'Reservations',v:bookings.length,c:C.primary},{l:'Commissions',v:fmtNum(earned),c:C.success},{l:'Taux',v:`${Number(user.commission_rate ?? 5)}%`,c:C.warning}].map(s=>(
+            <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
+              <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
+            </View>
+          ))}
+        </View>
+        <SectionTitle title="Reservations attribuees" />
+        {bookings.length === 0 ? (
+          <View style={{ backgroundColor:C.card, borderRadius:14, padding:18, alignItems:'center' }}>
+            <Text style={{ color:C.muted, fontSize:12, textAlign:'center' }}>Partagez votre code pour commencer a gagner des commissions.</Text>
+          </View>
+        ) : bookings.map(b => (
+          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:14, marginBottom:10, borderWidth:1, borderColor:C.border }}>
+            <View style={{ flexDirection:'row', justifyContent:'space-between', marginBottom:4 }}>
+              <Text style={{ fontWeight:'700', color:C.text, fontSize:13 }}>BK-{String(b.id).padStart(4,'0')} — {b.vehicle_name}</Text>
+              <Badge label={B_ST[b.status] || b.status} color={b.status==='completed'?C.success:b.status==='pending'?C.warning:C.info} />
+            </View>
+            <Text style={{ color:C.muted, fontSize:11 }}>{b.client_name} · {b.start_date} → {b.end_date}</Text>
+            <Text style={{ color:'#7C3AED', fontWeight:'900', fontSize:13, marginTop:4 }}>+{fmtNum(b.intermediary_commission || 0)} F</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── BOOKING MODAL ────────────────────────────────────────────────────────────
 function BookingModal({ vehicle, onClose, onDone }) {
   const [step, setStep] = useState(1);
@@ -1470,7 +1540,8 @@ function BookingModal({ vehicle, onClose, onDone }) {
         pickup_address: pickup,
         driver_type: driverType,
         payment_method: pay,
-        notes: `Type: ${rt.label} | Tel: ${phone || '—'}${agentCode ? ` | Agent: ${agentCode}` : ''}`,
+        agent_code: agentCode || '',
+        notes: `Type: ${rt.label} | Tel: ${phone || '—'}`,
       });
       // Stripe / PayPal : la reservation attend le paiement externe
       if (res?.payment_url) {
@@ -1503,7 +1574,7 @@ function BookingModal({ vehicle, onClose, onDone }) {
     return vehicle.rate * days;
   })();
 
-  const chk = txt => { const u=txt.toUpperCase(); setAgentCode(u); setAgentOk(u?VALID_AGENT_CODES.includes(u):null); };
+  const chk = txt => { const u=txt.toUpperCase(); setAgentCode(u); setAgentOk(u ? true : null); };
   const deposit = vehicle?.deposit || 0;
 
   if (done) return (
@@ -1587,8 +1658,8 @@ function BookingModal({ vehicle, onClose, onDone }) {
                 <TextInput value={pickup} onChangeText={setPickup} placeholder="Ex: Bonanjo, Douala" placeholderTextColor={C.muted} style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, fontSize:14, backgroundColor:C.card, color:C.text, marginBottom:12 }} />
                 <Text style={{ fontWeight:'700', color:C.text, marginBottom:6 }}>Code agent <Text style={{ fontWeight:'400', color:C.muted }}>(optionnel)</Text></Text>
                 <View style={{ position:'relative', marginBottom:12 }}>
-                  <TextInput value={agentCode} onChangeText={chk} placeholder="Ex: AGT-DBL-001" placeholderTextColor={C.muted} autoCapitalize="characters" style={{ borderWidth:1.5, borderColor:agentOk===true?C.success:agentOk===false?C.error:C.border, borderRadius:12, padding:12, fontSize:14, backgroundColor:C.card, color:C.text, paddingRight:44 }} />
-                  {agentCode ? <View style={{ position:'absolute', right:12, top:13 }}><Ionicons name={agentOk?'checkmark-circle':'close-circle'} size={22} color={agentOk?C.success:C.error} /></View> : null}
+                  <TextInput value={agentCode} onChangeText={chk} placeholder="Ex: AL-4F2K9B" placeholderTextColor={C.muted} autoCapitalize="characters" style={{ borderWidth:1.5, borderColor:C.border, borderRadius:12, padding:12, fontSize:14, backgroundColor:C.card, color:C.text, paddingRight:44 }} />
+                  {agentCode ? <View style={{ position:'absolute', right:12, top:13 }}><Ionicons name="pricetag" size={20} color={C.muted} /></View> : null}
                 </View>
                 <Text style={{ fontWeight:'700', color:C.text, marginBottom:8 }}>Option chauffeur</Text>
                 <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
@@ -1765,6 +1836,7 @@ function AppInner() {
       case 'DRIVER':     return <DriverDash      user={user} logout={logout} />;
       case 'ADMIN':      return <AdminDash       user={user} logout={logout} />;
       case 'CONTROLLER': return <ControllerDash  user={user} logout={logout} />;
+      case 'INTERMEDIARY': return <IntermediaryDash user={user} logout={logout} />;
       default:           return <LoginScreen />;
     }
   };

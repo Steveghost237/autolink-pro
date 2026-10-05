@@ -25,6 +25,14 @@ class Booking(models.Model):
     client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='bookings')
     vehicle = models.ForeignKey('vehicles.Vehicle', on_delete=models.PROTECT, related_name='bookings')
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='driven_bookings')
+    # Intermédiaire apporteur d'affaires : renseigné si la réservation a été
+    # faite via son code parrain ou directement par lui pour le compte du client.
+    intermediary = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='attributed_bookings')
+    intermediary_commission = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text='Commission de l\'intermédiaire — prélevée sur la part AutoLink.')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     driver_type = models.CharField(max_length=20, choices=DriverType.choices, default=DriverType.NONE)
@@ -74,6 +82,13 @@ class Booking(models.Model):
         self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
         self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))
         self.owner_amount = self.subtotal - self.commission_amount
+        # Commission intermédiaire : % du montant location, prélevée sur la
+        # part AutoLink (le propriétaire n'est pas impacté).
+        if self.intermediary_id:
+            rate = Decimal(str(self.intermediary.commission_rate or 0)) / 100
+            self.intermediary_commission = (self.subtotal * rate).quantize(Decimal('0.01'))
+        else:
+            self.intermediary_commission = 0
         super().save(*args, **kwargs)
 
     def sync_vehicle_status(self):

@@ -10,4 +10,5 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     fieldsets = BaseUserAdmin.fieldsets + (
         ('AutoLink Info', {'fields': ('role', 'phone', 'avatar', 'is_verified', 'id_document', 'id_document_verified', 'date_of_birth', 'address')}),
+        ('Intermédiaire', {'fields': ('referral_code', 'commission_rate', 'referred_by')}),
     )

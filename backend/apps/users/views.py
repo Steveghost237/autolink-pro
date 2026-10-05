@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, Notification, LoginCode
-from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
+from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer
 
 
 class LoginView(APIView):
@@ -169,12 +169,16 @@ class IsAdminRole(permissions.BasePermission):
         return request.user.is_authenticated and request.user.role == 'ADMIN'
 
 
-class UserListView(generics.ListAPIView):
+class UserListView(generics.ListCreateAPIView):
     queryset = User.objects.all().order_by('-created_at')
-    serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
     filterset_fields = ['role', 'is_verified', 'is_active']
-    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'referral_code']
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AdminUserCreateSerializer
+        return AdminUserSerializer
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):

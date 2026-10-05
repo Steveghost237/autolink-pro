@@ -115,6 +115,7 @@ export const AuthProvider = ({ children }) => {
         role: userData.role || 'CLIENT',
         password: userData.password,
         password2: userData.password,
+        referral_code: userData.referralCode || '',
       });
       const safeUser = normalizeUser(data.user);
       localStorage.setItem('autolink_user', JSON.stringify(safeUser));
@@ -167,9 +168,10 @@ export const AuthProvider = ({ children }) => {
     const paths = {
       CLIENT: '/client/dashboard',
       OWNER: '/owner/dashboard',
-      DRIVER: '/driver/dashboard',
+      DRIVER: '/',
       ADMIN: '/admin/dashboard',
       CONTROLLER: '/controller/dashboard',
+      INTERMEDIARY: '/intermediary/dashboard',
     };
     return paths[role] || '/';
   };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase, MailCheck } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Share2, MailCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
@@ -8,14 +8,15 @@ import GoogleAuthButton from '../../components/GoogleAuthButton';
 const ROLES = [
   { value: 'CLIENT', label: 'Client', desc: 'Je veux louer un véhicule', icon: User },
   { value: 'OWNER', label: 'Propriétaire', desc: 'Je veux proposer mon véhicule', icon: KeyRound },
-  { value: 'DRIVER', label: 'Chauffeur', desc: 'Je veux conduire pour AutoLink', icon: Briefcase },
+  { value: 'INTERMEDIARY', label: 'Intermédiaire', desc: 'J\'apporte des clients et je touche des commissions', icon: Share2 },
 ];
 
 export default function Register() {
   const navigate = useNavigate();
   const { register, otpVerify, getDashboardPath } = useAuth();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '' });
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '', referralCode: searchParams.get('ref') || '' });
   const [code, setCode] = useState('');
   const [emailSent, setEmailSent] = useState(true);
   const [showPw, setShowPw] = useState(false);
@@ -117,11 +118,6 @@ export default function Register() {
                   </label>
                 ))}
               </div>
-              {form.role === 'DRIVER' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800">
-                  <strong>Note :</strong> Les chauffeurs doivent passer par notre processus de recrutement strict. Votre demande sera examinée par notre équipe.
-                </div>
-              )}
               <button type="submit" className="btn-primary w-full">Continuer →</button>
               <div className="flex items-center gap-3 my-4">
                 <div className="flex-1 h-px bg-slate-200" />
@@ -186,6 +182,10 @@ export default function Register() {
               <div>
                 <label className="label">Confirmer le mot de passe</label>
                 <input type="password" required className="input-field" placeholder="••••••••" value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Code intermédiaire <span className="text-slate-400 font-normal">(optionnel)</span></label>
+                <input type="text" className="input-field" placeholder="Ex : AL-4F2K9B" value={form.referralCode} onChange={e => set('referralCode', e.target.value.toUpperCase())} />
               </div>
               <div className="flex items-start gap-2">
                 <input type="checkbox" required id="terms" className="mt-1 w-4 h-4 accent-primary-600" />

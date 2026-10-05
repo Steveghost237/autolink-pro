@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
-import { Car, TrendingUp, DollarSign, Clock, PlusCircle, ArrowRight, CheckCircle, AlertTriangle, MapPin, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck } from 'lucide-react';
+import { Car, TrendingUp, DollarSign, Clock, PlusCircle, ArrowRight, CheckCircle, AlertTriangle, MapPin, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck, UserCheck } from 'lucide-react';
 import { bookingsAPI, vehiclesAPI, notificationsAPI, walletAPI } from '../../services/api';
 
 const POLL = 10000;
@@ -96,10 +96,16 @@ export default function OwnerDashboard() {
             <p className="text-white/60 text-sm mb-4">
               {vehicles.length} véhicule(s) · Solde : <span className="font-bold text-white">{balance.toLocaleString()} F</span>
             </p>
-            <button onClick={() => navigate('/owner/add-vehicle')}
-              className="w-fit flex items-center gap-2 bg-white text-slate-900 font-semibold py-2 px-4 rounded-xl hover:bg-slate-100 transition-all shadow-lg text-sm">
-              <PlusCircle size={16} /> Mettre une voiture en location
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => navigate('/owner/add-vehicle')}
+                className="w-fit flex items-center gap-2 bg-white text-slate-900 font-semibold py-2 px-4 rounded-xl hover:bg-slate-100 transition-all shadow-lg text-sm">
+                <PlusCircle size={16} /> Mettre une voiture en location
+              </button>
+              <button onClick={() => navigate('/owner/driver-service')}
+                className="w-fit flex items-center gap-2 bg-emerald-500/90 text-white font-semibold py-2 px-4 rounded-xl hover:bg-emerald-500 transition-all shadow-lg text-sm">
+                <UserCheck size={16} /> Recruter un chauffeur
+              </button>
+            </div>
           </div>
         </div>
 

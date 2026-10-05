@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const ROLE_LABELS = {
   CLIENT: 'Client', OWNER: 'Gestionnaire / Propriétaire', DRIVER: 'Chauffeur',
+  INTERMEDIARY: 'Intermédiaire',
   ADMIN: 'Administrateur', CONTROLLER: 'Contrôleur',
 };
 

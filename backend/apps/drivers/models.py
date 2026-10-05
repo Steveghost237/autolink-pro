@@ -68,3 +68,48 @@ class DriverProfile(models.Model):
 
     def __str__(self):
         return f'Chauffeur: {self.driver.get_full_name()}'
+
+
+class DriverServiceRequest(models.Model):
+    """Service payant : un propriétaire sans chauffeur attitré confie à
+    AutoLink le recrutement, la vérification (éthique, valeurs, expérience)
+    et la formation d'un ou plusieurs chauffeurs. Après transmission, le
+    chauffeur est entièrement et exclusivement géré par le propriétaire."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'En attente'
+        RECRUITING = 'recruiting', 'Recrutement en cours'
+        TRAINING = 'training', 'Formation en cours'
+        DELIVERED = 'delivered', 'Chauffeur transmis'
+        CANCELLED = 'cancelled', 'Annulée'
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='driver_service_requests')
+    drivers_count = models.IntegerField(default=1)
+    city = models.CharField(max_length=50, default='Douala')
+    requirements = models.TextField(
+        blank=True,
+        help_text='Critères particuliers du propriétaire (expérience, zone, type de véhicule…)')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=75000,
+        help_text='Forfait par chauffeur recruté et formé (FCFA).')
+    admin_notes = models.TextField(blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='processed_driver_requests')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Demande de service chauffeur"
+        verbose_name_plural = "Demandes de service chauffeur"
+        ordering = ['-created_at']
+
+    @property
+    def total_price(self):
+        return self.price * self.drivers_count
+
+    def __str__(self):
+        return f'DSR-{self.pk:04d} — {self.owner.get_full_name()} ({self.drivers_count} chauffeur(s))'

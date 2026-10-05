@@ -20,9 +20,10 @@ const NAV_ITEMS = {
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },
     { icon: Car, label: 'Mes véhicules', path: '/owner/vehicles' },
     { icon: PlusCircle, label: 'Ajouter un véhicule', path: '/owner/add-vehicle' },
+    { icon: UserCheck, label: 'Service chauffeur', path: '/owner/driver-service' },
   ],
-  DRIVER: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/driver/dashboard' },
+  INTERMEDIARY: [
+    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/intermediary/dashboard' },
   ],
   ADMIN: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin/dashboard' },
@@ -45,8 +46,20 @@ const ROLE_COLORS = {
   DRIVER: 'bg-accent-100 text-accent-700',
   ADMIN: 'bg-red-100 text-red-700',
   CONTROLLER: 'bg-purple-100 text-purple-700',
+  INTERMEDIARY: 'bg-violet-100 text-violet-700',
 };
-const ROLE_LABELS = { CLIENT: 'Client', OWNER: 'Gestionnaire', DRIVER: 'Chauffeur', ADMIN: 'Administrateur', CONTROLLER: 'Contrôleur' };
+const ROLE_LABELS = { CLIENT: 'Client', OWNER: 'Gestionnaire', DRIVER: 'Chauffeur', ADMIN: 'Administrateur', CONTROLLER: 'Contrôleur', INTERMEDIARY: 'Intermédiaire' };
+
+// Identité visuelle par rôle : palette distincte (sidebar, accent actif, avatar)
+const ROLE_THEME = {
+  CLIENT:       { sidebar: 'bg-sky-950',    border: 'border-sky-800',    active: 'bg-sky-600',      avatar: 'from-sky-400 to-sky-600' },
+  OWNER:        { sidebar: 'bg-emerald-950', border: 'border-emerald-800', active: 'bg-emerald-600',  avatar: 'from-emerald-400 to-emerald-600' },
+  ADMIN:        { sidebar: 'bg-slate-950',  border: 'border-amber-800/50', active: 'bg-amber-600',    avatar: 'from-amber-400 to-amber-600' },
+  CONTROLLER:   { sidebar: 'bg-purple-950', border: 'border-purple-800', active: 'bg-purple-600',   avatar: 'from-purple-400 to-purple-600' },
+  INTERMEDIARY: { sidebar: 'bg-violet-950', border: 'border-violet-800', active: 'bg-violet-600',   avatar: 'from-violet-400 to-violet-600' },
+  DRIVER:       { sidebar: 'bg-slate-900',  border: 'border-slate-800',  active: 'bg-primary-600',  avatar: 'from-primary-500 to-primary-700' },
+};
+const DEFAULT_THEME = ROLE_THEME.DRIVER;
 
 // ─── Panneau de notifications (données réelles de l'API) ───────────────────────
 function NotificationsBell() {
@@ -161,6 +174,7 @@ export default function DashboardLayout({ children, title }) {
   const profileRef = useRef(null);
 
   const navItems = NAV_ITEMS[user?.role] || [];
+  const theme = ROLE_THEME[user?.role] || DEFAULT_THEME;
 
   // Fermer le menu profil au clic extérieur
   useEffect(() => {
@@ -176,16 +190,16 @@ export default function DashboardLayout({ children, title }) {
   };
 
   const Sidebar = ({ mobile = false }) => (
-    <div className={`flex flex-col h-full bg-slate-900 ${mobile ? 'w-full' : 'w-64'}`}>
-      <div className="p-4 border-b border-slate-800 flex items-center justify-center">
+    <div className={`flex flex-col h-full ${theme.sidebar} ${mobile ? 'w-full' : 'w-64'}`}>
+      <div className={`p-4 border-b ${theme.border} flex items-center justify-center`}>
         <Link to="/">
           <AutoLinkLogo size="md" />
         </Link>
       </div>
 
-      <div className="p-4 border-b border-slate-800">
+      <div className={`p-4 border-b ${theme.border}`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white font-bold">
+          <div className={`w-10 h-10 bg-gradient-to-br ${theme.avatar} rounded-full flex items-center justify-center text-white font-bold`}>
             {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
@@ -202,7 +216,7 @@ export default function DashboardLayout({ children, title }) {
             <Link
               key={path} to={path}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? `${theme.active} text-white shadow-lg` : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
             >
               <Icon size={18} />
               {label}
@@ -211,7 +225,7 @@ export default function DashboardLayout({ children, title }) {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className={`p-4 border-t ${theme.border}`}>
         <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-all w-full">
           <LogOut size={18} /> Déconnexion
         </button>
@@ -255,7 +269,7 @@ export default function DashboardLayout({ children, title }) {
             <NotificationsBell />
             <div className="relative" ref={profileRef}>
               <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                <div className={`w-8 h-8 bg-gradient-to-br ${theme.avatar} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
                   {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                 </div>
                 <ChevronDown size={16} className="text-slate-400" />

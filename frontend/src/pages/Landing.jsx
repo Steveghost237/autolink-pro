@@ -666,6 +666,64 @@ function AppSection() {
 }
 
 /* ────────────────────────────────────────────────
+   SECTION : REJOIGNEZ AUTOLINK (rôles)
+──────────────────────────────────────────────── */
+function JoinSection({ navigate }) {
+  const roles = [
+    {
+      title: 'Propriétaire',
+      desc: 'Mettez vos véhicules en location et percevez des revenus. Nous pouvons aussi recruter et former votre chauffeur.',
+      cta: 'Proposer mon véhicule',
+      accent: 'border-emerald-500 text-emerald-600',
+      btn: 'bg-emerald-600 hover:bg-emerald-700',
+    },
+    {
+      title: 'Client',
+      desc: 'Réservez un véhicule récent avec ou sans chauffeur, en quelques clics, et payez par mobile money.',
+      cta: 'Louer un véhicule',
+      accent: 'border-sky-500 text-sky-600',
+      btn: 'bg-sky-600 hover:bg-sky-700',
+    },
+    {
+      title: 'Intermédiaire',
+      desc: 'Apportez des clients et propriétaires avec votre code unique, réservez pour eux et touchez des commissions.',
+      cta: 'Devenir intermédiaire',
+      accent: 'border-violet-500 text-violet-600',
+      btn: 'bg-violet-600 hover:bg-violet-700',
+    },
+  ];
+  return (
+    <section className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-14">
+          <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">
+            Rejoignez la plateforme
+          </span>
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">
+            Une place pour chacun
+          </h2>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+            Louez, proposez vos véhicules ou faites affaire comme apporteur d'affaires — AutoLink Pro rémunère la confiance.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8">
+          {roles.map(r => (
+            <div key={r.title} className={`border-t-4 ${r.accent.split(' ')[0]} bg-slate-50 p-8 flex flex-col`}>
+              <h3 className={`text-xl font-black mb-3 ${r.accent.split(' ')[1]}`}>{r.title}</h3>
+              <p className="text-slate-600 text-sm leading-relaxed flex-1">{r.desc}</p>
+              <button onClick={() => navigate('/register')}
+                className={`mt-6 ${r.btn} text-white font-bold py-3 px-6 rounded-sm transition-colors text-sm uppercase tracking-wide`}>
+                {r.cta}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────────
    SECTION : CONTACT & RÉSERVATION
 ──────────────────────────────────────────────── */
 function ContactSection() {
@@ -971,6 +1029,7 @@ export default function Landing() {
       <HowItWorksSection />
       <PaymentSection />
       <AppSection />
+      <JoinSection navigate={navigate} />
       <ContactSection />
       <Footer navigate={navigate} />
       <PromoPopup />

@@ -12,7 +12,8 @@ import MyBookings from './pages/client/MyBookings';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
-import DriverDashboard from './pages/driver/DriverDashboard';
+import DriverService from './pages/owner/DriverService';
+import IntermediaryDashboard from './pages/intermediary/IntermediaryDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriverRecruitment from './pages/admin/DriverRecruitment';
 import Finance from './pages/admin/Finance';
@@ -49,8 +50,9 @@ function AppRoutes() {
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
+      <Route path="/owner/driver-service" element={<Guard roles={['OWNER']}><DriverService /></Guard>} />
 
-      <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
+      <Route path="/intermediary/dashboard" element={<Guard roles={['INTERMEDIARY']}><IntermediaryDashboard /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
       <Route path="/admin/drivers" element={<Guard roles={['ADMIN']}><DriverRecruitment /></Guard>} />

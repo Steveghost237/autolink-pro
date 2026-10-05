@@ -83,6 +83,28 @@ class Payment(models.Model):
             self.save(update_fields=['escrow_status', 'payout_done', 'payout_at'])
             self.booking.vehicle.total_earned = (self.booking.vehicle.total_earned or 0) + self.owner_payout
             self.booking.vehicle.save(update_fields=['total_earned', 'updated_at'])
+            self._pay_intermediary_commission()
+
+    def _pay_intermediary_commission(self):
+        """Verse la commission de l'intermédiaire apporteur d'affaires sur son
+        solde — prélevée sur la part AutoLink, sans impact sur le propriétaire."""
+        booking = self.booking
+        agent = booking.intermediary
+        amount = booking.intermediary_commission or 0
+        if not agent or amount <= 0 or not agent.is_active:
+            return
+        agent.balance = (agent.balance or 0) + amount
+        agent.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            user=agent, kind='topup', amount=amount,
+            balance_after=agent.balance,
+            reference=f'COM-{self.pk:04d}',
+            note=f'Commission intermédiaire — {booking}',
+        )
+        Payout.objects.create(
+            payment=self, recipient=agent, amount=amount,
+            method='wallet', status='completed', processed_at=timezone.now(),
+        )
 
     def refund_client(self):
         """Litige/annulation en faveur du client : location + caution remboursées."""
