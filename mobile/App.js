@@ -37,6 +37,10 @@ const STATUS_LABEL = {
 // ─── API — backend partage web + mobile ────────────────────────────────────────
 // En production : domaine de l'API Dokploy. En local : http://<IP-PC>:8000/api
 const API_URL = 'https://api-autolink-pro.worldwide-international.business/api';
+const WHATSAPP_URL = 'https://wa.me/237656789000?text='
+  + encodeURIComponent("Bonjour AutoLink Pro, j'ai besoin d'aide avec l'application.");
+
+const openWhatsApp = () => Linking.openURL(WHATSAPP_URL).catch(() => {});
 
 const apiFetch = async (path, { method = 'GET', body, auth = true } = {}) => {
   const headers = { 'Content-Type': 'application/json' };
@@ -507,6 +511,12 @@ function LoginScreen() {
               <Text style={{ color:C.muted, fontWeight:'600', fontSize:12, textAlign:'center' }}>← Retour a la connexion classique</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity onPress={openWhatsApp}
+            style={{ marginTop:16, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6 }}>
+            <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
+            <Text style={{ color:'rgba(255,255,255,0.55)', fontSize:12 }}>Une question ? Écrivez-nous sur WhatsApp</Text>
+          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -1097,119 +1107,27 @@ function OwnerDash({ user, logout }) {
   );
 }
 
-function DriverDash({ user, logout }) {
-  const [bookings, setBookings] = useState([]);
-  const [notifs, setNotifs] = useState([]);
-  const [online, setOnline] = useState(true);
-  const [apiOk, setApiOk] = useState(true);
-  const [busy, setBusy] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      const [b, n] = await Promise.all([api.bookings(), api.notifs()]);
-      setBookings(b.results || b);
-      setNotifs(n.results || []);
-      setApiOk(true);
-    } catch { setApiOk(false); }
-  }, []);
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 10000);
-    return () => clearInterval(t);
-  }, [load]);
-
-  const setStatus = async (id, status) => {
-    setBusy(id);
-    try { await api.setStatus(id, status); await load(); } catch { Alert.alert('Erreur','Action impossible'); }
-    setBusy(null);
-  };
-
-  const current = bookings.filter(b => ['confirmed','active'].includes(b.status));
-  const past = bookings.filter(b => ['completed','cancelled'].includes(b.status));
-
+function DriverRetired({ user, logout }) {
   return (
-    <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View style={{ flex:1, marginRight:10 }}>
-            <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Chauffeur interne AutoLink</Text>
-            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
-          </View>
-          <TouchableOpacity onPress={logout} style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:10, padding:8 }}>
-            <Ionicons name="log-out-outline" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <View style={{ marginTop:14, backgroundColor:apiOk?C.success+'30':'rgba(255,255,255,0.1)', borderRadius:12, padding:12, flexDirection:'row', alignItems:'center', gap:8 }}>
-          <View style={{ width:10, height:10, borderRadius:5, backgroundColor:apiOk?C.success:'#94A3B8' }} />
-          <Text style={{ color:'#fff', fontWeight:'600', fontSize:13, flex:1 }}>{apiOk?'Courses assignees automatiquement par le systeme':'API injoignable'}</Text>
-        </View>
-      </LinearGradient>
-      <ScrollView style={{ padding:16 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-        <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
-          {[{l:'A venir',v:current.filter(b=>b.status==='confirmed').length,c:C.info},{l:'En cours',v:current.filter(b=>b.status==='active').length,c:C.success},{l:'Terminees',v:past.length,c:C.primary}].map(s=>(
-            <View key={s.l} style={{ flex:1, backgroundColor:s.c+'15', borderRadius:14, padding:12, alignItems:'center' }}>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize:15, fontWeight:'900', color:s.c }}>{s.v}</Text>
-              <Text style={{ fontSize:10, color:C.muted, marginTop:2, textAlign:'center' }}>{s.l}</Text>
-            </View>
-          ))}
-        </View>
-        {notifs.length > 0 && (
-          <>
-            <SectionTitle title="Notifications" />
-            {notifs.slice(0,3).map(n => (
-              <View key={n.id} style={{ backgroundColor:n.is_read?C.card:'#EFF6FF', borderRadius:14, padding:12, marginBottom:8 }}>
-                <Text style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{n.title}</Text>
-                <Text style={{ color:C.muted, fontSize:11, marginTop:2 }}>{n.message}</Text>
-              </View>
-            ))}
-          </>
-        )}
-        <SectionTitle title="Mes courses" />
-        {current.length === 0 && <Text style={{ color:C.muted, fontSize:12, marginBottom:12 }}>Aucune course assignee pour le moment.</Text>}
-        {current.map(b => (
-          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
-            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-              <Text numberOfLines={1} style={{ fontWeight:'800', color:C.text, fontSize:13, flex:1, marginRight:8 }}>
-                {b.client_name} — {b.vehicle_name}
-              </Text>
-              <Badge label={b.status==='confirmed'?'A venir':'En cours'} color={b.status==='confirmed'?C.info:C.success} />
-            </View>
-            <Text style={{ color:C.muted, fontSize:11 }}>{b.start_date} → {b.end_date}</Text>
-            {b.pickup_address ? <Text style={{ color:C.muted, fontSize:11, marginTop:2 }}>Depart : {b.pickup_address}</Text> : null}
-            <View style={{ flexDirection:'row', gap:8, marginTop:10 }}>
-              {b.status === 'confirmed' && (
-                <TouchableOpacity onPress={()=>setStatus(b.id,'active')} disabled={busy===b.id}
-                  style={{ flex:1, backgroundColor:C.info, borderRadius:10, paddingVertical:9, alignItems:'center' }}>
-                  <Text style={{ color:'#fff', fontSize:12, fontWeight:'700' }}>Demarrer la course</Text>
-                </TouchableOpacity>
-              )}
-              {b.status === 'active' && (
-                <TouchableOpacity onPress={()=>setStatus(b.id,'completed')} disabled={busy===b.id}
-                  style={{ flex:1, backgroundColor:C.success, borderRadius:10, paddingVertical:9, alignItems:'center' }}>
-                  <Text style={{ color:'#fff', fontSize:12, fontWeight:'700' }}>{busy===b.id?'…':'Course terminee — liberer la voiture'}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        ))}
-        <SectionTitle title="Historique" />
-        {past.slice(0,10).map(b => (
-          <View key={b.id} style={{ backgroundColor:C.card, borderRadius:14, padding:12, marginBottom:8, flexDirection:'row', alignItems:'center', gap:10 }}>
-            <Ionicons name="checkmark-circle" size={20} color={C.success} />
-            <View style={{ flex:1 }}>
-              <Text numberOfLines={1} style={{ fontWeight:'700', color:C.text, fontSize:12 }}>{b.client_name} — {b.vehicle_name}</Text>
-              <Text style={{ color:C.muted, fontSize:10 }}>{b.start_date} → {b.end_date}</Text>
-            </View>
-          </View>
-        ))}
-        <TouchableOpacity onPress={logout} style={{ borderWidth:2, borderColor:C.error, borderRadius:14, paddingVertical:14, alignItems:'center', marginTop:8, flexDirection:'row', justifyContent:'center', gap:8 }}>
-          <Ionicons name="log-out-outline" size={18} color={C.error} />
-          <Text style={{ color:C.error, fontWeight:'700', fontSize:15 }}>Se deconnecter</Text>
-        </TouchableOpacity>
-      </ScrollView>
+    <SafeAreaView style={{ flex:1, backgroundColor:C.primaryDark, alignItems:'center', justifyContent:'center', padding:28 }}>
+      <View style={{ width:72, height:72, borderRadius:24, backgroundColor:C.info+'22', alignItems:'center', justifyContent:'center', marginBottom:20 }}>
+        <Ionicons name="information-circle" size={40} color={C.info} />
+      </View>
+      <Text style={{ color:'#fff', fontWeight:'900', fontSize:20, textAlign:'center', marginBottom:10 }}>Compte chauffeur retire</Text>
+      <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:13, textAlign:'center', lineHeight:20, marginBottom:6 }}>
+        Le role chauffeur n'est plus actif sur AutoLink.
+      </Text>
+      <Text style={{ color:'rgba(255,255,255,0.5)', fontSize:11, textAlign:'center', lineHeight:17, marginBottom:24 }}>
+        Vos donnees historiques sont conservees. Pour toute question ou pour convertir ce compte, contactez le support.
+      </Text>
+      <TouchableOpacity onPress={openWhatsApp}
+        style={{ flexDirection:'row', alignItems:'center', gap:8, backgroundColor:'#25D366', borderRadius:14, paddingVertical:13, paddingHorizontal:22, marginBottom:12 }}>
+        <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+        <Text style={{ color:'#fff', fontWeight:'700', fontSize:14 }}>Contacter le support</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={logout} style={{ paddingVertical:10 }}>
+        <Text style={{ color:'rgba(255,255,255,0.5)', fontSize:12 }}>Se deconnecter</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1375,10 +1293,14 @@ function AdminDash({ user, logout }) {
                   <View style={{ flexDirection:'row', gap:6 }}>
                     {u.role !== 'ADMIN' && (
                       <>
-                        <TouchableOpacity onPress={() => setRole(u, u.role === 'DRIVER' ? 'CLIENT' : 'DRIVER')}
-                          style={{ backgroundColor:C.info+'18', borderRadius:8, paddingHorizontal:8, paddingVertical:5 }}>
-                          <Text style={{ color:C.info, fontSize:10, fontWeight:'700' }}>{u.role === 'DRIVER' ? 'Retirer chauffeur' : 'Nommer chauffeur'}</Text>
-                        </TouchableOpacity>
+                        {/* Le rôle chauffeur est retiré — on peut seulement déclasser
+                            les comptes DRIVER existants (données conservées en backend) */}
+                        {u.role === 'DRIVER' && (
+                          <TouchableOpacity onPress={() => setRole(u, 'CLIENT')}
+                            style={{ backgroundColor:C.info+'18', borderRadius:8, paddingHorizontal:8, paddingVertical:5 }}>
+                            <Text style={{ color:C.info, fontSize:10, fontWeight:'700' }}>Retirer chauffeur</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity onPress={() => setRole(u, u.role === 'CONTROLLER' ? 'CLIENT' : 'CONTROLLER')}
                           style={{ backgroundColor:'#7C3AED18', borderRadius:8, paddingHorizontal:8, paddingVertical:5 }}>
                           <Text style={{ color:'#7C3AED', fontSize:10, fontWeight:'700' }}>{u.role === 'CONTROLLER' ? 'Retirer controleur' : 'Nommer controleur'}</Text>
@@ -1833,7 +1755,7 @@ function AppInner() {
     switch (user.role) {
       case 'CLIENT':     return <ClientDash     user={user} logout={logout} />;
       case 'OWNER':      return <OwnerDash       user={user} logout={logout} />;
-      case 'DRIVER':     return <DriverDash      user={user} logout={logout} />;
+      case 'DRIVER':     return <DriverRetired   user={user} logout={logout} />;
       case 'ADMIN':      return <AdminDash       user={user} logout={logout} />;
       case 'CONTROLLER': return <ControllerDash  user={user} logout={logout} />;
       case 'INTERMEDIARY': return <IntermediaryDash user={user} logout={logout} />;
