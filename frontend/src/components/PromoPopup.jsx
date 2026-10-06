@@ -46,7 +46,7 @@ export default function PromoPopup() {
           </button>
         </div>
 
-        <div className="px-7 pb-7 -mt-2">
+        <div className="px-7 pb-7 mt-1">
           <h2 className="text-2xl font-black text-white leading-normal">
             Votre véhicule vous attend.<br />
             <span className="text-accent-400">Réservation en 2 minutes.</span>
