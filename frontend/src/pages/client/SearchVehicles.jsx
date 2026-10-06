@@ -330,7 +330,7 @@ function BookingModal({ vehicle, onClose }) {
                   <label key={pm.value} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === pm.value ? `${pm.border} bg-slate-50 dark:bg-slate-700` : 'border-slate-200 dark:border-slate-600'}`}>
                     <input type="radio" name="payment" className="sr-only" onChange={() => setForm(f => ({ ...f, paymentMethod: pm.value }))} />
                     <div className={`w-7 h-7 ${pm.color} rounded-lg`} />
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{pm.label}</span>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center leading-snug">{pm.label}</span>
                   </label>
                 ))}
               </div>

@@ -320,7 +320,7 @@ export default function ClientDashboard() {
                 <div key={v.name} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary-300 transition-colors">
                   <img src={v.image} alt={v.name} className="w-16 h-12 rounded-lg object-cover shrink-0" onError={e => { e.target.style.display='none'; }} />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 dark:text-white text-xs leading-tight">{v.name}</div>
+                    <div className="font-medium text-slate-900 dark:text-white text-xs leading-snug">{v.name}</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                       <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating} · {v.category}
                     </div>

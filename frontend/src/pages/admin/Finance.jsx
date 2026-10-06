@@ -54,7 +54,7 @@ export default function Finance() {
                   {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}{change}
                 </div>
               </div>
-              <div className="text-xl font-black text-slate-900 leading-tight">{value}</div>
+              <div className="text-xl font-black text-slate-900 leading-snug">{value}</div>
               <div className="text-sm text-slate-500 mt-1">{label}</div>
             </div>
           ))}
