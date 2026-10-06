@@ -47,7 +47,7 @@ export default function PromoPopup() {
         </div>
 
         <div className="px-7 pb-7 -mt-2">
-          <h2 className="text-2xl font-black text-white leading-tight">
+          <h2 className="text-2xl font-black text-white leading-normal">
             Votre véhicule vous attend.<br />
             <span className="text-accent-400">Réservation en 2 minutes.</span>
           </h2>
@@ -59,7 +59,7 @@ export default function PromoPopup() {
             {[{ icon: Zap, l: 'Confirmation immédiate' }, { icon: Shield, l: 'Caution sécurisée' }, { icon: KeyRound, l: 'Sans mot de passe' }].map(f => (
               <div key={f.l} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-2 py-2.5 text-center">
                 <f.icon size={16} className="text-accent-400 mx-auto mb-1" />
-                <span className="text-[10px] font-semibold text-primary-100 leading-tight block">{f.l}</span>
+                <span className="text-[10px] font-semibold text-primary-100 leading-snug block">{f.l}</span>
               </div>
             ))}
           </div>

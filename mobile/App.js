@@ -530,7 +530,7 @@ function LoginScreen() {
               </TouchableOpacity>
             </LinearGradient>
             <View style={{ padding:22 }}>
-              <Text style={{ color:'#fff', fontSize:20, fontWeight:'900', lineHeight:27 }}>
+              <Text style={{ color:'#fff', fontSize:20, fontWeight:'900', lineHeight:30 }}>
                 Votre vehicule vous attend.{'\n'}<Text style={{ color:'#FBBF24' }}>Reservation en 2 minutes.</Text>
               </Text>
               <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12, marginTop:6 }}>
@@ -541,7 +541,7 @@ function LoginScreen() {
                   <View key={l} style={{ flex:1, backgroundColor:'rgba(255,255,255,0.06)', borderWidth:1,
                     borderColor:'rgba(255,255,255,0.1)', borderRadius:12, padding:10, alignItems:'center' }}>
                     <Ionicons name={ic} size={16} color="#FBBF24" />
-                    <Text style={{ color:'#fff', fontSize:9, fontWeight:'700', marginTop:4, textAlign:'center' }}>{l}</Text>
+                    <Text style={{ color:'#fff', fontSize:9, fontWeight:'700', lineHeight:13, marginTop:4, textAlign:'center' }}>{l}</Text>
                   </View>
                 ))}
               </View>
@@ -653,7 +653,7 @@ function ClientDash({ user, logout }) {
                 <Image source={{ uri:IMG.hero }} style={{ width:'100%', height:150 }} resizeMode="cover" />
                 <View style={{ position:'absolute', top:0,left:0,right:0,bottom:0, backgroundColor:'rgba(0,0,0,0.42)' }} />
                 <View style={{ position:'absolute', bottom:14, left:14, right:14 }}>
-                  <Text numberOfLines={2} style={{ color:'#fff', fontWeight:'900', fontSize:17, marginBottom:8 }}>Reservez votre vehicule</Text>
+                  <Text numberOfLines={2} style={{ color:'#fff', fontWeight:'900', fontSize:17, lineHeight:24, marginBottom:8 }}>Reservez votre vehicule</Text>
                   <View style={{ backgroundColor:C.primary, borderRadius:10, paddingHorizontal:12, paddingVertical:7, flexDirection:'row', alignItems:'center', gap:6, alignSelf:'flex-start' }}>
                     <Ionicons name="car-sport" size={15} color="#fff" />
                     <Text style={{ color:'#fff', fontWeight:'700', fontSize:13 }}>Voir catalogue</Text>
@@ -1511,7 +1511,7 @@ function BookingModal({ vehicle, onClose, onDone }) {
       <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.7)', justifyContent:'center', padding:20 }}>
         <View style={{ backgroundColor:C.bg, borderRadius:24, padding:28, alignItems:'center' }}>
           <Ionicons name="checkmark-circle" size={64} color={C.success} />
-          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, marginTop:12, marginBottom:8, textAlign:'center' }}>
+          <Text style={{ fontSize:20, fontWeight:'900', color:C.text, lineHeight:28, marginTop:12, marginBottom:8, textAlign:'center' }}>
             {saved ? 'Reservation confirmee' : 'Reservation enregistree'}
           </Text>
           <Text style={{ color:C.muted, textAlign:'center' }}>{vehicle.name} — {rt.label}</Text>

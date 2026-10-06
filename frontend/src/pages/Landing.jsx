@@ -311,7 +311,7 @@ function HeroSlider({ navigate }) {
           <span className="inline-block bg-teal-500/90 text-white text-xs font-bold px-4 py-1.5 rounded-sm mb-6 uppercase tracking-widest">
             {slide.label}
           </span>
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-snug mb-6">
             {slide.title}
           </h1>
           <p className="text-lg md:text-xl text-white/80 mb-8 max-w-xl leading-relaxed">
@@ -373,7 +373,7 @@ function AboutSection() {
               className="w-full h-80 lg:h-[440px] object-cover rounded-sm shadow-xl" />
             <div className="absolute -bottom-5 -right-5 w-36 h-36 bg-teal-600 rounded-sm hidden lg:flex flex-col items-center justify-center text-white shadow-lg">
               <span className="text-3xl font-black">2024</span>
-              <span className="text-xs text-teal-100 mt-1 text-center leading-tight px-2">Premier au Cameroun</span>
+              <span className="text-xs text-teal-100 mt-1 text-center leading-snug px-2">Premier au Cameroun</span>
             </div>
           </div>
 
@@ -382,7 +382,7 @@ function AboutSection() {
             <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-4">
               AutoLink Pro, votre partenaire mobilité
             </span>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-tight">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-snug">
               Plateforme de location de véhicules à Douala et Yaoundé
             </h2>
             <p className="text-slate-600 leading-relaxed mb-4">
@@ -439,7 +439,7 @@ function ServiceCard({ svc }) {
           onError={e => { e.target.parentElement.style.background = '#134e4a'; e.target.style.display = 'none'; }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-4 right-4">
-          <h3 className="text-white font-black text-lg leading-tight">{svc.title}</h3>
+          <h3 className="text-white font-black text-lg leading-snug">{svc.title}</h3>
         </div>
       </div>
       {/* Content */}
@@ -621,7 +621,7 @@ function AppSection() {
             <span className="text-xs font-bold text-teal-200 uppercase tracking-widest block mb-4">
               Application mobile Android
             </span>
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-tight">
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-snug">
               Téléchargez l'application AutoLink Pro
             </h2>
             <p className="text-teal-100 leading-relaxed mb-6">
