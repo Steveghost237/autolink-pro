@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { notificationsAPI } from '../services/api';
+import { notificationsAPI, walletAPI } from '../services/api';
 import AutoLinkLogo from './AutoLinkLogo';
+import TopUpModal from './TopUpModal';
 import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck,
   LayoutDashboard, Search, FileText, Settings,
   Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag,
-  MessageSquare, Wrench, SlidersHorizontal
+  MessageSquare, Wrench, SlidersHorizontal, BarChart3, Wallet, Plus
 } from 'lucide-react';
 
 const NAV_ITEMS = {
@@ -17,6 +18,8 @@ const NAV_ITEMS = {
     { icon: Search, label: 'Chercher un véhicule', path: '/client/search' },
     { icon: FileText, label: 'Mes réservations', path: '/client/bookings' },
     { icon: MessageSquare, label: 'Messages', path: '/messages' },
+    { icon: BarChart3, label: 'Statistiques', path: '/client/stats' },
+    { icon: Wallet, label: 'Mon portefeuille', path: '/client/wallet' },
   ],
   OWNER: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },
@@ -173,6 +176,35 @@ function NotificationsBell() {
   );
 }
 
+// ─── Carte solde AutoLink dans la sidebar (clients) ───────────────────────────
+function WalletSidebarCard() {
+  const [balance, setBalance] = useState(null);
+  const [showTopUp, setShowTopUp] = useState(false);
+
+  useEffect(() => {
+    walletAPI.get()
+      .then(res => setBalance(Number(res.data.balance)))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <>
+      <div className="mx-4 mt-4 rounded-xl bg-gradient-to-br from-primary-600 to-primary-800 p-4 shadow-lg">
+        <p className="text-primary-200 text-[11px] font-medium">Mon solde AutoLink</p>
+        <p className="text-2xl font-black text-white leading-snug">
+          {balance === null ? '—' : `${Number(balance).toLocaleString()} F`}
+        </p>
+        <button onClick={() => setShowTopUp(true)}
+          className="mt-2.5 w-full flex items-center justify-center gap-1.5 bg-white text-primary-800 font-bold py-2 rounded-lg hover:bg-primary-50 transition-all text-xs shadow">
+          <Plus size={14} /> Recharger
+        </button>
+        <p className="text-primary-200/70 text-[9px] mt-2 leading-snug">MTN MoMo · Orange Money · SenBid · PayBid · PayPal · Stripe</p>
+      </div>
+      {showTopUp && <TopUpModal onClose={() => setShowTopUp(false)} onDone={(b) => setBalance(Number(b))} />}
+    </>
+  );
+}
+
 export default function DashboardLayout({ children, title }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -217,6 +249,8 @@ export default function DashboardLayout({ children, title }) {
           </div>
         </div>
       </div>
+
+      {user?.role === 'CLIENT' && <WalletSidebarCard />}
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map(({ icon: Icon, label, path }) => {

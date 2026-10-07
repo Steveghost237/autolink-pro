@@ -9,6 +9,8 @@ import Register from './pages/auth/Register';
 import ClientDashboard from './pages/client/ClientDashboard';
 import SearchVehicles from './pages/client/SearchVehicles';
 import MyBookings from './pages/client/MyBookings';
+import ClientStats from './pages/client/ClientStats';
+import ClientWallet from './pages/client/ClientWallet';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
@@ -50,6 +52,8 @@ function AppRoutes() {
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
+      <Route path="/client/stats" element={<Guard roles={['CLIENT']}><ClientStats /></Guard>} />
+      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><ClientWallet /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
