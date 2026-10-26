@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
+import { Star, Users, Fuel, CheckCircle, X, Car, Filter, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
@@ -41,7 +41,7 @@ const mapApiVehicle = (v) => {
     kmIncluded: v.km_included_per_day || 200, kmRate: v.extra_km_rate || 150,
     deposit: Number(v.deposit_amount) || 0,
     city: v.city || 'Douala',
-    rating: Number(v.rating) || 4.7,
+    rating: Number(v.rating) || 0,
     reviews: v.rating_count || 0,
     available: v.status === 'approved',
     plate: v.plate, seats: v.seats, fuel: v.fuel, year: v.year,
@@ -73,14 +73,12 @@ function BookingModal({ vehicle, onClose }) {
   const requestedType = new URLSearchParams(window.location.search).get('type');
   const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
   const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find(item => item.id === requestedType) || RENTAL_TYPES[2]);
-  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
+  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, driverType: 'none', paymentMethod: 'wallet', phone: '' });
   const [configuredMethods, setConfiguredMethods] = useState(['wallet']);
   useEffect(() => { paymentsAPI.methods().then(({ data }) => setConfiguredMethods(data.booking_methods || ['wallet'])).catch(() => {}); }, []);
-  const [agentValid, setAgentValid] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [saved, setSaved] = useState(false);
-  const VALID_CODES = ['AGT-DBL-001', 'AGT-YDE-002', 'AGT-DBL-003'];
 
   const submitBooking = async () => {
     setSubmitting(true);
@@ -97,7 +95,7 @@ function BookingModal({ vehicle, onClose }) {
         driver_type: form.driverType,
         payment_method: form.paymentMethod,
         phone: form.phone,
-        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
+        notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}`,
       });
       // Stripe / PayPal : la réservation reste en attente — on redirige vers
       // la page de paiement sécurisée ; confirmation au retour vérifié.
@@ -157,11 +155,6 @@ function BookingModal({ vehicle, onClose }) {
   const commission  = Math.round(basePrice * 0.50);
   const deposit     = vehicle.deposit || 0;
 
-  const checkAgent = (code) => {
-    if (!code) { setAgentValid(null); return; }
-    setAgentValid(VALID_CODES.includes(code.toUpperCase()) ? true : false);
-  };
-
   if (step === 3) return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
@@ -175,7 +168,6 @@ function BookingModal({ vehicle, onClose }) {
         <p className="text-slate-500 dark:text-slate-400 mb-1 text-sm">Prise en charge : {form.pickup || 'Non précisé'}</p>
         {form.driverType === 'internal' && <p className="text-xs text-blue-600 font-medium">Un chauffeur AutoLink vous sera assigné automatiquement.</p>}
         {form.driverType === 'owner' && <p className="text-xs text-blue-600 font-medium">Le propriétaire se présentera avec son chauffeur.</p>}
-        {agentValid === true && <p className="text-xs text-emerald-600 font-medium mb-1">Code agent {form.agentCode} appliqué</p>}
         <p className="text-xl font-black text-primary-600 my-3">{basePrice.toLocaleString()} FCFA</p>
         {saved ? (
           <p className="text-xs text-emerald-600 font-medium mb-6">
@@ -271,7 +263,7 @@ function BookingModal({ vehicle, onClose }) {
             </>
           )}
 
-          {/* Step 2: Adresses + code agent + options */}
+          {/* Step 2: Adresses + options */}
           {step === 2 && (
             <>
               <div>
@@ -298,22 +290,6 @@ function BookingModal({ vehicle, onClose }) {
                   ))}
                 </div>
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
-                  <Tag size={13} /> Code agent partenaire <span className="text-slate-400">(optionnel)</span>
-                </label>
-                <div className="relative">
-                  <input type="text" className="input-field uppercase" placeholder="Ex: AGT-DBL-001" maxLength={12}
-                    value={form.agentCode}
-                    onChange={e => { setForm(f => ({ ...f, agentCode: e.target.value.toUpperCase() })); checkAgent(e.target.value); }} />
-                  {form.agentCode && (
-                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold flex items-center gap-1 ${agentValid ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {agentValid ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
-                      {agentValid ? 'Valide' : 'Invalide'}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
                 <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">Forfait kilométrique inclus</p>
                 <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-400">
@@ -332,7 +308,6 @@ function BookingModal({ vehicle, onClose }) {
               <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-medium">{form.date || '—'} à {form.time}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Prise en charge</span><span className="font-medium">{form.pickup || '—'}</span></div>
               <div className="flex justify-between text-slate-500"><span>Km inclus</span><span>{kmIncluded} km · {vehicle.kmRate} F/km supp.</span></div>
-              {agentValid === true && <div className="flex justify-between text-emerald-600"><span>Code agent</span><span>{form.agentCode}</span></div>}
               <div className="flex justify-between text-slate-500"><span>Location</span><span className="font-medium">{basePrice.toLocaleString()} F</span></div>
               {deposit > 0 && <div className="flex justify-between text-amber-700 dark:text-amber-400"><span>Caution (restituée au retour)</span><span className="font-medium">+{deposit.toLocaleString()} F</span></div>}
               <div className="flex justify-between font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-600 pt-2 mt-2 text-base">
