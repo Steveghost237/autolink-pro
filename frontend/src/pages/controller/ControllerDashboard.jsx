@@ -57,9 +57,9 @@ export default function ControllerDashboard() {
   const decideVehicle = async (vehicle, status) => {
     const approved = status === 'approved';
     if (!(await confirm({
-      title: approved ? 'Approuver le véhicule ?' : 'Rejeter le véhicule ?',
+      title: approved ? 'Approuver le véhicule ?' : 'Mettre le véhicule en suspension ?',
       message: `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`,
-      confirmLabel: approved ? 'Approuver' : 'Rejeter',
+      confirmLabel: approved ? 'Approuver' : 'Mettre en suspension',
       danger: !approved,
     }))) return;
     try {
@@ -131,7 +131,7 @@ export default function ControllerDashboard() {
           {vehicles.map(vehicle => (
             <article key={vehicle.id} className="card flex flex-wrap items-center justify-between gap-3">
               <div><p className="font-semibold">{vehicle.brand} {vehicle.model} ({vehicle.plate})</p><p className="text-sm text-slate-500">{vehicle.owner_name} · {vehicle.year} · {Number(vehicle.daily_rate).toLocaleString('fr-FR')} FCFA/jour</p></div>
-              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>Approuver</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>Rejeter</button></div>
+              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>Approuver</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>Mettre en suspension</button></div>
             </article>
           ))}
           {vehicles.length === 0 && <div className="card py-8 text-center text-slate-500">Aucun véhicule en attente de validation.</div>}
