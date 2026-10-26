@@ -78,9 +78,23 @@ export const bookingsAPI = {
 };
 
 export const notificationsAPI = {
-  list: () => api.get('/users/notifications/'),
+  list: (params) => api.get('/users/notifications/', { params }),
   readAll: () => api.post('/users/notifications/read/'),
   read: (id) => api.post(`/users/notifications/${id}/read/`),
+};
+
+export const siteAPI = {
+  config: () => api.get('/site-config/'),
+};
+
+export const contactAPI = {
+  send: (payload) => api.post('/contact/', payload),
+};
+
+export const contactMessagesAPI = {
+  list: (params) => api.get('/contact/messages/', { params }),
+  update: (id, payload) => api.patch(`/contact/messages/${id}/`, payload),
+  delete: (id) => api.delete(`/contact/messages/${id}/`),
 };
 
 export const usersAPI = {

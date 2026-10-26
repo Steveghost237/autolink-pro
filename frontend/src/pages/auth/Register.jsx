@@ -190,7 +190,7 @@ export default function Register() {
               <div className="flex items-start gap-2">
                 <input type="checkbox" required id="terms" className="mt-1 w-4 h-4 accent-primary-600" />
                 <label htmlFor="terms" className="text-sm text-slate-600">
-                  J'accepte les <a href="#" className="text-primary-600 hover:underline">conditions d'utilisation</a> et la <a href="#" className="text-primary-600 hover:underline">politique de confidentialité</a>
+                  J'accepte les <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">conditions d'utilisation</a> et la <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">politique de confidentialité</a>
                 </label>
               </div>
               <div className="flex gap-3">

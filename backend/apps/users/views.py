@@ -1,13 +1,97 @@
 import random
+import logging
+from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework import generics, permissions, status
+from rest_framework import filters, generics, permissions, status
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Notification, LoginCode
-from .serializers import UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
+from .models import ContactMessage, User, Notification, LoginCode
+from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
+
+
+logger = logging.getLogger(__name__)
+
+
+class ContactAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'contact'
+
+    def post(self, request):
+        serializer = ContactMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        message = serializer.save()
+        body = (
+            f"Nom : {message.last_name}\n"
+            f"Prénom : {message.first_name}\n"
+            f"Téléphone : {message.phone}\n"
+            f"Email : {message.email or 'Non renseigné'}\n"
+            f"Type de location : {message.rental_type or 'Non précisé'}\n\n"
+            f"Message :\n{message.message}"
+        )
+        try:
+            send_mail(
+                subject=f'Nouvelle demande de contact — {message.first_name} {message.last_name}',
+                message=body,
+                from_email=None,
+                recipient_list=[settings.CONTACT_EMAIL],
+                fail_silently=False,
+            )
+            if message.email:
+                send_mail(
+                    subject='AutoLink Pro — Demande bien reçue',
+                    message=f"Bonjour {message.first_name},\n\n"
+                            "Nous avons bien reçu votre message et vous répondrons "
+                            "dans les meilleurs délais.\n\nL'équipe AutoLink Pro",
+                    from_email=None,
+                    recipient_list=[message.email],
+                    fail_silently=False,
+                )
+        except Exception:
+            logger.exception('Unable to send a contact message notification')
+            return Response(
+                {'detail': "Votre message a été enregistré, mais son envoi a échoué. "
+                           "Veuillez réessayer ou nous contacter par téléphone."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({'detail': 'Votre message a bien été envoyé.'},
+                        status=status.HTTP_201_CREATED)
+
+
+class SiteConfigAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response({
+            'contact_email': settings.CONTACT_EMAIL,
+            'phones': ['+237 656 789 000', '+237 699 456 000'],
+            'addresses': ['Akwa, Rue Joss, Douala', 'Centre-ville, Yaoundé'],
+            'hours': {
+                'weekdays': '6h à 22h',
+                'saturday': '7h à 21h',
+                'sunday': 'Sur réservation',
+            },
+        })
+
+
+class IsAdminRole(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+class ContactMessageViewSet(ModelViewSet):
+    queryset = ContactMessage.objects.all()
+    serializer_class = ContactMessageAdminSerializer
+    permission_classes = [IsAdminRole]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['last_name', 'first_name', 'phone', 'email', 'rental_type', 'message']
+    ordering_fields = ['created_at', 'last_name', 'first_name', 'is_handled']
 
 
 class LoginView(APIView):
@@ -162,11 +246,6 @@ class OTPVerifyView(APIView):
             'refresh': str(refresh),
             'user': UserSerializer(user).data,
         })
-
-
-class IsAdminRole(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'ADMIN'
 
 
 class UserListView(generics.ListAPIView):

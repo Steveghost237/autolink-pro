@@ -110,6 +110,9 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.StandardPagination',
+    'DEFAULT_THROTTLE_RATES': {
+        'contact': '5/min',
+    },
 }
 
 from datetime import timedelta
@@ -127,6 +130,7 @@ COMMISSION_RATE = config('COMMISSION_RATE', default=0.50, cast=float)
 # Les secrets ne sont JAMAIS commités : ils viennent des variables d'env (.env
 # local non versionné / variables Dokploy en production).
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+CONTACT_EMAIL = config('CONTACT_EMAIL', default='wibchallenge@gmail.com')
 FCFA_PER_USD = config('FCFA_PER_USD', default=600, cast=int)  # conversion PayPal
 
 STRIPE_API_KEY = config('STRIPE_API_KEY', default='')

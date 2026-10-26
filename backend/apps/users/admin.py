@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
+from .models import ContactMessage, User
 
 
 @admin.register(User)
@@ -11,3 +11,10 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ('AutoLink Info', {'fields': ('role', 'phone', 'avatar', 'is_verified', 'id_document', 'id_document_verified', 'date_of_birth', 'address')}),
     )
+
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ['last_name', 'first_name', 'phone', 'email', 'rental_type', 'created_at', 'is_handled']
+    list_filter = ['is_handled', 'rental_type', 'created_at']
+    search_fields = ['last_name', 'first_name', 'phone', 'email', 'message']

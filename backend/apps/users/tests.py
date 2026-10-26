@@ -1,8 +1,10 @@
 from django.core import mail
 from django.utils import timezone
 from datetime import timedelta
+from unittest.mock import patch
+from django.test import override_settings
 from rest_framework.test import APITestCase
-from apps.users.models import User, LoginCode
+from apps.users.models import ContactMessage, User, LoginCode
 
 
 class AuthTests(APITestCase):
@@ -145,3 +147,48 @@ class NotificationTests(APITestCase):
         r = self.client.get('/api/users/notifications/')
         data = r.data.get('results', r.data) if isinstance(r.data, dict) else r.data
         self.assertEqual(len(data), 0)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class ContactEndpointTests(APITestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_contact_saves_and_sends_notification_and_acknowledgement(self):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'email': 'jean@example.com',
+            'rental_type': 'Location urbaine',
+            'message': 'Besoin d’un véhicule demain.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        message = ContactMessage.objects.get()
+        self.assertEqual(message.email, 'jean@example.com')
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(mail.outbox[0].to, ['wibchallenge@gmail.com'])
+        self.assertEqual(mail.outbox[1].to, ['jean@example.com'])
+
+    @patch('apps.users.views.send_mail', side_effect=OSError('Mail unavailable'))
+    def test_contact_saves_message_when_email_fails(self, send_mail_mock):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'message': 'Besoin d’un véhicule demain.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(ContactMessage.objects.count(), 1)
+        self.assertIn('enregistré', response.data['detail'])
+
+    def test_site_config_is_public_and_has_company_contacts(self):
+        response = self.client.get('/api/site-config/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['contact_email'], 'wibchallenge@gmail.com')
+        self.assertEqual(len(response.data['phones']), 2)
+        self.assertIn('weekdays', response.data['hours'])

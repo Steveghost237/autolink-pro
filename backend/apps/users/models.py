@@ -30,6 +30,25 @@ class User(AbstractUser):
         return f'{self.get_full_name()} ({self.role})'
 
 
+class ContactMessage(models.Model):
+    last_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=30)
+    email = models.EmailField(blank=True)
+    rental_type = models.CharField(max_length=120, blank=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_handled = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Message de contact'
+        verbose_name_plural = 'Messages de contact'
+
+    def __str__(self):
+        return f'{self.first_name} {self.last_name} — {self.created_at:%Y-%m-%d}'
+
+
 class Notification(models.Model):
     """Notification interne — propriétaire notifié d'une réservation, fin de location, litige…"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')

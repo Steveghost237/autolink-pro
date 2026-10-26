@@ -7,7 +7,7 @@ import AutoLinkLogo from './AutoLinkLogo';
 import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck,
   LayoutDashboard, Search, FileText, Settings,
-  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Image, Tag
+  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home,
 } from 'lucide-react';
 
 const NAV_ITEMS = {
@@ -26,6 +26,7 @@ const NAV_ITEMS = {
   ],
   ADMIN: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin/dashboard' },
+    { icon: ClipboardList, label: 'Messages de contact', path: '/admin/messages' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
     { icon: Car, label: 'Véhicules', path: '/admin/inspections' },
     { icon: UserCheck, label: 'Chauffeurs', path: '/admin/drivers' },
@@ -152,7 +153,7 @@ function NotificationsBell() {
 }
 
 export default function DashboardLayout({ children, title }) {
-  const { user, logout } = useAuth();
+  const { user, logout, getDashboardPath } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -160,7 +161,10 @@ export default function DashboardLayout({ children, title }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  const navItems = NAV_ITEMS[user?.role] || [];
+  const navItems = [
+    { icon: Home, label: 'Accueil', path: '/' },
+    ...(NAV_ITEMS[user?.role] || []),
+  ];
 
   // Fermer le menu profil au clic extérieur
   useEffect(() => {
@@ -249,6 +253,10 @@ export default function DashboardLayout({ children, title }) {
             <h1 className="text-lg font-bold text-slate-800 dark:text-white">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => navigate(getDashboardPath(user?.role))}
+              className="rounded-lg px-2 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50 sm:px-3 sm:text-sm">
+              Tableau de bord
+            </button>
             <button onClick={toggleTheme} className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title={isDark ? 'Mode clair' : 'Mode sombre'}>
               {isDark ? <Sun size={20} /> : <Moon size={20} />}
             </button>
