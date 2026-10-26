@@ -4,7 +4,7 @@ import { Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, Chevr
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
-import { vehiclesAPI, bookingsAPI } from '../../services/api';
+import { vehiclesAPI, bookingsAPI, paymentsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { TIERS } from '../../utils/carImages';
 
@@ -57,8 +57,7 @@ const PAYMENT_METHODS = [
   { value: 'wallet', label: 'Solde AutoLink',  color: 'bg-emerald-500', border: 'border-emerald-500' },
   { value: 'mtn',    label: 'MTN MoMo',        color: 'bg-yellow-400', border: 'border-yellow-400' },
   { value: 'orange', label: 'Orange Money',    color: 'bg-orange-500', border: 'border-orange-500' },
-  { value: 'senbid', label: 'SenBid',          color: 'bg-teal-500',   border: 'border-teal-500' },
-  { value: 'paybid', label: 'PayBid',          color: 'bg-indigo-500', border: 'border-indigo-500' },
+  { value: 'paypal', label: 'PayPal',          color: 'bg-blue-700', border: 'border-blue-700' },
   { value: 'stripe', label: 'Carte (Stripe)',  color: 'bg-purple-500', border: 'border-purple-500' },
 ];
 
@@ -75,6 +74,8 @@ function BookingModal({ vehicle, onClose }) {
   const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
   const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find(item => item.id === requestedType) || RENTAL_TYPES[2]);
   const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
+  const [configuredMethods, setConfiguredMethods] = useState(['wallet']);
+  useEffect(() => { paymentsAPI.methods().then(({ data }) => setConfiguredMethods(data.booking_methods || ['wallet'])).catch(() => {}); }, []);
   const [agentValid, setAgentValid] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -95,12 +96,35 @@ function BookingModal({ vehicle, onClose }) {
         dropoff_address: form.destination,
         driver_type: form.driverType,
         payment_method: form.paymentMethod,
+        phone: form.phone,
         notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}${form.agentCode ? ` | Agent: ${form.agentCode}` : ''}`,
       });
       // Stripe / PayPal : la réservation reste en attente — on redirige vers
       // la page de paiement sécurisée ; confirmation au retour vérifié.
       if (res.data?.payment_url) {
         window.location.href = res.data.payment_url;
+        return;
+      }
+      if (form.paymentMethod === 'mtn' && res.data?.payment_reference) {
+        setApiError('Validez le paiement sur votre téléphone');
+        for (let attempt = 0; attempt < 36; attempt += 1) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const { data } = await paymentsAPI.bookingStatus(res.data.payment_reference);
+          if (data.status === 'completed') {
+            setSaved(true);
+            setStep(3);
+            setApiError(null);
+            setSubmitting(false);
+            return;
+          }
+          if (data.status === 'failed') {
+            setApiError('Le paiement a échoué.');
+            setSubmitting(false);
+            return;
+          }
+        }
+        setApiError('Le paiement est toujours en attente. Vérifiez votre téléphone.');
+        setSubmitting(false);
         return;
       }
       setSaved(res.data?.status === 'confirmed');
@@ -336,7 +360,7 @@ function BookingModal({ vehicle, onClose }) {
                   value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {PAYMENT_METHODS.map(pm => (
+                {PAYMENT_METHODS.filter(pm => configuredMethods.includes(pm.value) || pm.value === 'wallet').map(pm => (
                   <label key={pm.value} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === pm.value ? `${pm.border} bg-slate-50 dark:bg-slate-700` : 'border-slate-200 dark:border-slate-600'}`}>
                     <input type="radio" name="payment" className="sr-only" onChange={() => setForm(f => ({ ...f, paymentMethod: pm.value }))} />
                     <div className={`w-7 h-7 ${pm.color} rounded-lg`} />

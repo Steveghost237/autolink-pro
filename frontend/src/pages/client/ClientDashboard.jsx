@@ -8,8 +8,6 @@ import { walletAPI, bookingsAPI, vehiclesAPI } from '../../services/api';
 const TOPUP_METHODS = [
   { id: 'mtn',    label: 'MTN MoMo',    color: 'bg-yellow-400', text: 'text-yellow-900' },
   { id: 'orange', label: 'Orange Money', color: 'bg-orange-500', text: 'text-white' },
-  { id: 'senbid', label: 'SenBid',      color: 'bg-teal-500',   text: 'text-white' },
-  { id: 'paybid', label: 'PayBid',      color: 'bg-indigo-500', text: 'text-white' },
   { id: 'paypal', label: 'PayPal',      color: 'bg-blue-700',   text: 'text-white' },
   { id: 'stripe', label: 'Stripe',      color: 'bg-violet-600', text: 'text-white' },
 ];
@@ -18,11 +16,16 @@ const QUICK_AMOUNTS = [5000, 10000, 25000, 50000, 100000];
 
 function TopUpModal({ onClose, onDone }) {
   const [amount, setAmount] = useState(25000);
-  const [method, setMethod] = useState('mtn');
+  const [method, setMethod] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState('');
+  const [methods, setMethods] = useState([]);
+  useEffect(() => { walletAPI.methods().then(({ data }) => {
+    setMethods(data.methods || []);
+    if (data.methods?.length) setMethod(data.methods[0]);
+  }).catch(() => {}); }, []);
 
   const submit = async () => {
     setLoading(true); setError('');
@@ -32,6 +35,27 @@ function TopUpModal({ onClose, onDone }) {
       // le solde n'est crédité qu'au retour, après vérification serveur.
       if (data.payment_url) {
         window.location.href = data.payment_url;
+        return;
+      }
+      if (method === 'mtn' && data.status === 'pending') {
+        setError('Validez le paiement sur votre téléphone');
+        for (let attempt = 0; attempt < 36; attempt += 1) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const { data: status } = await walletAPI.status(data.reference);
+          if (status.status === 'completed') {
+            setDone({ transaction: { reference: data.reference }, balance: status.balance_after });
+            onDone?.(status.balance_after);
+            setError('');
+            return;
+          }
+          if (status.status === 'failed') {
+            setError('Le paiement a échoué.');
+            setLoading(false);
+            return;
+          }
+        }
+        setError('Le paiement est toujours en attente. Vérifiez votre portefeuille plus tard.');
+        setLoading(false);
         return;
       }
       setDone(data);
@@ -75,7 +99,7 @@ function TopUpModal({ onClose, onDone }) {
             <div>
               <label className="label">Moyen de paiement</label>
               <div className="grid grid-cols-3 gap-2">
-                {TOPUP_METHODS.map(m => (
+                {TOPUP_METHODS.filter(m => methods.includes(m.id)).map(m => (
                   <button key={m.id} onClick={() => setMethod(m.id)}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${method === m.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
                     <div className={`w-8 h-8 ${m.color} rounded-lg flex items-center justify-center`}>
@@ -86,7 +110,7 @@ function TopUpModal({ onClose, onDone }) {
                 ))}
               </div>
             </div>
-            {(method === 'mtn' || method === 'orange' || method === 'senbid' || method === 'paybid') && (
+            {(method === 'mtn' || method === 'orange') && (
               <div>
                 <label className="label">Numéro de téléphone</label>
                 <input type="tel" className="input-field" placeholder="+237 6XX XX XX XX"
@@ -94,7 +118,7 @@ function TopUpModal({ onClose, onDone }) {
               </div>
             )}
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <button onClick={submit} disabled={loading || amount < 500}
+            <button onClick={submit} disabled={loading || !method || !methods.includes(method) || amount < 500}
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 font-bold">
               {loading ? <Loader size={16} className="animate-spin" /> : <Plus size={16} />}
               {loading ? 'Traitement...' : `Recharger ${amount.toLocaleString()} FCFA`}
@@ -185,6 +209,15 @@ export default function ClientDashboard() {
       return () => clearTimeout(t);
     }
   }, [topupResult, setSearchParams]);
+
+  useEffect(() => {
+    const reference = searchParams.get('ref');
+    if (topupResult !== 'orange' || !reference) return;
+    walletAPI.status(reference).then(({ data }) => {
+      if (data.status === 'completed') walletAPI.get().then(({ data: wallet }) => setBalance(Number(wallet.balance)));
+      setSearchParams({ topup: data.status === 'completed' ? 'success' : 'pending' }, { replace: true });
+    }).catch(() => setSearchParams({ topup: 'error' }, { replace: true }));
+  }, [topupResult, searchParams, setSearchParams]);
 
   return (
     <DashboardLayout title="Tableau de bord">

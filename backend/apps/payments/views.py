@@ -1,5 +1,6 @@
 import json
 import uuid
+import hmac
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction as db_transaction
@@ -9,7 +10,9 @@ from rest_framework import filters, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 from .models import Payment, Payout, WalletTransaction
+from apps.bookings.models import Booking
 from .serializers import PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
 from . import providers
 
@@ -76,6 +79,43 @@ class WalletViewSet(viewsets.ViewSet):
         amount = serializer.validated_data['amount']
         method = serializer.validated_data['method']
         ref = f'TOP-{uuid.uuid4().hex[:10].upper()}'
+        if method in ('mtn', 'orange'):
+            configured = providers.mtn_configured() if method == 'mtn' else providers.orange_configured()
+            if not configured:
+                return Response({'detail': 'Moyen de paiement non configuré.'}, status=503)
+            phone = serializer.validated_data.get('phone')
+            if not phone:
+                return Response({'detail': 'Le numéro de téléphone est requis.'}, status=400)
+            tx = WalletTransaction.objects.create(
+                user=request.user, kind='topup', method=method, amount=amount,
+                balance_after=request.user.balance or 0, reference=ref, status='pending')
+            try:
+                if method == 'mtn':
+                    result = providers.mtn_request_to_pay(amount, phone, ref)
+                    tx.provider_ref = result['provider_ref']
+                    tx.provider_status = result['status']
+                else:
+                    result = providers.orange_create_payment(
+                        amount, ref, ref,
+                        f'{settings.FRONTEND_URL}/client/dashboard?topup=orange&ref={ref}',
+                        f'{settings.FRONTEND_URL}/client/dashboard?topup=canceled',
+                        self._abs(request, '/api/payments/orange-notification/'))
+                    tx.provider_ref = ref
+                    tx.provider_token = result['notif_token']
+                    tx.provider_pay_token = result['pay_token']
+                    tx.provider_status = 'PENDING'
+                tx.save()
+            except providers.ProviderError as error:
+                tx.status = 'failed'
+                tx.provider_status = 'ERROR'
+                tx.note = str(error)[:200]
+                tx.save(update_fields=['status', 'provider_status', 'note'])
+                return Response({'detail': str(error)}, status=502)
+            return Response({
+                'reference': ref, 'status': tx.status,
+                'payment_url': result.get('payment_url'),
+                'transaction': WalletTransactionSerializer(tx).data,
+            }, status=202)
 
         # ── Paiement externe LIVE : Stripe Checkout / PayPal ────────────────
         # La recharge reste "pending" ; le solde n'est crédité qu'au retour
@@ -114,22 +154,24 @@ class WalletViewSet(viewsets.ViewSet):
                 'transaction': WalletTransactionSerializer(tx).data,
             }, status=status.HTTP_202_ACCEPTED)
 
-        # ── Mobile money (MTN/Orange/SenBid/PayBid) : crédit direct ─────────
-        # En attente des APIs des opérateurs locaux.
-        with db_transaction.atomic():
-            user = request.user.__class__.objects.select_for_update().get(pk=request.user.pk)
-            user.balance = (user.balance or Decimal('0')) + amount
-            user.save(update_fields=['balance', 'updated_at'])
-            tx = WalletTransaction.objects.create(
-                user=user, kind='topup', method=method, amount=amount,
-                balance_after=user.balance,
-                reference=ref,
-                note=f'Rechargement via {method}',
-            )
-        return Response({
-            'balance': user.balance,
-            'transaction': WalletTransactionSerializer(tx).data,
-        }, status=status.HTTP_201_CREATED)
+        return Response({'detail': 'Moyen de paiement non configuré.'}, status=503)
+
+    @action(detail=False, methods=['get'], url_path=r'transactions/(?P<reference>[^/.]+)/status')
+    def transaction_status(self, request, reference=None):
+        try:
+            tx = WalletTransaction.objects.get(reference=reference, user=request.user, kind='topup')
+        except WalletTransaction.DoesNotExist:
+            return Response({'detail': 'Transaction introuvable.'}, status=404)
+        if tx.status != 'pending':
+            return Response(WalletTransactionSerializer(tx).data)
+        try:
+            raw = providers.mtn_status(tx.provider_ref) if tx.method == 'mtn' else providers.orange_status(
+                tx.provider_ref, tx.amount, tx.provider_pay_token)
+        except providers.ProviderError as error:
+            return Response({'detail': str(error)}, status=502)
+        _settle_wallet(tx, raw)
+        tx.refresh_from_db()
+        return Response(WalletTransactionSerializer(tx).data)
 
     @staticmethod
     def _abs(request, path):
@@ -138,10 +180,11 @@ class WalletViewSet(viewsets.ViewSet):
 
 
 def _credit_wallet_tx(tx, note_suffix=''):
-    """Crédite le solde d'une recharge externe — idempotent."""
-    if tx.status != 'pending':
-        return False
+    """Crédite une recharge confirmée exactement une fois."""
     with db_transaction.atomic():
+        tx = WalletTransaction.objects.select_for_update().get(pk=tx.pk)
+        if tx.status != 'pending':
+            return False
         user = tx.user.__class__.objects.select_for_update().get(pk=tx.user_id)
         user.balance = (user.balance or Decimal('0')) + tx.amount
         user.save(update_fields=['balance', 'updated_at'])
@@ -149,8 +192,44 @@ def _credit_wallet_tx(tx, note_suffix=''):
         tx.balance_after = user.balance
         if note_suffix:
             tx.note = f'{tx.note} {note_suffix}'
-        tx.save(update_fields=['status', 'balance_after', 'note'])
+        tx.save(update_fields=['status', 'balance_after', 'note', 'provider_status'])
     return True
+
+
+def _provider_success(raw):
+    return str(raw.get('status', '')).upper() in ('SUCCESSFUL', 'SUCCESS', 'COMPLETED')
+
+
+def _settle_wallet(tx, raw):
+    status_value = str(raw.get('status', 'PENDING')).upper()
+    with db_transaction.atomic():
+        locked = WalletTransaction.objects.select_for_update().get(pk=tx.pk)
+        locked.provider_status = status_value
+        locked.save(update_fields=['provider_status'])
+        if locked.status == 'pending' and _provider_success(raw):
+            _credit_wallet_tx(locked, '(paiement confirmé)')
+        elif locked.status == 'pending' and status_value in ('FAILED', 'ERROR', 'EXPIRED'):
+            locked.status = 'failed'
+            locked.save(update_fields=['status', 'provider_status'])
+        else:
+            locked.save(update_fields=['provider_status'])
+
+
+def _settle_booking(payment, raw):
+    with db_transaction.atomic():
+        locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        locked.provider_status = str(raw.get('status', 'PENDING')).upper()
+        if locked.status != 'pending':
+            locked.save(update_fields=['provider_status'])
+            return
+        if _provider_success(raw):
+            locked.status = 'completed'
+            locked.paid_at = timezone.now()
+            locked.save(update_fields=['status', 'paid_at', 'provider_status'])
+            _confirm_booking_payment(locked)
+        elif locked.provider_status in ('FAILED', 'ERROR', 'EXPIRED'):
+            locked.status = 'failed'
+            locked.save(update_fields=['status', 'provider_status'])
 
 
 def _confirm_booking_payment(payment):
@@ -172,6 +251,64 @@ def _confirm_booking_payment(payment):
                 f'Votre véhicule {vehicle} a été réservé par {booking.client.get_full_name()} '
                 f'du {booking.start_date} au {booking.end_date} (paiement {payment.method} reçu).')
         booking.sync_vehicle_status()
+
+
+class PaymentMethodsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        methods = []
+        if providers.mtn_configured():
+            methods.append('mtn')
+        if providers.orange_configured():
+            methods.append('orange')
+        if getattr(settings, 'STRIPE_SECRET_KEY', ''):
+            methods.append('stripe')
+        if getattr(settings, 'PAYPAL_CLIENT_ID', '') and getattr(settings, 'PAYPAL_CLIENT_SECRET', ''):
+            methods.append('paypal')
+        return Response({'methods': methods, 'booking_methods': ['wallet', *methods]})
+
+
+class OrangeNotificationView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        token = str(request.data.get('notif_token', ''))
+        order_id = str(request.data.get('order_id', ''))
+        tx = WalletTransaction.objects.filter(provider_ref=order_id, method='orange').first()
+        payment = Payment.objects.filter(provider_ref=order_id, method='orange').first()
+        expected = tx.provider_token if tx else payment.provider_token if payment else ''
+        if not expected or not hmac.compare_digest(token, expected):
+            return Response({'detail': 'Notification non autorisée.'}, status=403)
+        try:
+            amount = tx.amount if tx else payment.amount
+            pay_token = tx.provider_pay_token if tx else payment.provider_pay_token
+            raw = providers.orange_status(order_id, amount, pay_token)
+        except providers.ProviderError as error:
+            return Response({'detail': str(error)}, status=502)
+        _settle_wallet(tx, raw) if tx else _settle_booking(payment, raw)
+        return Response({'status': 'ok'})
+
+
+class BookingPaymentStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, reference):
+        try:
+            booking = Booking.objects.select_related('payment').get(pk=reference, client=request.user)
+            payment = booking.payment
+        except (Booking.DoesNotExist, Payment.DoesNotExist):
+            return Response({'detail': 'Paiement introuvable.'}, status=404)
+        if payment.status == 'pending':
+            try:
+                raw = providers.mtn_status(payment.provider_ref) if payment.method == 'mtn' else providers.orange_status(
+                    payment.provider_ref, payment.amount, payment.provider_pay_token)
+            except providers.ProviderError as error:
+                return Response({'detail': str(error)}, status=502)
+            _settle_booking(payment, raw)
+            payment.refresh_from_db()
+        return Response({'status': payment.status, 'provider_status': payment.provider_status})
 
 
 class StripeReturnView(APIView):

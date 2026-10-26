@@ -124,6 +124,12 @@ export const usersAPI = {
 export const walletAPI = {
   get: () => api.get('/payments/wallet/'),
   topup: (amount, method, phone) => api.post('/payments/wallet/topup/', { amount, method, phone }),
+  status: (reference) => api.get(`/payments/wallet/transactions/${encodeURIComponent(reference)}/status/`),
+  methods: () => api.get('/payments/methods/'),
+};
+export const paymentsAPI = {
+  methods: () => api.get('/payments/methods/'),
+  bookingStatus: (reference) => api.get(`/payments/bookings/${reference}/status/`),
 };
 
 export default api;

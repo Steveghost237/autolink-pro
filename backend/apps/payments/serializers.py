@@ -2,14 +2,16 @@ from decimal import Decimal
 from rest_framework import serializers
 from .models import Payment, Payout, WalletTransaction
 
-TOPUP_METHODS = ['mtn', 'orange', 'senbid', 'paybid', 'paypal', 'stripe']
+TOPUP_METHODS = ['mtn', 'orange', 'paypal', 'stripe']
 
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
-        read_only_fields = ['payer', 'commission', 'owner_payout', 'paid_at', 'payout_done', 'payout_at', 'created_at']
+        read_only_fields = ['payer', 'commission', 'owner_payout', 'paid_at', 'payout_done',
+                            'payout_at', 'created_at', 'provider_ref', 'provider_status',
+                            'provider_token', 'provider_pay_token']
 
     def create(self, validated_data):
         booking = validated_data['booking']
@@ -29,7 +31,8 @@ class PayoutSerializer(serializers.ModelSerializer):
 class WalletTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WalletTransaction
-        fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note', 'status', 'created_at']
+        fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note',
+                  'status', 'provider_status', 'created_at']
 
 
 class TopUpSerializer(serializers.Serializer):

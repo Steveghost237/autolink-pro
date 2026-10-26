@@ -3,7 +3,7 @@ import { Star, Download, Phone, X, Car, Calendar, CreditCard, ClipboardList, Loa
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
-import { bookingsAPI } from '../../services/api';
+import { bookingsAPI, paymentsAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const STATUS = {
@@ -167,7 +167,14 @@ export default function MyBookings() {
 
   // Retour d'un paiement externe (Stripe/PayPal) sur une réservation
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('payment');
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('payment');
+    if (params.get('orange') === 'return' && params.get('ref')) {
+      paymentsAPI.bookingStatus(params.get('ref')).then(({ data }) => {
+        window.location.replace(`/client/bookings?payment=${data.status === 'completed' ? 'success' : 'pending'}`);
+      }).catch(() => window.location.replace('/client/bookings?payment=error'));
+      return;
+    }
     if (q) {
       setPayBanner(q);
       window.history.replaceState({}, '', window.location.pathname);

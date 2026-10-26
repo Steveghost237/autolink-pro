@@ -34,6 +34,10 @@ class Payment(models.Model):
     owner_payout = models.DecimalField(max_digits=12, decimal_places=2)
     escrow_status = models.CharField(max_length=20, choices=Escrow.choices, default=Escrow.HELD)
     transaction_ref = models.CharField(max_length=200, blank=True)
+    provider_ref = models.CharField(max_length=200, blank=True)
+    provider_status = models.CharField(max_length=100, blank=True)
+    provider_token = models.CharField(max_length=500, blank=True)
+    provider_pay_token = models.CharField(max_length=500, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     payout_done = models.BooleanField(default=False)
     payout_at = models.DateTimeField(null=True, blank=True)
@@ -177,6 +181,9 @@ class WalletTransaction(models.Model):
         choices=[('pending', 'En attente'), ('completed', 'Confirmée'), ('failed', 'Échouée')])
     provider_ref = models.CharField(max_length=200, blank=True,
                                     help_text='ID session Stripe / commande PayPal')
+    provider_status = models.CharField(max_length=100, blank=True)
+    provider_token = models.CharField(max_length=500, blank=True)
+    provider_pay_token = models.CharField(max_length=500, blank=True)
     note = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

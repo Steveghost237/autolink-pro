@@ -73,6 +73,14 @@ Seul le **super admin** est créé automatiquement au démarrage via les variabl
 - **Propriétaire reçoit : 75%** de chaque location
 - Paiements acceptés : MTN Money, Orange Money, PayPal, Stripe
 
+## Paiements mobile money
+
+Les paiements MTN MoMo et Orange Money sont masqués tant que leurs identifiants ne sont pas configurés. Copiez `backend/.env.example` vers un fichier `.env` local ou définissez les variables dans l’environnement de déploiement. N’ajoutez jamais de clés réelles au dépôt.
+
+- MTN : configurez `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER` et `MTN_MOMO_API_KEY`; utilisez `MTN_MOMO_TARGET_ENV=sandbox` et la devise `EUR` pour les tests, puis l’environnement `mtncameroon` et `XAF` en production.
+- Orange : configurez `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET` et `ORANGE_MERCHANT_KEY`; les valeurs par défaut ciblent l’environnement WebPay de développement (`OUV`).
+- Le statut du paiement est confirmé côté serveur avant tout crédit du portefeuille ou confirmation d’une réservation. Le retour du navigateur seul ne crédite jamais le compte.
+
 ### Calcul automatique du tarif
 Le tarif est calculé selon :
 - Tarif de base défini par le propriétaire

@@ -79,6 +79,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         if getattr(self, '_last_payment_url', None):
             resp.data['payment_url'] = self._last_payment_url
             self._last_payment_url = None
+        if getattr(self, '_last_payment_reference', None):
+            resp.data['payment_reference'] = self._last_payment_reference
+            self._last_payment_reference = None
         return resp
 
     def perform_create(self, serializer):
@@ -114,6 +117,14 @@ class BookingViewSet(viewsets.ModelViewSet):
                     url = self._pay_external(booking, payment_method, request)
                     self._last_payment_url = url
                     return
+                if payment_method in ('mtn', 'orange'):
+                    url, reference = self._pay_mobile(booking, payment_method, request)
+                    if url:
+                        self._last_payment_url = url
+                    self._last_payment_reference = str(booking.pk)
+                    return
+                if payment_method != 'wallet':
+                    raise ValidationError({'payment_method': 'Ce moyen de paiement n’est pas disponible.'})
                 self._pay(booking, payment_method)
                 booking.status = Booking.Status.CONFIRMED
                 booking.save(update_fields=['status', 'updated_at'])
@@ -197,6 +208,40 @@ class BookingViewSet(viewsets.ModelViewSet):
             deposit_status='held', transaction_ref=ref,
         )
         return url
+
+    def _pay_mobile(self, booking, method, request):
+        from apps.payments.models import Payment
+        from apps.payments import providers
+        if not (providers.mtn_configured() if method == 'mtn' else providers.orange_configured()):
+            raise ValidationError({'payment_method': 'Moyen de paiement non configuré.'})
+        phone = request.data.get('phone')
+        if not phone:
+            raise ValidationError({'phone': 'Le numéro de téléphone est requis.'})
+        ref = f'BK-{booking.pk}-{uuid.uuid4().hex[:8]}'
+        payment = Payment.objects.create(
+            booking=booking, payer=booking.client, method=method, status='pending',
+            amount=booking.subtotal + (booking.deposit_amount or 0),
+            commission=booking.commission_amount, owner_payout=booking.owner_amount,
+            escrow_status='held', deposit_amount=booking.deposit_amount or 0,
+            deposit_status='held', transaction_ref=ref,
+        )
+        if method == 'mtn':
+            result = providers.mtn_request_to_pay(payment.amount, phone, ref)
+            payment.provider_ref = result['provider_ref']
+            payment.provider_status = result['status']
+            payment.save(update_fields=['provider_ref', 'provider_status'])
+            return None, ref
+        result = providers.orange_create_payment(
+            payment.amount, ref, ref,
+            f'{settings.FRONTEND_URL}/client/bookings?orange=return&ref={booking.pk}',
+            f'{settings.FRONTEND_URL}/client/bookings?payment=canceled',
+            request.build_absolute_uri('/api/payments/orange-notification/'))
+        payment.provider_ref = ref
+        payment.provider_token = result['notif_token']
+        payment.provider_pay_token = result['pay_token']
+        payment.provider_status = 'PENDING'
+        payment.save(update_fields=['provider_ref', 'provider_token', 'provider_pay_token', 'provider_status'])
+        return result['payment_url'], ref
 
     def perform_update(self, serializer):
         """Transitions de statut selon le rôle — l'admin n'intervient plus en routine."""

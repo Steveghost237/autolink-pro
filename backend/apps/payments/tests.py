@@ -15,20 +15,66 @@ class WalletTopupTests(APITestCase):
         self.user = make_user('u1', 'CLIENT')
         self.client.force_authenticate(self.user)
 
-    def test_mtn_topup_credits_instantly(self):
+    @override_settings(MTN_MOMO_SUBSCRIPTION_KEY='', MTN_MOMO_API_USER='', MTN_MOMO_API_KEY='')
+    def test_unconfigured_mtn_topup_returns_503(self):
         r = self.client.post('/api/payments/wallet/topup/',
                              {'amount': 50000, 'method': 'mtn', 'phone': '237690000000'},
                              format='json')
-        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.status_code, 503, r.data)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.balance, Decimal('50000'))
+        self.assertEqual(self.user.balance, Decimal('0'))
 
-    def test_orange_senbid_paybid_credit(self):
-        for m in ('orange', 'senbid', 'paybid'):
-            r = self.client.post('/api/payments/wallet/topup/', {'amount': 10000, 'method': m}, format='json')
-            self.assertEqual(r.status_code, 201, m)
+    @override_settings(MTN_MOMO_SUBSCRIPTION_KEY='sub', MTN_MOMO_API_USER='user', MTN_MOMO_API_KEY='key')
+    @patch('apps.payments.views.providers.mtn_status')
+    @patch('apps.payments.views.providers.mtn_request_to_pay')
+    def test_mtn_success_credits_once_when_polled_twice(self, mock_request, mock_status):
+        mock_request.return_value = {'provider_ref': 'provider-1', 'status': 'PENDING'}
+        mock_status.return_value = {'status': 'SUCCESSFUL'}
+        response = self.client.post('/api/payments/wallet/topup/',
+            {'amount': 10000, 'method': 'mtn', 'phone': '237690000000'}, format='json')
+        self.assertEqual(response.status_code, 202, response.data)
+        ref = response.data['reference']
+        self.client.get(f'/api/payments/wallet/transactions/{ref}/status/')
+        self.client.get(f'/api/payments/wallet/transactions/{ref}/status/')
         self.user.refresh_from_db()
-        self.assertEqual(self.user.balance, Decimal('30000'))
+        self.assertEqual(self.user.balance, Decimal('10000'))
+
+    @override_settings(MTN_MOMO_SUBSCRIPTION_KEY='sub', MTN_MOMO_API_USER='user', MTN_MOMO_API_KEY='key')
+    @patch('apps.payments.views.providers.mtn_status', return_value={'status': 'FAILED'})
+    @patch('apps.payments.views.providers.mtn_request_to_pay', return_value={'provider_ref': 'provider-2', 'status': 'PENDING'})
+    def test_mtn_failed_does_not_credit(self, *_):
+        response = self.client.post('/api/payments/wallet/topup/',
+            {'amount': 10000, 'method': 'mtn', 'phone': '237690000000'}, format='json')
+        self.client.get(f"/api/payments/wallet/transactions/{response.data['reference']}/status/")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.balance, Decimal('0'))
+
+    def test_orange_notification_bad_token_is_forbidden(self):
+        WalletTransaction.objects.create(
+            user=self.user, kind='topup', method='orange', amount=10000, balance_after=0,
+            reference='TOP-ORANGE', status='pending', provider_ref='ORANGE-1', provider_token='valid')
+        response = self.client.post('/api/payments/orange-notification/',
+            {'order_id': 'ORANGE-1', 'notif_token': 'invalid'}, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    @patch('apps.payments.views.providers.orange_status', return_value={'status': 'SUCCESSFUL'})
+    def test_orange_success_notification_credits_wallet(self, _):
+        WalletTransaction.objects.create(
+            user=self.user, kind='topup', method='orange', amount=10000, balance_after=0,
+            reference='TOP-ORANGE', status='pending', provider_ref='ORANGE-1',
+            provider_token='valid', provider_pay_token='pay-token')
+        response = self.client.post('/api/payments/orange-notification/',
+            {'order_id': 'ORANGE-1', 'notif_token': 'valid'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.balance, Decimal('10000'))
+
+    @override_settings(MTN_MOMO_SUBSCRIPTION_KEY='sub', MTN_MOMO_API_USER='user', MTN_MOMO_API_KEY='key',
+                       ORANGE_CLIENT_ID='id', ORANGE_CLIENT_SECRET='secret', ORANGE_MERCHANT_KEY='merchant')
+    def test_methods_endpoint_reflects_configuration(self):
+        response = self.client.get('/api/payments/methods/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['methods'], ['mtn', 'orange'])
 
     @patch('apps.payments.views.providers.paypal_create_order')
     def test_paypal_topup_stays_pending(self, mock_create):

@@ -141,6 +141,19 @@ PAYPAL_CLIENT_SECRET = config('PAYPAL_CLIENT_SECRET', default='')
 PAYPAL_MODE = config('PAYPAL_MODE', default='sandbox')  # 'live' | 'sandbox'
 PAYPAL_PAYOUTS_ENABLED = config('PAYPAL_PAYOUTS_ENABLED', default=False, cast=bool)
 
+MTN_MOMO_SUBSCRIPTION_KEY = config('MTN_MOMO_SUBSCRIPTION_KEY', default='')
+MTN_MOMO_API_USER = config('MTN_MOMO_API_USER', default='')
+MTN_MOMO_API_KEY = config('MTN_MOMO_API_KEY', default='')
+MTN_MOMO_TARGET_ENV = config('MTN_MOMO_TARGET_ENV', default='sandbox')
+MTN_MOMO_BASE_URL = config('MTN_MOMO_BASE_URL', default='https://sandbox.momodeveloper.mtn.com')
+MTN_MOMO_CURRENCY = config('MTN_MOMO_CURRENCY', default='EUR')
+
+ORANGE_CLIENT_ID = config('ORANGE_CLIENT_ID', default='')
+ORANGE_CLIENT_SECRET = config('ORANGE_CLIENT_SECRET', default='')
+ORANGE_MERCHANT_KEY = config('ORANGE_MERCHANT_KEY', default='')
+ORANGE_OM_BASE_URL = config('ORANGE_OM_BASE_URL', default='https://api.orange.com/orange-money-webpay/dev/v1')
+ORANGE_OM_CURRENCY = config('ORANGE_OM_CURRENCY', default='OUV')
+
 # ─── Email (codes de connexion OTP, notifications) ────────────────────────────
 # Dev : console (le code s'affiche dans les logs). Prod : configurez le SMTP
 # via les variables d'environnement (ex. Gmail : EMAIL_HOST_USER=… /
