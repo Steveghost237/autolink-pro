@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AutoLinkLogo from '../components/AutoLinkLogo';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import PromoPopup from '../components/PromoPopup';
 import { useAuth } from '../contexts/AuthContext';
 import { contactAPI, siteAPI, vehiclesAPI } from '../services/api';
@@ -12,6 +13,7 @@ import {
   siVolkswagen, siVolvo,
 } from 'simple-icons';
 import './Landing.css';
+import { formatNumber,  uiText } from '../i18n';
 
 /* ────────────────────────────────────────────────
    IMAGES — Unsplash (libres, haute résolution)
@@ -66,74 +68,77 @@ const CAR_BRANDS = [
 const HERO_SLIDES = [
   {
     image: IMG.hero1,
-    label: 'Location avec chauffeur — Douala & Yaoundé',
-    title: 'AutoLink Pro',
-    sub:   'Votre mobilité, notre mission. Réservez un véhicule avec chauffeur certifié en quelques clics, payez via Orange Money ou MTN.',
-    cta1:  'Réserver maintenant',
-    cta2:  'Voir la flotte',
+    label: uiText("pages.Landing", "Location avec chauffeur — Douala & Yaoundé"),
+    title: uiText("pages.Landing", "AutoLink Pro"),
+    sub:   uiText("pages.Landing", "Votre mobilité, notre mission. Réservez un véhicule avec chauffeur certifié en quelques clics, payez via Orange Money ou MTN."),
+    cta1:  uiText("pages.Landing", "Réserver maintenant"),
+    cta2:  uiText("pages.Landing", "Voir la flotte"),
+    cta2Href: '#flotte',
   },
   {
     image: IMG.hero2,
-    label: 'Flotte premium certifiée',
-    title: 'Des véhicules d\'exception',
-    sub:   'Berlines, SUV, véhicules de luxe — une flotte rigoureusement inspectée pour chaque occasion, du transport urbain au voyage interurbain.',
-    cta1:  'Voir le catalogue',
-    cta2:  'Nos services',
+    label: uiText("pages.Landing", "Flotte premium certifiée"),
+    title: uiText("pages.Landing", "Des véhicules d'exception"),
+    sub:   uiText("pages.Landing", "Berlines, SUV, véhicules de luxe — une flotte rigoureusement inspectée pour chaque occasion, du transport urbain au voyage interurbain."),
+    cta1:  uiText("pages.Landing", "Voir le catalogue"),
+    cta2:  uiText("pages.Landing", "Nos services"),
+    cta2Href: '#services',
   },
   {
     image: IMG.hero3,
-    label: 'Premier au Cameroun',
-    title: 'Urbain, interurbain, national',
-    sub:   '3h, 8h, journée complète ou voyage Douala-Yaoundé — AutoLink Pro s\'adapte à chaque besoin de déplacement avec fiabilité et ponctualité.',
-    cta1:  'Commencer maintenant',
-    cta2:  'En savoir plus',
+    label: uiText("pages.Landing", "Premier au Cameroun"),
+    title: uiText("pages.Landing", "Urbain, interurbain, national"),
+    sub:   uiText("pages.Landing", "3h, 8h, journée complète ou voyage Douala-Yaoundé — AutoLink Pro s'adapte à chaque besoin de déplacement avec fiabilité et ponctualité."),
+    cta1:  uiText("pages.Landing", "Commencer maintenant"),
+    cta2:  uiText("pages.Landing", "En savoir plus"),
+    cta2Href: '#apropos',
   },
 ];
 
 const SERVICES = [
   {
     img:   IMG.svcUrban,
-    title: 'Location Urbaine',
-    desc:  'Déplacements en ville, courses, rendez-vous professionnels. Formules 3h, 4h, 8h, 12h et 24h avec chauffeur certifié inclus.',
+    title: uiText("pages.Landing", "Location Urbaine"),
+    desc:  uiText("pages.Landing", "Déplacements en ville, courses, rendez-vous professionnels. Formules 3h, 4h, 8h, 12h et 24h avec chauffeur certifié inclus."),
     href:  '#contact',
   },
   {
     img:   IMG.svcInter,
-    title: 'Location Interurbaine',
-    desc:  'Trajets longue distance entre Douala, Yaoundé, Bafoussam, Kribi et plus. Confort et sécurité pour vos voyages en dehors de la ville.',
+    title: uiText("pages.Landing", "Location Interurbaine"),
+    desc:  uiText("pages.Landing", "Trajets longue distance entre Douala, Yaoundé, Bafoussam, Kribi et plus. Confort et sécurité pour vos voyages en dehors de la ville."),
     href:  '#contact',
   },
   {
     img:   IMG.svcLong,
-    title: 'Location Longue Durée',
-    desc:  'Location sur plusieurs jours avec forfait kilométrique adapté. Dépôt de garantie et contrat transparent pour toute location supérieure à 3 jours.',
+    title: uiText("pages.Landing", "Location Longue Durée"),
+    desc:  uiText("pages.Landing", "Location sur plusieurs jours avec forfait kilométrique adapté. Dépôt de garantie et contrat transparent pour toute location supérieure à 3 jours."),
     href:  '#contact',
   },
   {
     img:   IMG.svcAirport,
-    title: 'Transfert Aéroport',
-    desc:  'Prise en charge ponctuelle à l\'aéroport de Douala et Yaoundé. Chauffeur en attente, suivi du vol en temps réel.',
+    title: uiText("pages.Landing", "Transfert Aéroport"),
+    desc:  uiText("pages.Landing", "Prise en charge ponctuelle à l'aéroport de Douala et Yaoundé. Chauffeur en attente, suivi du vol en temps réel."),
     href:  '#contact',
   },
   {
     img:   IMG.svcEvent,
-    title: 'Location Événementielle',
-    desc:  'Mariages, baptêmes, cérémonies d\'entreprise. Véhicules décorés sur demande, chauffeurs en tenue de circonstance.',
+    title: uiText("pages.Landing", "Location Événementielle"),
+    desc:  uiText("pages.Landing", "Mariages, baptêmes, cérémonies d'entreprise. Véhicules décorés sur demande, chauffeurs en tenue de circonstance."),
     href:  '#contact',
   },
   {
     img:   IMG.svcBiz,
-    title: 'Voyages d\'Affaires',
-    desc:  'Flotte externalisée pour les déplacements de vos collaborateurs. Facturation mensuelle, tableau de bord dédié pour les entreprises.',
+    title: uiText("pages.Landing", "Voyages d'Affaires"),
+    desc:  uiText("pages.Landing", "Flotte externalisée pour les déplacements de vos collaborateurs. Facturation mensuelle, tableau de bord dédié pour les entreprises."),
     href:  '#contact',
   },
 ];
 
 const STEPS = [
-  { n: '01', title: 'Inscrivez-vous',    desc: 'Créez votre compte en 2 minutes, choisissez votre rôle et complétez la vérification d\'identité.' },
-  { n: '02', title: 'Choisissez',        desc: 'Parcourez la flotte certifiée, comparez les tarifs et sélectionnez votre véhicule selon vos besoins.' },
-  { n: '03', title: 'Payez en mobile',   desc: 'Réglez en toute sécurité via MTN Mobile Money ou Orange Money. Confirmation immédiate par SMS.' },
-  { n: '04', title: 'Profitez du trajet',desc: 'Votre chauffeur vous prend en charge à l\'heure convenue. Notez votre expérience à la fin du trajet.' },
+  { n: '01', title: uiText("pages.Landing", "Inscrivez-vous"),    desc: uiText("pages.Landing", "Créez votre compte en 2 minutes, choisissez votre rôle et complétez la vérification d'identité.") },
+  { n: '02', title: uiText("pages.Landing", "Choisissez"),        desc: uiText("pages.Landing", "Parcourez la flotte certifiée, comparez les tarifs et sélectionnez votre véhicule selon vos besoins.") },
+  { n: '03', title: uiText("pages.Landing", "Payez en mobile"),   desc: uiText("pages.Landing", "Réglez en toute sécurité via MTN Mobile Money ou Orange Money. Confirmation immédiate par SMS.") },
+  { n: '04', title: uiText("pages.Landing", "Profitez du trajet"),desc: uiText("pages.Landing", "Votre chauffeur vous prend en charge à l'heure convenue. Notez votre expérience à la fin du trajet.") },
 ];
 
 /* ────────────────────────────────────────────────
@@ -165,18 +170,18 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }) {
     return () => observer.disconnect();
   }, [target, duration]);
 
-  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
+  return <span ref={ref}>{formatNumber(count)}{suffix}</span>;
 }
 
 /* ────────────────────────────────────────────────
    NAV LINKS constant
 ──────────────────────────────────────────────── */
 const NAV_LINKS = [
-  { label: 'Accueil',               href: '#accueil' },
-  { label: 'À propos',              href: '#apropos' },
-  { label: 'Services',              href: '#services' },
-  { label: 'Flotte',                href: '#flotte' },
-  { label: 'Contact & Réservation', href: '#contact' },
+  { label: uiText("pages.Landing", "Accueil"),               href: '#accueil' },
+  { label: uiText("pages.Landing", "À propos"),              href: '#apropos' },
+  { label: uiText("pages.Landing", "Services"),              href: '#services' },
+  { label: uiText("pages.Landing", "Flotte"),                href: '#flotte' },
+  { label: uiText("pages.Landing", "Contact & Réservation"), href: '#contact' },
 ];
 
 /* ────────────────────────────────────────────────
@@ -214,8 +219,7 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
               {siteConfig.contact_email}
             </a>}
           </div>
-          <span className="text-slate-500">
-            Lun–Ven : {siteConfig.hours.weekdays || '—'} · Sam : {siteConfig.hours.saturday || '—'} · Dim : {siteConfig.hours.sunday || '—'}
+          <span className="text-slate-500">{uiText("pages.Landing", "Lun–Ven :") + " "}{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}{" " + uiText("pages.Landing", "· Sam :") + " "}{siteConfig.hours.saturday || uiText("pages.Landing", "—")}{" " + uiText("pages.Landing", "· Dim :") + " "}{siteConfig.hours.sunday || uiText("pages.Landing", "—")}
           </span>
         </div>
       </div>
@@ -247,23 +251,18 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
 
             {/* Desktop CTA */}
             <div className="hidden lg:flex items-center gap-3">
+              <LanguageSwitcher className={scrolled ? '' : uiText("pages.Landing", "border-white/30")} />
               {isAuthenticated ? (
                 <button onClick={() => navigate(dashboardPath)}
-                  className="text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded transition-colors shadow-md">
-                  Tableau de bord
-                </button>
+                  className="text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded transition-colors shadow-md">{uiText("pages.Landing", "Tableau de bord") + " "}</button>
               ) : (
                 <>
                   <button onClick={() => navigate('/login')}
                     className={`text-sm font-semibold px-4 py-2 rounded transition-colors ${
                       scrolled ? 'text-teal-700 hover:bg-teal-50' : 'text-white hover:bg-white/10'
-                    }`}>
-                    Connexion
-                  </button>
+                    }`}>{uiText("pages.Landing", "Connexion") + " "}</button>
                   <button onClick={() => navigate('/register')}
-                    className="text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded transition-colors shadow-md">
-                    S'inscrire
-                  </button>
+                    className="text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded transition-colors shadow-md">{uiText("pages.Landing", "S'inscrire") + " "}</button>
                 </>
               )}
             </div>
@@ -271,7 +270,7 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
             {/* Mobile burger */}
             <button onClick={() => setOpen(!open)}
               className={`lg:hidden p-2 ${scrolled ? 'text-slate-700' : 'text-white'}`}
-              aria-label="Menu">
+              aria-label={uiText("pages.Landing", "Menu")}>
               {open ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -288,6 +287,9 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
         {/* Mobile dropdown */}
         {open && (
           <div className="lg:hidden bg-white border-t border-slate-100 shadow-lg px-4 py-4">
+            <div className="flex justify-end pb-3">
+              <LanguageSwitcher />
+            </div>
             {NAV_LINKS.map(l => (
               <a key={l.href} href={l.href} onClick={() => setOpen(false)}
                 className="block py-3 px-2 text-slate-700 font-medium border-b border-slate-50 hover:text-teal-600 transition-colors text-sm">
@@ -297,19 +299,13 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
             <div className="flex gap-3 pt-4">
               {isAuthenticated ? (
                 <button onClick={() => navigate(dashboardPath)}
-                  className="flex-1 bg-teal-600 text-white font-bold py-2.5 rounded text-sm">
-                  Tableau de bord
-                </button>
+                  className="flex-1 bg-teal-600 text-white font-bold py-2.5 rounded text-sm">{uiText("pages.Landing", "Tableau de bord") + " "}</button>
               ) : (
                 <>
                   <button onClick={() => navigate('/login')}
-                    className="flex-1 border border-teal-600 text-teal-700 font-semibold py-2.5 rounded text-sm">
-                    Connexion
-                  </button>
+                    className="flex-1 border border-teal-600 text-teal-700 font-semibold py-2.5 rounded text-sm">{uiText("pages.Landing", "Connexion") + " "}</button>
                   <button onClick={() => navigate('/register')}
-                    className="flex-1 bg-teal-600 text-white font-bold py-2.5 rounded text-sm">
-                    S'inscrire
-                  </button>
+                    className="flex-1 bg-teal-600 text-white font-bold py-2.5 rounded text-sm">{uiText("pages.Landing", "S'inscrire") + " "}</button>
                 </>
               )}
             </div>
@@ -367,13 +363,13 @@ function HeroSlider({ onReserve }) {
               className="bg-teal-500 hover:bg-teal-400 text-white font-bold py-4 px-8 rounded-sm transition-all shadow-2xl hover:-translate-y-0.5 text-sm tracking-wide uppercase">
               {slide.cta1}
             </button>
-            <a href={slide.cta2 === 'Voir la flotte' ? '#flotte' : slide.cta2 === 'Nos services' ? '#services' : '#apropos'}
+            <a href={slide.cta2Href}
               className="border-2 border-white/60 hover:border-white text-white font-semibold py-4 px-8 rounded-sm transition-all hover:bg-white/10 text-sm tracking-wide uppercase">
               {slide.cta2}
             </a>
           </div>
           <div className="flex flex-wrap gap-6 mt-8 text-sm text-white/65">
-            {['Paiement sécurisé', 'Chauffeurs certifiés', 'Disponible 24h/24'].map(t => (
+            {[uiText("pages.Landing", "Paiement sécurisé"), uiText("pages.Landing", "Chauffeurs certifiés"), uiText("pages.Landing", "Disponible 24h/24")].map(t => (
               <span key={t} className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
@@ -414,37 +410,22 @@ function AboutSection() {
         <div className="grid lg:grid-cols-2 gap-14 items-center">
           {/* Image */}
           <div className="relative">
-            <img src={IMG.about} alt="AutoLink Pro — flotte de véhicules"
+            <img src={IMG.about} alt={uiText("pages.Landing", "AutoLink Pro — flotte de véhicules")}
               className="w-full h-80 lg:h-[440px] object-cover rounded-sm shadow-xl" />
             <div className="absolute -bottom-5 -right-5 w-36 h-36 bg-teal-600 rounded-sm hidden lg:flex flex-col items-center justify-center text-white shadow-lg">
-              <span className="text-3xl font-black">2024</span>
-              <span className="text-xs text-teal-100 mt-1 text-center leading-snug px-2">Premier au Cameroun</span>
+              <span className="text-3xl font-black">{uiText("pages.Landing", "2024")}</span>
+              <span className="text-xs text-teal-100 mt-1 text-center leading-snug px-2">{uiText("pages.Landing", "Premier au Cameroun")}</span>
             </div>
           </div>
 
           {/* Text */}
           <div>
-            <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-4">
-              AutoLink Pro, votre partenaire mobilité
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-snug">
-              Plateforme de location de véhicules à Douala et Yaoundé
-            </h2>
-            <p className="text-slate-600 leading-relaxed mb-4">
-              AutoLink Pro est la première plateforme digitale de location de véhicules au Cameroun.
-              Fondée pour répondre au vide laissé par l'absence de solutions numériques fiables,
-              AutoLink Pro met en relation les gestionnaires de véhicules de qualité avec les clients
-              désireux de se déplacer en toute sécurité et confort.
-            </p>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              Notre activité principale est la location de véhicules avec chauffeur certifié,
-              disponibles pour des déplacements urbains, interurbains et longue distance.
-              AutoLink Pro intervient à Douala, Yaoundé et les villes environnantes.
-            </p>
+            <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-4">{uiText("pages.Landing", "AutoLink Pro, votre partenaire mobilité") + " "}</span>
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-snug">{uiText("pages.Landing", "Plateforme de location de véhicules à Douala et Yaoundé") + " "}</h2>
+            <p className="text-slate-600 leading-relaxed mb-4">{uiText("pages.Landing", "AutoLink Pro est la première plateforme digitale de location de véhicules au Cameroun. Fondée pour répondre au vide laissé par l'absence de solutions numériques fiables, AutoLink Pro met en relation les gestionnaires de véhicules de qualité avec les clients désireux de se déplacer en toute sécurité et confort.") + " "}</p>
+            <p className="text-slate-600 leading-relaxed mb-6">{uiText("pages.Landing", "Notre activité principale est la location de véhicules avec chauffeur certifié, disponibles pour des déplacements urbains, interurbains et longue distance. AutoLink Pro intervient à Douala, Yaoundé et les villes environnantes.") + " "}</p>
             <a href="#services"
-              className="inline-flex items-center gap-2 text-teal-600 font-bold hover:text-teal-700 transition-colors text-sm uppercase tracking-wide">
-              Nos services
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              className="inline-flex items-center gap-2 text-teal-600 font-bold hover:text-teal-700 transition-colors text-sm uppercase tracking-wide">{uiText("pages.Landing", "Nos services") + " "}<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3"/>
               </svg>
             </a>
@@ -454,9 +435,9 @@ function AboutSection() {
         {/* Counters — style trireno */}
         <div className="grid grid-cols-3 gap-8 mt-16 pt-12 border-t border-slate-100">
           {[
-            { target: 85,   suffix: '+',  label: 'Véhicules au catalogue' },
-            { target: 6,    suffix: '',   label: 'Moyens de paiement' },
-            { target: 8,    suffix: '',   label: 'Villes couvertes' },
+            { target: 85,   suffix: '+',  label: uiText("pages.Landing", "Véhicules au catalogue") },
+            { target: 6,    suffix: '',   label: uiText("pages.Landing", "Moyens de paiement") },
+            { target: 8,    suffix: '',   label: uiText("pages.Landing", "Villes couvertes") },
           ].map(({ target, suffix, label }) => (
             <div key={label} className="text-center">
               <div className="text-4xl md:text-5xl font-black text-teal-600 mb-2">
@@ -475,10 +456,8 @@ function BrandMarquee() {
   const rows = [CAR_BRANDS.slice(0, 15), CAR_BRANDS.slice(15)];
 
   return (
-    <section className="overflow-hidden border-y border-slate-100 bg-slate-50 py-9" aria-label="Marques de véhicules disponibles">
-      <div className="mx-auto mb-5 max-w-7xl px-4 text-center text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-        Des marques reconnues pour chaque trajet
-      </div>
+    <section className="overflow-hidden border-y border-slate-100 bg-slate-50 py-9" aria-label={uiText("pages.Landing", "Marques de véhicules disponibles")}>
+      <div className="mx-auto mb-5 max-w-7xl px-4 text-center text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{uiText("pages.Landing", "Des marques reconnues pour chaque trajet") + " "}</div>
       <div className="space-y-4">
         {rows.map((brands, rowIndex) => (
           <div key={rowIndex} className={`brand-marquee-row ${rowIndex === 1 ? 'brand-marquee-reverse' : ''}`}>
@@ -520,9 +499,7 @@ function ServiceCard({ svc, onReserve }) {
         <h3 className="font-black text-slate-900 text-base mb-2">{svc.title}</h3>
         <p className="text-slate-500 text-sm leading-relaxed mb-4">{svc.desc}</p>
         <button onClick={onReserve}
-          className="inline-flex items-center gap-1.5 text-teal-600 font-bold text-sm hover:text-teal-700 transition-colors uppercase tracking-wide">
-          Découvrir
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          className="inline-flex items-center gap-1.5 text-teal-600 font-bold text-sm hover:text-teal-700 transition-colors uppercase tracking-wide">{uiText("pages.Landing", "Découvrir") + " "}<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
           </svg>
         </button>
@@ -536,15 +513,9 @@ function ServicesSection({ onReserve }) {
     <section id="services" className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-14">
-          <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">
-            Notre offre complète
-          </span>
-          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">
-            Nos services de location
-          </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-            Six formules pensées pour répondre à chaque besoin de mobilité au Cameroun.
-          </p>
+          <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">{uiText("pages.Landing", "Notre offre complète") + " "}</span>
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">{uiText("pages.Landing", "Nos services de location") + " "}</h2>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">{uiText("pages.Landing", "Six formules pensées pour répondre à chaque besoin de mobilité au Cameroun.") + " "}</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -564,15 +535,11 @@ function FleetSection({ vehicles, loading, onReserve }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-12">
           <div>
-            <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">
-              Flotte certifiée AutoLink Pro
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900">Notre flotte de véhicules</h2>
+            <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">{uiText("pages.Landing", "Flotte certifiée AutoLink Pro") + " "}</span>
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900">{uiText("pages.Landing", "Notre flotte de véhicules")}</h2>
           </div>
           <button onClick={onReserve}
-            className="hidden md:inline-flex items-center gap-2 text-teal-600 font-bold text-sm hover:text-teal-700 uppercase tracking-wide">
-            Réserver un véhicule
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            className="hidden md:inline-flex items-center gap-2 text-teal-600 font-bold text-sm hover:text-teal-700 uppercase tracking-wide">{uiText("pages.Landing", "Réserver un véhicule") + " "}<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3"/>
             </svg>
           </button>
@@ -589,7 +556,7 @@ function FleetSection({ vehicles, loading, onReserve }) {
             {vehicles.map(vehicle => {
               const name = [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ');
               const image = vehicle.image_url || vehicle.photos?.[0]?.image || IMG.fleet8;
-              const price = Number(vehicle.daily_rate || vehicle.computed_rate || 0).toLocaleString('fr-FR');
+              const price = formatNumber(Number(vehicle.daily_rate || vehicle.computed_rate || 0));
               return (
                 <div key={vehicle.id} className="group relative overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300">
                   <div className="h-48 overflow-hidden">
@@ -598,14 +565,12 @@ function FleetSection({ vehicles, loading, onReserve }) {
                       onError={e => { e.target.src = IMG.fleet8; }} />
                   </div>
                   <div className="p-4 bg-white">
-                    <span className="text-xs font-bold text-teal-600 uppercase tracking-wide">{vehicle.category || vehicle.tier_label || 'Véhicule'}</span>
+                    <span className="text-xs font-bold text-teal-600 uppercase tracking-wide">{vehicle.category || vehicle.tier_label || uiText("pages.Landing", "Véhicule")}</span>
                     <h4 className="font-black text-slate-900 text-sm mt-1 mb-2">{name}</h4>
                     <div className="flex items-center justify-between">
-                      <span className="text-teal-700 font-black text-sm">{price} F/j</span>
+                      <span className="text-teal-700 font-black text-sm">{price}{" " + uiText("pages.Landing", "F/j")}</span>
                       <button onClick={onReserve}
-                        className="text-xs font-bold text-teal-600 hover:text-teal-700 uppercase tracking-wide">
-                        Réserver
-                      </button>
+                        className="text-xs font-bold text-teal-600 hover:text-teal-700 uppercase tracking-wide">{uiText("pages.Landing", "Réserver") + " "}</button>
                     </div>
                   </div>
                 </div>
@@ -613,14 +578,12 @@ function FleetSection({ vehicles, loading, onReserve }) {
             })}
           </div>
         ) : (
-          <p className="py-10 text-center text-sm text-slate-500">Aucun véhicule approuvé n’est disponible pour le moment.</p>
+          <p className="py-10 text-center text-sm text-slate-500">{uiText("pages.Landing", "Aucun véhicule approuvé n’est disponible pour le moment.")}</p>
         )}
 
         <div className="text-center mt-10">
           <button onClick={onReserve}
-            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-8 rounded-sm transition-colors shadow-md text-sm uppercase tracking-wide">
-            Réserver un véhicule
-          </button>
+            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-8 rounded-sm transition-colors shadow-md text-sm uppercase tracking-wide">{uiText("pages.Landing", "Réserver un véhicule") + " "}</button>
         </div>
       </div>
     </section>
@@ -635,15 +598,9 @@ function HowItWorksSection() {
     <section className="py-20 bg-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-14">
-          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest block mb-3">
-            Simple et rapide
-          </span>
-          <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
-            Comment fonctionne AutoLink Pro ?
-          </h2>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            Réservez votre véhicule avec chauffeur en 4 étapes, depuis votre téléphone.
-          </p>
+          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest block mb-3">{uiText("pages.Landing", "Simple et rapide") + " "}</span>
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-4">{uiText("pages.Landing", "Comment fonctionne AutoLink Pro ?") + " "}</h2>
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto">{uiText("pages.Landing", "Réservez votre véhicule avec chauffeur en 4 étapes, depuis votre téléphone.") + " "}</p>
         </div>
 
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8">
@@ -672,13 +629,11 @@ function PaymentSection() {
   return (
     <section className="py-14 bg-white border-y border-slate-100">
       <div className="max-w-4xl mx-auto px-4 text-center">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">
-          Moyens de paiement acceptés
-        </p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">{uiText("pages.Landing", "Moyens de paiement acceptés") + " "}</p>
         <div className="flex flex-wrap justify-center items-center gap-8">
           {[
-            { name: 'MTN Mobile Money', color: '#FACC15', text: '#1c1917', initials: 'MTN' },
-            { name: 'Orange Money',     color: '#F97316', text: '#ffffff', initials: 'OM'  },
+            { name: 'MTN Mobile Money', color: '#FACC15', text: uiText("pages.Landing", "#1c1917"), initials: 'MTN' },
+            { name: 'Orange Money',     color: '#F97316', text: uiText("pages.Landing", "#ffffff"), initials: 'OM'  },
           ].map(p => (
             <div key={p.name} className="flex flex-col items-center gap-3">
               <div className="w-20 h-20 rounded-sm flex items-center justify-center shadow-md"
@@ -689,9 +644,7 @@ function PaymentSection() {
             </div>
           ))}
         </div>
-        <p className="text-sm text-slate-400 mt-8 max-w-md mx-auto">
-          Tous les paiements sont sécurisés. AutoLink Pro conserve les fonds jusqu'à la confirmation du trajet.
-        </p>
+        <p className="text-sm text-slate-400 mt-8 max-w-md mx-auto">{uiText("pages.Landing", "Tous les paiements sont sécurisés. AutoLink Pro conserve les fonds jusqu'à la confirmation du trajet.") + " "}</p>
       </div>
     </section>
   );
@@ -706,19 +659,11 @@ function AppSection() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="text-xs font-bold text-teal-200 uppercase tracking-widest block mb-4">
-              Application mobile Android
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-snug">
-              Téléchargez l'application AutoLink Pro
-            </h2>
-            <p className="text-teal-100 leading-relaxed mb-6">
-              Toutes les fonctionnalités de la plateforme dans votre poche.
-              Réservez, suivez votre chauffeur, payez en mobile money et notez
-              votre expérience — tout en un seul endroit.
-            </p>
+            <span className="text-xs font-bold text-teal-200 uppercase tracking-widest block mb-4">{uiText("pages.Landing", "Application mobile Android") + " "}</span>
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-snug">{uiText("pages.Landing", "Téléchargez l'application AutoLink Pro") + " "}</h2>
+            <p className="text-teal-100 leading-relaxed mb-6">{uiText("pages.Landing", "Toutes les fonctionnalités de la plateforme dans votre poche. Réservez, suivez votre chauffeur, payez en mobile money et notez votre expérience — tout en un seul endroit.") + " "}</p>
             <ul className="space-y-3 mb-8 text-teal-100 text-sm">
-              {['Disponible sur Android', 'Interface intuitive en français', 'Paiement Orange Money et MTN intégré', 'Suivi en temps réel', 'Historique complet des courses'].map(f => (
+              {[uiText("pages.Landing", "Disponible sur Android"), uiText("pages.Landing", "Interface intuitive en français"), uiText("pages.Landing", "Paiement Orange Money et MTN intégré"), uiText("pages.Landing", "Suivi en temps réel"), uiText("pages.Landing", "Historique complet des courses")].map(f => (
                 <li key={f} className="flex items-center gap-3">
                   <svg className="w-4 h-4 text-teal-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
@@ -731,15 +676,13 @@ function AppSection() {
               className="inline-flex items-center gap-3 bg-white text-teal-700 font-bold py-4 px-8 rounded-sm hover:bg-teal-50 transition-colors shadow-xl text-sm uppercase tracking-wide">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              Télécharger l'APK Android
-            </a>
+              </svg>{uiText("pages.Landing", "Télécharger l'APK Android") + " "}</a>
           </div>
           <div className="flex justify-center gap-8 text-center">
             {[
-              { v: '85+',   l: 'Véhicules au catalogue' },
-              { v: '6',     l: 'Moyens de paiement' },
-              { v: '5',     l: 'Catégories de véhicules' },
+              { v: '85+',   l: uiText("pages.Landing", "Véhicules au catalogue") },
+              { v: '6',     l: uiText("pages.Landing", 'Moyens de paiement') },
+              { v: '5',     l: uiText("pages.Landing", 'Catégories de véhicules') },
             ].map(s => (
               <div key={s.l}>
                 <div className="text-3xl md:text-4xl font-black text-white mb-1">{s.v}</div>
@@ -777,7 +720,7 @@ function ContactSection({ siteConfig }) {
       });
       setSent(true);
     } catch (err) {
-      setError(err.response?.data?.detail || 'L’envoi a échoué. Vérifiez votre connexion puis réessayez.');
+      setError(err.response?.data?.detail || uiText("pages.Landing", "L’envoi a échoué. Vérifiez votre connexion puis réessayez."));
     } finally {
       setSending(false);
     }
@@ -787,17 +730,9 @@ function ContactSection({ siteConfig }) {
     <section id="contact" className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-14">
-          <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">
-            Nous contacter
-          </span>
-          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">
-            Contact & Réservation
-          </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-            Vous avez un projet de déplacement à Douala ou Yaoundé ? AutoLink Pro vous
-            accompagne de la réservation à la destination. Pour obtenir un devis, indiquez
-            votre type de trajet, les villes concernées et vos contraintes horaires.
-          </p>
+          <span className="text-xs font-bold text-teal-600 uppercase tracking-widest block mb-3">{uiText("pages.Landing", "Nous contacter") + " "}</span>
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">{uiText("pages.Landing", "Contact & Réservation") + " "}</h2>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">{uiText("pages.Landing", "Vous avez un projet de déplacement à Douala ou Yaoundé ? AutoLink Pro vous accompagne de la réservation à la destination. Pour obtenir un devis, indiquez votre type de trajet, les villes concernées et vos contraintes horaires.") + " "}</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-10">
@@ -810,62 +745,60 @@ function ContactSection({ siteConfig }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
                   </svg>
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">Message envoyé</h3>
-                <p className="text-slate-500">Notre équipe vous recontacte dans les 24h.</p>
-                <button onClick={() => setSent(false)} className="mt-6 text-teal-600 font-semibold text-sm underline">
-                  Envoyer un autre message
-                </button>
+                <h3 className="text-xl font-black text-slate-900 mb-2">{uiText("pages.Landing", "Message envoyé")}</h3>
+                <p className="text-slate-500">{uiText("pages.Landing", "Notre équipe vous recontacte dans les 24h.")}</p>
+                <button onClick={() => setSent(false)} className="mt-6 text-teal-600 font-semibold text-sm underline">{uiText("pages.Landing", "Envoyer un autre message") + " "}</button>
               </div>
             ) : (
               <form onSubmit={handle}>
                 <div className="grid sm:grid-cols-2 gap-5 mb-5">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nom *</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Nom *")}</label>
                     <input required value={form.nom} onChange={e => setForm({...form, nom: e.target.value})}
-                      placeholder="Votre nom"
+                      placeholder={uiText("pages.Landing", "Votre nom")}
                       className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Prénom *</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Prénom *")}</label>
                     <input required value={form.prenom} onChange={e => setForm({...form, prenom: e.target.value})}
-                      placeholder="Votre prénom"
+                      placeholder={uiText("pages.Landing", "Votre prénom")}
                       className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors" />
                   </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-5 mb-5">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Téléphone *</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Téléphone *")}</label>
                     <input required value={form.tel} onChange={e => setForm({...form, tel: e.target.value})}
-                      placeholder="+237 6XX XXX XXX"
+                      placeholder={uiText("pages.Landing", "+237 6XX XXX XXX")}
                       className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email (facultatif)</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Email (facultatif)")}</label>
                     <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
-                      placeholder="vous@exemple.com"
+                      placeholder={uiText("pages.Landing", "vous@exemple.com")}
                       className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors" />
                   </div>
                 </div>
 
                 <div className="mb-5">
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type de location</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Type de location")}</label>
                   <select value={form.type} onChange={e => setForm({...form, type: e.target.value})}
                     className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors bg-white">
-                    <option value="">Sélectionner</option>
-                    <option>Location Urbaine (3h à 24h)</option>
-                    <option>Location Interurbaine</option>
-                    <option>Location Longue Durée</option>
-                    <option>Transfert Aéroport</option>
-                    <option>Location Événementielle</option>
-                    <option>Voyages d'Affaires</option>
+                    <option value="">{uiText("pages.Landing", "Sélectionner")}</option>
+                    <option>{uiText("pages.Landing", "Location Urbaine (3h à 24h)")}</option>
+                    <option>{uiText("pages.Landing", "Location Interurbaine")}</option>
+                    <option>{uiText("pages.Landing", "Location Longue Durée")}</option>
+                    <option>{uiText("pages.Landing", "Transfert Aéroport")}</option>
+                    <option>{uiText("pages.Landing", "Location Événementielle")}</option>
+                    <option>{uiText("pages.Landing", "Voyages d'Affaires")}</option>
                   </select>
                 </div>
 
                 <div className="mb-5">
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Message *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{uiText("pages.Landing", "Message *")}</label>
                   <textarea required rows={5} value={form.message} onChange={e => setForm({...form, message: e.target.value})}
-                    placeholder="Décrivez votre besoin : ville de départ, destination, date et heure, nombre de passagers..."
+                    placeholder={uiText("pages.Landing", "Décrivez votre besoin : ville de départ, destination, date et heure, nombre de passagers...")}
                     className="w-full border border-slate-200 rounded-sm px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors resize-none" />
                 </div>
 
@@ -873,18 +806,16 @@ function ContactSection({ siteConfig }) {
                   <input type="checkbox" id="policy" required checked={form.policy}
                     onChange={e => setForm({...form, policy: e.target.checked})}
                     className="mt-0.5 w-4 h-4 accent-teal-600 cursor-pointer" />
-                  <label htmlFor="policy" className="text-sm text-slate-500 cursor-pointer">
-                    J’accepte la{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">politique de confidentialité</a>
-                    {' '}et les{' '}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">conditions d’utilisation</a>.
-                  </label>
+                  <label htmlFor="policy" className="text-sm text-slate-500 cursor-pointer">{uiText("pages.Landing", "J’accepte la")}{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">{uiText("pages.Landing", "politique de confidentialité")}</a>
+                    {' '}{uiText("pages.Landing", "et les")}{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">{uiText("pages.Landing", "conditions d’utilisation")}</a>{uiText("pages.Landing", ".") + " "}</label>
                 </div>
 
                 {error && <p role="alert" className="mb-4 rounded-sm bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
                 <button type="submit" disabled={sending}
                   className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-8 rounded-sm transition-colors text-sm uppercase tracking-wide shadow-md disabled:opacity-60">
-                  {sending ? 'Envoi en cours…' : 'Envoyer ma demande'}
+                  {sending ? uiText("pages.Landing", "Envoi en cours…") : uiText("pages.Landing", "Envoyer ma demande")}
                 </button>
               </form>
             )}
@@ -894,7 +825,7 @@ function ContactSection({ siteConfig }) {
           <div className="space-y-6">
             {[
               {
-                title: 'Téléphone',
+                title: uiText("pages.Landing", "Téléphone"),
                 lines: siteConfig.phones,
                 icon: (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -902,7 +833,7 @@ function ContactSection({ siteConfig }) {
                 ),
               },
               {
-                title: 'Adresse',
+                title: uiText("pages.Landing", "Adresse"),
                 lines: siteConfig.addresses,
                 icon: (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -910,7 +841,7 @@ function ContactSection({ siteConfig }) {
                 ),
               },
               {
-                title: 'Email',
+                title: uiText("pages.Landing", "Email"),
                 lines: siteConfig.contact_email ? [siteConfig.contact_email] : [],
                 icon: (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -934,16 +865,16 @@ function ContactSection({ siteConfig }) {
             ))}
 
             <div className="bg-white shadow-sm border border-slate-100 p-5">
-              <h4 className="font-black text-slate-900 text-sm mb-3">Horaires</h4>
+              <h4 className="font-black text-slate-900 text-sm mb-3">{uiText("pages.Landing", "Horaires")}</h4>
               <div className="space-y-1 text-sm text-slate-500">
                 <div className="flex justify-between">
-                  <span>Lundi au Vendredi</span><span className="font-semibold text-slate-700">{siteConfig.hours.weekdays || '—'}</span>
+                  <span>{uiText("pages.Landing", "Lundi au Vendredi")}</span><span className="font-semibold text-slate-700">{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Samedi</span><span className="font-semibold text-slate-700">{siteConfig.hours.saturday || '—'}</span>
+                  <span>{uiText("pages.Landing", "Samedi")}</span><span className="font-semibold text-slate-700">{siteConfig.hours.saturday || uiText("pages.Landing", "—")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Dimanche</span><span className="font-semibold text-teal-600">{siteConfig.hours.sunday || '—'}</span>
+                  <span>{uiText("pages.Landing", "Dimanche")}</span><span className="font-semibold text-teal-600">{siteConfig.hours.sunday || uiText("pages.Landing", "—")}</span>
                 </div>
               </div>
             </div>
@@ -968,20 +899,17 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
             <div className="mb-4">
               <AutoLinkLogo size="md" />
             </div>
-            <p className="text-sm leading-relaxed mb-5 text-slate-400">
-              AutoLink Pro est la première plateforme numérique de location de véhicules avec
-              chauffeur au Cameroun. Basée à Douala et Yaoundé.
-            </p>
+            <p className="text-sm leading-relaxed mb-5 text-slate-400">{uiText("pages.Landing", "AutoLink Pro est la première plateforme numérique de location de véhicules avec chauffeur au Cameroun. Basée à Douala et Yaoundé.") + " "}</p>
             <div className="hidden">
               {/* Facebook */}
-              <button type="button" aria-label="Facebook"
+              <button type="button" aria-label={uiText("pages.Landing", "Facebook")}
                 className="w-9 h-9 bg-slate-800 hover:bg-teal-600 flex items-center justify-center transition-colors">
                 <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
                 </svg>
               </button>
               {/* Instagram */}
-              <button type="button" aria-label="Instagram"
+              <button type="button" aria-label={uiText("pages.Landing", "Instagram")}
                 className="w-9 h-9 bg-slate-800 hover:bg-teal-600 flex items-center justify-center transition-colors">
                 <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5" strokeWidth={1.8}/>
@@ -989,7 +917,7 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
                 </svg>
               </button>
               {/* WhatsApp */}
-              <button type="button" aria-label="WhatsApp"
+              <button type="button" aria-label={uiText("pages.Landing", "WhatsApp")}
                 className="w-9 h-9 bg-slate-800 hover:bg-teal-600 flex items-center justify-center transition-colors">
                 <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -1000,51 +928,51 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
 
           {/* Informations */}
           <div>
-            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">Informations</h4>
+            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">{uiText("pages.Landing", "Informations")}</h4>
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-teal-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                 </svg>
-                <span>{siteConfig.phones[0] || '—'}</span>
+                <span>{siteConfig.phones[0] || uiText("pages.Landing", "—")}</span>
               </div>
               <div className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-teal-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
-                <span>{siteConfig.addresses[0] || 'Cameroun'}</span>
+                <span>{siteConfig.addresses[0] || uiText("pages.Landing", "Cameroun")}</span>
               </div>
               <div className="flex items-start gap-2">
                 <svg className="w-4 h-4 text-teal-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
-                <span>{siteConfig.contact_email || '—'}</span>
+                <span>{siteConfig.contact_email || uiText("pages.Landing", "—")}</span>
               </div>
             </div>
           </div>
 
           {/* Horaires */}
           <div>
-            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">Horaires</h4>
+            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">{uiText("pages.Landing", "Horaires")}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Lundi au Vendredi</span>
+                <span>{uiText("pages.Landing", "Lundi au Vendredi")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.weekdays || '—'}</div>
+              <div className="text-teal-400 font-semibold">{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}</div>
               <div className="flex justify-between mt-2">
-                <span>Samedi</span>
+                <span>{uiText("pages.Landing", "Samedi")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.saturday || '—'}</div>
+              <div className="text-teal-400 font-semibold">{siteConfig.hours.saturday || uiText("pages.Landing", "—")}</div>
               <div className="flex justify-between mt-2">
-                <span>Dimanche</span>
+                <span>{uiText("pages.Landing", "Dimanche")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.sunday || '—'}</div>
+              <div className="text-teal-400 font-semibold">{siteConfig.hours.sunday || uiText("pages.Landing", "—")}</div>
             </div>
           </div>
 
           {/* Menu */}
           <div>
-            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">Menu</h4>
+            <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">{uiText("pages.Landing", "Menu")}</h4>
             <ul className="space-y-2 text-sm">
               {NAV_LINKS.map(l => (
                 <li key={l.href}>
@@ -1052,11 +980,11 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
                 </li>
               ))}
               {isAuthenticated ? (
-                <li><button onClick={() => navigate(dashboardPath)} className="hover:text-teal-400 transition-colors">Tableau de bord</button></li>
+                <li><button onClick={() => navigate(dashboardPath)} className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "Tableau de bord")}</button></li>
               ) : (
                 <>
-                  <li><button onClick={() => navigate('/login')} className="hover:text-teal-400 transition-colors">Connexion</button></li>
-                  <li><button onClick={() => navigate('/register')} className="hover:text-teal-400 transition-colors">S'inscrire</button></li>
+                  <li><button onClick={() => navigate('/login')} className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "Connexion")}</button></li>
+                  <li><button onClick={() => navigate('/register')} className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "S'inscrire")}</button></li>
                 </>
               )}
             </ul>
@@ -1065,11 +993,11 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
 
         {/* Bottom bar */}
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-          <p>© 2026 AutoLink Pro. Tous droits réservés — Douala & Yaoundé, Cameroun.</p>
+          <p>{uiText("pages.Landing", "© 2026 AutoLink Pro. Tous droits réservés — Douala & Yaoundé, Cameroun.")}</p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-teal-400 transition-colors">Politique de confidentialité</Link>
-            <Link to="/terms" className="hover:text-teal-400 transition-colors">CGU</Link>
-            <Link to="/cookies" className="hover:text-teal-400 transition-colors">Cookies</Link>
+            <Link to="/privacy" className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "Politique de confidentialité")}</Link>
+            <Link to="/terms" className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "CGU")}</Link>
+            <Link to="/cookies" className="hover:text-teal-400 transition-colors">{uiText("pages.Landing", "Cookies")}</Link>
           </div>
         </div>
       </div>
@@ -1100,17 +1028,12 @@ function CookieConsent() {
 
   return (
     <aside className="fixed bottom-4 left-4 right-4 z-[60] mx-auto flex max-w-4xl flex-col gap-4 border border-slate-200 bg-white p-5 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm leading-relaxed text-slate-600">
-        Ce site utilise le stockage local nécessaire à votre session et à la mémorisation de vos choix.{' '}
-        <Link to="/cookies" className="font-semibold text-teal-700 underline">En savoir plus</Link>
+      <p className="text-sm leading-relaxed text-slate-600">{uiText("pages.Landing", "Ce site utilise le stockage local nécessaire à votre session et à la mémorisation de vos choix.")}{' '}
+        <Link to="/cookies" className="font-semibold text-teal-700 underline">{uiText("pages.Landing", "En savoir plus")}</Link>
       </p>
       <div className="flex shrink-0 gap-2">
-        <button onClick={() => saveChoice('rejected')} className="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
-          Refuser
-        </button>
-        <button onClick={() => saveChoice('accepted')} className="bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">
-          Accepter
-        </button>
+        <button onClick={() => saveChoice('rejected')} className="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">{uiText("pages.Landing", "Refuser") + " "}</button>
+        <button onClick={() => saveChoice('accepted')} className="bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">{uiText("pages.Landing", "Accepter") + " "}</button>
       </div>
     </aside>
   );

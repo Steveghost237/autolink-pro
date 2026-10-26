@@ -4,18 +4,19 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { adminVehiclesAPI } from '../../services/api';
+import { formatNumber,  uiText } from '../../i18n';
 
 const SORT_OPTIONS = [
-  { value: 'created_at', label: 'Date d’ajout' },
-  { value: 'brand', label: 'Marque' },
-  { value: 'model', label: 'Modèle' },
-  { value: 'year', label: 'Année' },
-  { value: 'daily_rate', label: 'Tarif' },
-  { value: 'status', label: 'Statut' },
+  { value: 'created_at', label: uiText("pages.admin.CatalogManager", "Date d’ajout") },
+  { value: 'brand', label: uiText("pages.admin.CatalogManager", "Marque") },
+  { value: 'model', label: uiText("pages.admin.CatalogManager", "Modèle") },
+  { value: 'year', label: uiText("pages.admin.CatalogManager", "Année") },
+  { value: 'daily_rate', label: uiText("pages.admin.CatalogManager", "Tarif") },
+  { value: 'status', label: uiText("pages.admin.CatalogManager", "Statut") },
 ];
 const STATUSES = [
-  ['pending', 'À valider'], ['approved', 'Approuvé'], ['suspended', 'Suspendu'],
-  ['rented', 'En location'], ['maintenance', 'Maintenance'],
+  ['pending', uiText("pages.admin.CatalogManager", "À valider")], ['approved', uiText("pages.admin.CatalogManager", "Approuvé")], ['suspended', uiText("pages.admin.CatalogManager", "Suspendu")],
+  ['rented', uiText("pages.admin.CatalogManager", "En location")], ['maintenance', uiText("pages.admin.CatalogManager", "Maintenance")],
 ];
 
 function VehicleEditor({ vehicle, onClose, onSaved }) {
@@ -32,32 +33,31 @@ function VehicleEditor({ vehicle, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'La modification a échoué.');
+      setError(requestError.response?.data?.detail || uiText("pages.admin.CatalogManager", "La modification a échoué."));
     }
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <form onSubmit={save} className="card max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto">
-        <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Modifier le véhicule</h2><button type="button" onClick={onClose}><X /></button></div>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{uiText("pages.admin.CatalogManager", "Modifier le véhicule")}</h2><button type="button" onClick={onClose}><X /></button></div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            ['brand', 'Marque'], ['model', 'Modèle'], ['year', 'Année'], ['plate', 'Immatriculation'],
-            ['category', 'Catégorie'], ['fuel', 'Carburant'], ['seats', 'Places'], ['color', 'Couleur'],
-            ['daily_rate', 'Tarif journalier (FCFA)'],
+            ['brand', uiText("pages.admin.CatalogManager", "Marque")], ['model', uiText("pages.admin.CatalogManager", "Modèle")], ['year', uiText("pages.admin.CatalogManager", "Année")], ['plate', uiText("pages.admin.CatalogManager", "Immatriculation")],
+            ['category', uiText("pages.admin.CatalogManager", "Catégorie")], ['fuel', uiText("pages.admin.CatalogManager", "Carburant")], ['seats', uiText("pages.admin.CatalogManager", "Places")], ['color', uiText("pages.admin.CatalogManager", "Couleur")],
+            ['daily_rate', uiText("pages.admin.CatalogManager", "Tarif journalier (FCFA)")],
           ].map(([key, label]) => (
             <label key={key} className="text-sm">{label}
-              <input required className="input-field mt-1" type={['year', 'seats', 'daily_rate'].includes(key) ? 'number' : 'text'}
+              <input required className="input-field mt-1" type={['year', 'seats', 'daily_rate'].includes(key) ? uiText("pages.admin.CatalogManager", "number") : uiText("pages.admin.CatalogManager", "text")}
                 value={form[key] ?? ''} onChange={event => setForm(value => ({ ...value, [key]: event.target.value }))} />
             </label>
           ))}
-          <label className="text-sm">Statut
-            <select className="input-field mt-1" value={form.status} onChange={event => setForm(value => ({ ...value, status: event.target.value }))}>
+          <label className="text-sm">{uiText("pages.admin.CatalogManager", "Statut") + " "}<select className="input-field mt-1" value={form.status} onChange={event => setForm(value => ({ ...value, status: event.target.value }))}>
               {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
         </div>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <div className="flex gap-2"><button type="button" className="btn-outline flex-1" onClick={onClose}>Annuler</button><button className="btn-primary flex-1">Enregistrer</button></div>
+        <div className="flex gap-2"><button type="button" className="btn-outline flex-1" onClick={onClose}>{uiText("pages.admin.CatalogManager", "Annuler")}</button><button className="btn-primary flex-1">{uiText("pages.admin.CatalogManager", "Enregistrer")}</button></div>
       </form>
     </div>
   );
@@ -85,88 +85,88 @@ export default function CatalogManager() {
       setCount(data.count ?? data.length ?? 0);
       setError('');
     } catch (_) {
-      setError('Impossible de charger les véhicules.');
+      setError(uiText("pages.admin.CatalogManager", "Impossible de charger les véhicules."));
     }
   }, [page, search, status, sortField, sortOrder]);
   useEffect(() => { load(); }, [load]);
 
   const setVehicleStatus = async (vehicle, nextStatus) => {
-    const label = nextStatus === 'approved' ? 'approuver' : vehicle.status === 'pending' ? 'rejeter' : 'suspendre';
+    const label = nextStatus === 'approved' ? uiText("pages.admin.CatalogManager", "approuver") : vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "rejeter") : uiText("pages.admin.CatalogManager", "suspendre");
     if (!(await confirm({
-      title: `Voulez-vous ${label} ce véhicule ?`,
+      title: uiText("pages.admin.CatalogManager", "Voulez-vous {{action}} ce véhicule ?", { action: label }),
       message: `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`,
-      confirmLabel: nextStatus === 'approved' ? 'Approuver' : vehicle.status === 'pending' ? 'Rejeter' : 'Suspendre',
+      confirmLabel: nextStatus === 'approved' ? uiText("pages.admin.CatalogManager", "Approuver") : vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre"),
       danger: nextStatus !== 'approved',
     }))) return;
     try {
       await adminVehiclesAPI.update(vehicle.id, { status: nextStatus });
       await load();
-    } catch (_) { setError('La mise à jour du statut a échoué.'); }
+    } catch (_) { setError(uiText("pages.admin.CatalogManager", "La mise à jour du statut a échoué.")); }
   };
 
   const deleteVehicle = async (vehicle) => {
     if (!(await confirm({
-      title: 'Supprimer ce véhicule ?',
-      message: 'Les véhicules liés à des réservations ne peuvent pas être supprimés.',
-      confirmLabel: 'Supprimer', danger: true,
+      title: uiText("pages.admin.CatalogManager", "Supprimer ce véhicule ?"),
+      message: uiText("pages.admin.CatalogManager", "Les véhicules liés à des réservations ne peuvent pas être supprimés."),
+      confirmLabel: uiText("pages.admin.CatalogManager", "Supprimer"), danger: true,
     }))) return;
     try {
       await adminVehiclesAPI.delete(vehicle.id);
       await load();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'La suppression a échoué.');
+      setError(requestError.response?.data?.detail || uiText("pages.admin.CatalogManager", "La suppression a échoué."));
     }
   };
 
   return (
-    <DashboardLayout title="Gestion des véhicules">
+    <DashboardLayout title={uiText("pages.admin.CatalogManager", "Gestion des véhicules")}>
       <div className="mx-auto max-w-7xl space-y-5">
-        <p className="text-sm text-slate-500">{count} véhicule(s) dans le catalogue</p>
+        <p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.CatalogManager", "véhicule(s) dans le catalogue")}</p>
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <div className="card flex flex-wrap items-center gap-3">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
             sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
-            sortOptions={SORT_OPTIONS} placeholder="Rechercher marque, modèle, immatriculation" />
+            sortOptions={SORT_OPTIONS} placeholder={uiText("pages.admin.CatalogManager", "Rechercher marque, modèle, immatriculation")} />
           <select className="input-field w-auto" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
-            <option value="">Tous les statuts</option>
+            <option value="">{uiText("pages.admin.CatalogManager", "Tous les statuts")}</option>
             {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
         <div className="card overflow-x-auto p-0">
           <table className="w-full min-w-[850px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>{['Véhicule', 'Propriétaire', 'Catégorie', 'Tarif/jour', 'Statut', 'Actions'].map(label => <th key={label} className="px-4 py-3">{label}</th>)}</tr>
+              <tr>{["Véhicule", "Propriétaire", "Catégorie", "Tarif/jour", "Statut", "Actions"].map(label => <th key={label} className="px-4 py-3">{uiText("pages.admin.CatalogManager", label)}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {vehicles.map(vehicle => (
                 <tr key={vehicle.id}>
                   <td className="px-4 py-3">
-                    <div className="font-semibold">{vehicle.brand} {vehicle.model} ({vehicle.year})</div>
+                    <div className="font-semibold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.admin.CatalogManager", "(")}{vehicle.year}{uiText("pages.admin.CatalogManager", ")")}</div>
                     <div className="text-xs text-slate-500">{vehicle.plate}</div>
                   </td>
                   <td className="px-4 py-3">{vehicle.owner_name || vehicle.owner}</td>
                   <td className="px-4 py-3">{vehicle.category}</td>
-                  <td className="px-4 py-3">{Number(vehicle.daily_rate).toLocaleString('fr-FR')} FCFA</td>
+                  <td className="px-4 py-3">{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.admin.CatalogManager", "FCFA")}</td>
                   <td className="px-4 py-3">{STATUSES.find(([value]) => value === vehicle.status)?.[1] || vehicle.status}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      <button title="Modifier" className="rounded-lg p-2 text-blue-600" onClick={() => setEditing(vehicle)}><Edit3 size={16} /></button>
-                      {vehicle.status === 'pending' && <button title="Approuver" className="rounded-lg p-2 text-emerald-600" onClick={() => setVehicleStatus(vehicle, 'approved')}><Check size={16} /></button>}
-                      {vehicle.status !== 'suspended' && <button title={vehicle.status === 'pending' ? 'Rejeter' : 'Suspendre'} className="rounded-lg p-2 text-amber-600" onClick={() => setVehicleStatus(vehicle, 'suspended')}>{vehicle.status === 'pending' ? 'Rejeter' : 'Suspendre'}</button>}
-                      <button title="Supprimer" className="rounded-lg p-2 text-red-600" onClick={() => deleteVehicle(vehicle)}><Trash2 size={16} /></button>
+                      <button title={uiText("pages.admin.CatalogManager", "Modifier")} className="rounded-lg p-2 text-blue-600" onClick={() => setEditing(vehicle)}><Edit3 size={16} /></button>
+                      {vehicle.status === 'pending' && <button title={uiText("pages.admin.CatalogManager", "Approuver")} className="rounded-lg p-2 text-emerald-600" onClick={() => setVehicleStatus(vehicle, 'approved')}><Check size={16} /></button>}
+                      {vehicle.status !== 'suspended' && <button title={vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")} className="rounded-lg p-2 text-amber-600" onClick={() => setVehicleStatus(vehicle, 'suspended')}>{vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")}</button>}
+                      <button title={uiText("pages.admin.CatalogManager", "Supprimer")} className="rounded-lg p-2 text-red-600" onClick={() => deleteVehicle(vehicle)}><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {vehicles.length === 0 && <p className="p-10 text-center text-slate-500">Aucun véhicule trouvé.</p>}
+          {vehicles.length === 0 && <p className="p-10 text-center text-slate-500">{uiText("pages.admin.CatalogManager", "Aucun véhicule trouvé.")}</p>}
           <div className="flex items-center justify-between border-t p-4 text-sm">
-            <span>Page {page} / {Math.max(1, Math.ceil(count / 20))}</span>
+            <span>{uiText("pages.admin.CatalogManager", "Page") + " "}{page}{" " + uiText("pages.admin.CatalogManager", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
             <div className="flex gap-2">
-              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Précédent</button>
-              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>Suivant</button>
+              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>{uiText("pages.admin.CatalogManager", "Précédent")}</button>
+              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>{uiText("pages.admin.CatalogManager", "Suivant")}</button>
             </div>
           </div>
         </div>

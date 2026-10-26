@@ -391,28 +391,64 @@ class BookingViewSet(viewsets.ModelViewSet):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from apps.users.email_utils import get_user_language
+
+        language = get_user_language(booking.client)
         buffer = BytesIO()
         document = SimpleDocTemplate(buffer, pagesize=A4)
         styles = getSampleStyleSheet()
         try:
             payment = booking.payment
-            method, payment_status = payment.get_method_display(), payment.get_status_display()
+            method = payment.get_method_display()
+            payment_status = payment.get_status_display()
+            if language == 'en':
+                method = {
+                    'wallet': 'Wallet',
+                    'mtn': 'MTN Mobile Money',
+                    'orange': 'Orange Money',
+                    'senbid': 'SenBid',
+                    'paybid': 'PayBid',
+                    'stripe': 'Card (Stripe)',
+                    'paypal': 'PayPal',
+                }.get(payment.method, method)
+                payment_status = {
+                    'pending': 'Pending',
+                    'completed': 'Confirmed',
+                    'failed': 'Failed',
+                    'refunded': 'Refunded',
+                }.get(payment.status, payment_status)
         except Exception:
-            method, payment_status = '—', 'En attente'
-        lines = [
-            '<b>AutoLink Pro</b>',
-            f'Contact : {settings.CONTACT_EMAIL}',
-            f'Reçu de réservation BK-{booking.pk:04d}',
-            f'Client : {escape(booking.client.get_full_name())} ({escape(booking.client.email)})',
-            f'Véhicule : {escape(booking.vehicle.brand)} {escape(booking.vehicle.model)} — {escape(booking.vehicle.plate)}',
-            f'Dates : {booking.start_date} au {booking.end_date} ({booking.days} jour(s))',
-            f'Tarif journalier : {booking.daily_rate} FCFA',
-            f'Remise : {booking.discount_percent} %',
-            f'Sous-total : {booking.subtotal} FCFA',
-            f'Caution : {booking.deposit_amount} FCFA',
-            f'Moyen de paiement : {method} — {payment_status}',
-            f'Date d’émission : {timezone.localdate()}',
-        ]
+            method, payment_status = '—', 'Pending' if language == 'en' else 'En attente'
+        if language == 'en':
+            lines = [
+                '<b>AutoLink Pro</b>',
+                f'Contact: {settings.CONTACT_EMAIL}',
+                f'Booking receipt BK-{booking.pk:04d}',
+                f'Client: {escape(booking.client.get_full_name())} ({escape(booking.client.email)})',
+                f'Vehicle: {escape(booking.vehicle.brand)} {escape(booking.vehicle.model)} — {escape(booking.vehicle.plate)}',
+                f'Dates: {booking.start_date.isoformat()} to {booking.end_date.isoformat()} ({booking.days} days)',
+                f'Daily rate: {booking.daily_rate} FCFA',
+                f'Discount: {booking.discount_percent}%',
+                f'Subtotal: {booking.subtotal} FCFA',
+                f'Deposit: {booking.deposit_amount} FCFA',
+                f'Payment method: {method} — {payment_status}',
+                f'Issue date: {timezone.localdate().isoformat()}',
+            ]
+        else:
+            lines = [
+                '<b>AutoLink Pro</b>',
+                f'Contact : {settings.CONTACT_EMAIL}',
+                f'Reçu de réservation BK-{booking.pk:04d}',
+                f'Client : {escape(booking.client.get_full_name())} ({escape(booking.client.email)})',
+                f'Véhicule : {escape(booking.vehicle.brand)} {escape(booking.vehicle.model)} — {escape(booking.vehicle.plate)}',
+                f'Dates : {booking.start_date} au {booking.end_date} ({booking.days} jour(s))',
+                f'Tarif journalier : {booking.daily_rate} FCFA',
+                f'Remise : {booking.discount_percent} %',
+                f'Sous-total : {booking.subtotal} FCFA',
+                f'Caution : {booking.deposit_amount} FCFA',
+                f'Moyen de paiement : {method} — {payment_status}',
+                f'Date d’émission : {timezone.localdate()}',
+            ]
         story = []
         for line in lines:
             story.extend((Paragraph(line, styles['Normal']), Spacer(1, 10)))
@@ -436,14 +472,28 @@ class BookingViewSet(viewsets.ModelViewSet):
     def email_receipt(self, request, pk=None):
         booking = self._receipt_booking(pk)
         self._can_access_receipt(booking, request.user)
+        from apps.users.email_utils import get_user_language
+
+        language = get_user_language(booking.client)
+        reference = f'BK-{booking.pk:04d}'
+        if language == 'en':
+            subject = f'Your AutoLink Pro receipt — {reference}'
+            body = 'Please find your booking receipt attached.'
+            filename = f'receipt-{reference}.pdf'
+            detail = 'Receipt sent by email.'
+        else:
+            subject = f'Votre reçu AutoLink Pro — {reference}'
+            body = 'Veuillez trouver votre reçu de réservation en pièce jointe.'
+            filename = f'recu-{reference}.pdf'
+            detail = 'Reçu envoyé par email.'
         email = EmailMessage(
-            subject=f'Votre reçu AutoLink Pro — BK-{booking.pk:04d}',
-            body='Veuillez trouver votre reçu de réservation en pièce jointe.',
+            subject=subject,
+            body=body,
             to=[booking.client.email],
         )
-        email.attach(f'recu-BK-{booking.pk:04d}.pdf', self._receipt_pdf(booking), 'application/pdf')
+        email.attach(filename, self._receipt_pdf(booking), 'application/pdf')
         email.send(fail_silently=False)
-        return Response({'detail': 'Reçu envoyé par email.'}, status=status.HTTP_200_OK)
+        return Response({'detail': detail}, status=status.HTTP_200_OK)
 
     @staticmethod
     def _receipt_booking(pk):

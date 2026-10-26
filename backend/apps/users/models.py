@@ -17,6 +17,11 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_verified = models.BooleanField(default=False)
     newsletter_opt_in = models.BooleanField(default=True)
+    language = models.CharField(
+        max_length=2,
+        choices=(('fr', 'Français'), ('en', 'English')),
+        default='fr',
+    )
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     id_document = models.ImageField(upload_to='kyc/', null=True, blank=True)
     id_document_verified = models.BooleanField(default=False)

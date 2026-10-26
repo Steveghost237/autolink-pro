@@ -3,35 +3,36 @@ import { Camera, Car, ClipboardList, X } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { inspectionsAPI } from '../../services/api';
+import { formatDateTime,  uiText } from '../../i18n';
 
 const INSPECTION_ITEMS = {
   exterior: {
-    label: 'Extérieur',
-    items: ['Carrosserie avant', 'Carrosserie arrière', 'Côté gauche', 'Côté droit', 'Toit', 'Pare-brise avant', 'Pare-brise arrière', 'Jantes et pneus', 'Rétroviseurs', 'Feux avant', 'Feux arrière', 'Plaque immatriculation'],
+    label: uiText("pages.admin.VehicleInspection", "Extérieur"),
+    items: ["Carrosserie avant", "Carrosserie arrière", "Côté gauche", "Côté droit", "Toit", "Pare-brise avant", "Pare-brise arrière", "Jantes et pneus", "Rétroviseurs", "Feux avant", "Feux arrière", "Plaque immatriculation"].map(item => uiText("pages.admin.VehicleInspection", item)),
   },
   interior: {
-    label: 'Intérieur',
-    items: ['Tableau de bord', 'Sièges avant', 'Sièges arrière', 'Tapis de sol', 'Volant', 'Ceintures de sécurité', 'Climatisation', 'Autoradio / GPS', 'Rétroviseur intérieur', 'Coffre'],
+    label: uiText("pages.admin.VehicleInspection", "Intérieur"),
+    items: ["Tableau de bord", "Sièges avant", "Sièges arrière", "Tapis de sol", "Volant", "Ceintures de sécurité", "Climatisation", "Autoradio / GPS", "Rétroviseur intérieur", "Coffre"].map(item => uiText("pages.admin.VehicleInspection", item)),
   },
   mechanical: {
-    label: 'Mécanique',
-    items: ['Niveau huile moteur', 'Liquide refroidissement', 'Liquide frein', 'Batterie', 'Freins avant', 'Freins arrière', 'Suspension', 'Direction', 'Boîte de vitesses', 'Pot d’échappement'],
+    label: uiText("pages.admin.VehicleInspection", "Mécanique"),
+    items: ["Niveau huile moteur", "Liquide refroidissement", "Liquide frein", "Batterie", "Freins avant", "Freins arrière", "Suspension", "Direction", "Boîte de vitesses", "Pot d’échappement"].map(item => uiText("pages.admin.VehicleInspection", item)),
   },
   documents: {
-    label: 'Documents',
-    items: ['Carte grise', 'Assurance à jour', 'Visite technique', 'Kit sécurité', 'Extincteur', 'Roue de secours'],
+    label: uiText("pages.admin.VehicleInspection", "Documents"),
+    items: ["Carte grise", "Assurance à jour", "Visite technique", "Kit sécurité", "Extincteur", "Roue de secours"].map(item => uiText("pages.admin.VehicleInspection", item)),
   },
 };
 
 const QUEUE_SORT = [
-  { value: 'start_date', label: 'Début de réservation' },
-  { value: 'end_date', label: 'Fin de réservation' },
-  { value: 'vehicle__brand', label: 'Véhicule' },
+  { value: 'start_date', label: uiText("pages.admin.VehicleInspection", "Début de réservation") },
+  { value: 'end_date', label: uiText("pages.admin.VehicleInspection", "Fin de réservation") },
+  { value: 'vehicle__brand', label: uiText("pages.admin.VehicleInspection", "Véhicule") },
 ];
 const INSPECTION_SORT = [
-  { value: 'inspection_date', label: 'Date' },
-  { value: 'condition_score', label: 'Score' },
-  { value: 'mileage_at_inspection', label: 'Kilométrage' },
+  { value: 'inspection_date', label: uiText("pages.admin.VehicleInspection", "Date") },
+  { value: 'condition_score', label: uiText("pages.admin.VehicleInspection", "Score") },
+  { value: 'mileage_at_inspection', label: uiText("pages.admin.VehicleInspection", "Kilométrage") },
 ];
 
 function InspectionForm({ booking, onClose, onSaved }) {
@@ -75,7 +76,7 @@ function InspectionForm({ booking, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Impossible d’enregistrer la fiche. Vérifiez les champs.');
+      setError(requestError.response?.data?.detail || uiText("pages.admin.VehicleInspection", "Impossible d’enregistrer la fiche. Vérifiez les champs."));
     } finally {
       setSaving(false);
     }
@@ -86,22 +87,20 @@ function InspectionForm({ booking, onClose, onSaved }) {
       <form onSubmit={submit} className="mx-auto my-6 max-w-3xl rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-start justify-between rounded-t-2xl border-b bg-white p-5">
           <div>
-            <h2 className="font-bold">Fiche d’inspection — {booking.inspection_type === 'entry' ? 'entrée' : 'sortie'}</h2>
-            <p className="text-sm text-slate-500">{booking.vehicle} · {booking.plate} · {booking.client} · {booking.booking_reference}</p>
+            <h2 className="font-bold">{uiText("pages.admin.VehicleInspection", "Fiche d’inspection —") + " "}{booking.inspection_type === 'entry' ? uiText("pages.admin.VehicleInspection", "entrée") : uiText("pages.admin.VehicleInspection", "sortie")}</h2>
+            <p className="text-sm text-slate-500">{booking.vehicle}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.plate}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
           </div>
-          <button type="button" aria-label="Fermer" onClick={onClose}><X size={20} /></button>
+          <button type="button" aria-label={uiText("pages.admin.VehicleInspection", "Fermer")} onClick={onClose}><X size={20} /></button>
         </div>
         <div className="space-y-6 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="label">Kilométrage
-              <input required min="0" type="number" className="input-field mt-1" value={mileage} onChange={event => setMileage(event.target.value)} />
+            <label className="label">{uiText("pages.admin.VehicleInspection", "Kilométrage") + " "}<input required min="0" type="number" className="input-field mt-1" value={mileage} onChange={event => setMileage(event.target.value)} />
             </label>
-            <label className="label">Carburant ({fuel}%)
-              <input type="range" min="0" max="100" className="mt-3 w-full" value={fuel} onChange={event => setFuel(Number(event.target.value))} />
+            <label className="label">{uiText("pages.admin.VehicleInspection", "Carburant (")}{fuel}{uiText("pages.admin.VehicleInspection", "%)") + " "}<input type="range" min="0" max="100" className="mt-3 w-full" value={fuel} onChange={event => setFuel(Number(event.target.value))} />
             </label>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">
-            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">État général</h3><strong>{score}/100</strong></div>
+            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">{uiText("pages.admin.VehicleInspection", "État général")}</h3><strong>{score}{uiText("pages.admin.VehicleInspection", "/100")}</strong></div>
             <div className="space-y-5">
               {Object.entries(INSPECTION_ITEMS).map(([key, category]) => (
                 <section key={key}>
@@ -111,7 +110,7 @@ function InspectionForm({ booking, onClose, onSaved }) {
                       <label key={item} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm">
                         <span>{item}</span>
                         <select className="input-field w-28 py-1" value={checks[item] || ''} required onChange={event => setChecks(current => ({ ...current, [item]: event.target.value }))}>
-                          <option value="" disabled>État</option><option value="ok">Bon</option><option value="nok">À signaler</option>
+                          <option value="" disabled>{uiText("pages.admin.VehicleInspection", "État")}</option><option value="ok">{uiText("pages.admin.VehicleInspection", "Bon")}</option><option value="nok">{uiText("pages.admin.VehicleInspection", "À signaler")}</option>
                         </select>
                       </label>
                     ))}
@@ -120,17 +119,15 @@ function InspectionForm({ booking, onClose, onSaved }) {
               ))}
             </div>
           </div>
-          <label className="label">Photos de l’inspection
-            <input type="file" accept="image/*" multiple className="input-field mt-1" onChange={event => setPhotos(Array.from(event.target.files || []))} />
+          <label className="label">{uiText("pages.admin.VehicleInspection", "Photos de l’inspection") + " "}<input type="file" accept="image/*" multiple className="input-field mt-1" onChange={event => setPhotos(Array.from(event.target.files || []))} />
           </label>
-          <label className="label">Notes
-            <textarea className="input-field mt-1" rows="3" value={notes} onChange={event => setNotes(event.target.value)} />
+          <label className="label">{uiText("pages.admin.VehicleInspection", "Notes") + " "}<textarea className="input-field mt-1" rows="3" value={notes} onChange={event => setNotes(event.target.value)} />
           </label>
           {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </div>
         <div className="flex gap-3 border-t p-5">
-          <button type="button" onClick={onClose} className="btn-outline flex-1">Annuler</button>
-          <button disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer la fiche'}</button>
+          <button type="button" onClick={onClose} className="btn-outline flex-1">{uiText("pages.admin.VehicleInspection", "Annuler")}</button>
+          <button disabled={saving} className="btn-primary flex-1">{saving ? uiText("pages.admin.VehicleInspection", "Enregistrement…") : uiText("pages.admin.VehicleInspection", "Enregistrer la fiche")}</button>
         </div>
       </form>
     </div>
@@ -141,10 +138,10 @@ function Pagination({ page, count, onPageChange }) {
   const pages = Math.max(1, Math.ceil(count / 20));
   return (
     <div className="flex items-center justify-between text-sm">
-      <span>Page {page} / {pages} · {count} résultat(s)</span>
+      <span>{uiText("pages.admin.VehicleInspection", "Page") + " "}{page}{" " + uiText("pages.admin.VehicleInspection", "/") + " "}{pages}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{count}{" " + uiText("pages.admin.VehicleInspection", "résultat(s)")}</span>
       <div className="flex gap-2">
-        <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Précédent</button>
-        <button className="btn-outline px-3 py-1" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Suivant</button>
+        <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>{uiText("pages.admin.VehicleInspection", "Précédent")}</button>
+        <button className="btn-outline px-3 py-1" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>{uiText("pages.admin.VehicleInspection", "Suivant")}</button>
       </div>
     </div>
   );
@@ -174,7 +171,7 @@ export default function VehicleInspection() {
       setCount(data.count || 0);
       setError('');
     } catch (_) {
-      setError('Impossible de charger les inspections.');
+      setError(uiText("pages.admin.VehicleInspection", "Impossible de charger les inspections."));
     }
   }, [page, search, sortField, sortOrder, tab]);
   useEffect(() => { load(); }, [load]);
@@ -187,15 +184,15 @@ export default function VehicleInspection() {
   };
 
   return (
-    <DashboardLayout title="Inspections véhicules">
+    <DashboardLayout title={uiText("pages.admin.VehicleInspection", "Inspections véhicules")}>
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="card flex flex-wrap gap-2">
           {[
-            ['entry', 'Fiches d’entrée'],
-            ['exit', 'Fiches de sortie'],
-            ['completed', 'Inspections enregistrées'],
+            ['entry', uiText("pages.admin.VehicleInspection", "Fiches d’entrée")],
+            ['exit', uiText("pages.admin.VehicleInspection", "Fiches de sortie")],
+            ['completed', uiText("pages.admin.VehicleInspection", "Inspections enregistrées")],
           ].map(([value, label]) => (
-            <button key={value} onClick={() => changeTab(value)} className={tab === value ? 'btn-primary' : 'btn-outline'}>{label}</button>
+            <button key={value} onClick={() => changeTab(value)} className={tab === value ? uiText("pages.admin.VehicleInspection", "btn-primary") : uiText("pages.admin.VehicleInspection", "btn-outline")}>{label}</button>
           ))}
         </div>
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -204,33 +201,33 @@ export default function VehicleInspection() {
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
             sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
             sortOptions={tab === 'completed' ? INSPECTION_SORT : QUEUE_SORT}
-            placeholder="Rechercher véhicule, client, plaque" />
+            placeholder={uiText("pages.admin.VehicleInspection", "Rechercher véhicule, client, plaque")} />
         </div>
         <div className="space-y-3">
           {tab !== 'completed' ? items.map(booking => (
             <article key={booking.id} className="card flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="font-semibold"><Car size={16} className="mr-2 inline" />{booking.vehicle} · {booking.plate}</h2>
-                <p className="text-sm text-slate-500">{booking.client} · {booking.booking_reference}</p>
-                <p className="text-xs text-slate-500">{booking.start_date} — {booking.end_date} · {booking.mileage} km · Carburant {booking.fuel_level}%</p>
+                <h2 className="font-semibold"><Car size={16} className="mr-2 inline" />{booking.vehicle}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.plate}</h2>
+                <p className="text-sm text-slate-500">{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
+                <p className="text-xs text-slate-500">{formatDateTime(booking.start_date)}{" " + uiText("pages.admin.VehicleInspection", "—") + " "}{formatDateTime(booking.end_date)}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{formatNumber(booking.mileage)}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{booking.fuel_level}{uiText("pages.admin.VehicleInspection", "%")}</p>
               </div>
-              <button className="btn-primary flex items-center gap-2" onClick={() => setSelected(booking)}><ClipboardList size={16} /> Inspecter</button>
+              <button className="btn-primary flex items-center gap-2" onClick={() => setSelected(booking)}><ClipboardList size={16} />{" " + uiText("pages.admin.VehicleInspection", "Inspecter")}</button>
             </article>
           )) : items.map(inspection => (
             <article key={inspection.id} className="card">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-semibold">{inspection.inspection_type === 'entry' ? 'Entrée' : 'Sortie'} · {inspection.vehicle_name} ({inspection.vehicle_plate})</h2>
-                  <p className="text-sm text-slate-500">{new Date(inspection.inspection_date).toLocaleString('fr-FR')} · Contrôleur : {inspection.controller_name || '—'}</p>
-                  <p className="text-sm text-slate-500">{inspection.mileage_at_inspection} km · Carburant {inspection.fuel_level}% · {inspection.issues?.length || 0} remarque(s)</p>
+                  <h2 className="font-semibold">{inspection.inspection_type === 'entry' ? uiText("pages.admin.VehicleInspection", "Entrée") : uiText("pages.admin.VehicleInspection", "Sortie")}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{inspection.vehicle_name}{" " + uiText("pages.admin.VehicleInspection", "(")}{inspection.vehicle_plate}{uiText("pages.admin.VehicleInspection", ")")}</h2>
+                  <p className="text-sm text-slate-500">{formatDateTime(new Date(inspection.inspection_date))}{" " + uiText("pages.admin.VehicleInspection", "· Contrôleur :") + " "}{inspection.controller_name || uiText("pages.admin.VehicleInspection", "—")}</p>
+                  <p className="text-sm text-slate-500">{inspection.mileage_at_inspection}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{inspection.fuel_level}{uiText("pages.admin.VehicleInspection", "% ·") + " "}{inspection.issues?.length || 0}{" " + uiText("pages.admin.VehicleInspection", "remarque(s)")}</p>
                 </div>
-                <strong>{inspection.condition_score}/100</strong>
+                <strong>{inspection.condition_score}{uiText("pages.admin.VehicleInspection", "/100")}</strong>
               </div>
               {inspection.notes && <p className="mt-3 text-sm">{inspection.notes}</p>}
               {inspection.photos?.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{inspection.photos.map(photo => <a key={photo.id} href={photo.image} target="_blank" rel="noreferrer" className="text-sm text-primary-700"><Camera size={14} className="mr-1 inline" />{photo.caption}</a>)}</div>}
             </article>
           ))}
-          {items.length === 0 && <div className="card py-12 text-center text-slate-500">Aucune inspection à afficher.</div>}
+          {items.length === 0 && <div className="card py-12 text-center text-slate-500">{uiText("pages.admin.VehicleInspection", "Aucune inspection à afficher.")}</div>}
         </div>
         <Pagination page={page} count={count} onPageChange={setPage} />
       </div>

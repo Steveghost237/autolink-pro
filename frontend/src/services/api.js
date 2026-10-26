@@ -23,6 +23,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('autolink_access');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['Accept-Language'] = localStorage.getItem('lang') || 'fr';
   return config;
 });
 

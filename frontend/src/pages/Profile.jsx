@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, Shield, Wallet, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
+import { formatNumber, formatDate,  uiText } from '../i18n';
 
 const ROLE_LABELS = {
-  CLIENT: 'Client', OWNER: 'Gestionnaire / Propriétaire', DRIVER: 'Chauffeur',
-  ADMIN: 'Administrateur', CONTROLLER: 'Contrôleur',
+  CLIENT: uiText("pages.Profile", "Client"),
+  OWNER: uiText("pages.Profile", "Gestionnaire / Propriétaire"),
+  DRIVER: uiText("pages.Profile", "Chauffeur"),
+  ADMIN: uiText("pages.Profile", "Administrateur"),
+  CONTROLLER: uiText("pages.Profile", "Contrôleur"),
 };
 
 export default function Profile() {
@@ -40,8 +44,8 @@ export default function Profile() {
       phone: form.phone,
     });
     setMsg(res.success
-      ? { ok: true, text: res.offline ? 'Profil mis à jour localement — synchronisation au retour de la connexion.' : 'Profil mis à jour avec succès.' }
-      : { ok: false, text: res.error || 'Erreur lors de la mise à jour.' });
+      ? { ok: true, text: res.offline ? uiText("pages.Profile", "Profil mis à jour localement — synchronisation au retour de la connexion.") : uiText("pages.Profile", "Profil mis à jour avec succès.") }
+      : { ok: false, text: res.error || uiText("pages.Profile", "Erreur lors de la mise à jour.") });
     setSaving(false);
   };
 
@@ -50,7 +54,7 @@ export default function Profile() {
     || form.phone !== (user?.phone || '');
 
   return (
-    <DashboardLayout title="Mon profil">
+    <DashboardLayout title={uiText("pages.Profile", "Mon profil")}>
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Carte identité */}
@@ -63,9 +67,9 @@ export default function Profile() {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className="badge badge-info">{ROLE_LABELS[user?.role] || user?.role}</span>
               {user?.is_verified || user?.verified ? (
-                <span className="badge badge-success flex items-center gap-1"><CheckCircle size={11} /> Vérifié</span>
+                <span className="badge badge-success flex items-center gap-1"><CheckCircle size={11} />{" " + uiText("pages.Profile", "Vérifié")}</span>
               ) : (
-                <span className="badge badge-warning">Non vérifié</span>
+                <span className="badge badge-warning">{uiText("pages.Profile", "Non vérifié")}</span>
               )}
             </div>
             <div className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
@@ -81,12 +85,12 @@ export default function Profile() {
               <div className="flex items-center gap-3">
                 <Wallet size={24} />
                 <div>
-                  <div className="text-sm text-primary-100">Solde AutoLink</div>
-                  <div className="text-2xl font-black">{Number(user.balance).toLocaleString()} FCFA</div>
+                  <div className="text-sm text-primary-100">{uiText("pages.Profile", "Solde AutoLink")}</div>
+                  <div className="text-2xl font-black">{formatNumber(Number(user.balance))}{" " + uiText("pages.Profile", "FCFA")}</div>
                 </div>
               </div>
               {user.role === 'CLIENT' && (
-                <div className="text-xs text-primary-100 text-right">Rechargez depuis votre tableau de bord</div>
+                <div className="text-xs text-primary-100 text-right">{uiText("pages.Profile", "Rechargez depuis votre tableau de bord")}</div>
               )}
             </div>
           </div>
@@ -95,26 +99,25 @@ export default function Profile() {
         {/* Formulaire d'édition */}
         <form onSubmit={save} className="card space-y-4">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <User size={17} /> Informations personnelles
-          </h3>
+            <User size={17} />{" " + uiText("pages.Profile", "Informations personnelles") + " "}</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Prénom</label>
+              <label className="label">{uiText("pages.Profile", "Prénom")}</label>
               <input type="text" className="input-field" value={form.first_name} onChange={e => set('first_name', e.target.value)} />
             </div>
             <div>
-              <label className="label">Nom</label>
+              <label className="label">{uiText("pages.Profile", "Nom")}</label>
               <input type="text" className="input-field" value={form.last_name} onChange={e => set('last_name', e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="label">Téléphone</label>
-            <input type="tel" className="input-field" placeholder="+237 6XX XX XX XX" value={form.phone} onChange={e => set('phone', e.target.value)} />
+            <label className="label">{uiText("pages.Profile", "Téléphone")}</label>
+            <input type="tel" className="input-field" placeholder={uiText("pages.Profile", "+237 6XX XX XX XX")} value={form.phone} onChange={e => set('phone', e.target.value)} />
           </div>
           <div>
-            <label className="label">Email</label>
+            <label className="label">{uiText("pages.Profile", "Email")}</label>
             <input type="email" className="input-field bg-slate-50 dark:bg-slate-800 cursor-not-allowed" value={user?.email || ''} disabled />
-            <p className="text-xs text-slate-400 mt-1">L'adresse email ne peut pas être modifiée — contactez le support.</p>
+            <p className="text-xs text-slate-400 mt-1">{uiText("pages.Profile", "L'adresse email ne peut pas être modifiée — contactez le support.")}</p>
           </div>
 
           {msg && (
@@ -127,7 +130,7 @@ export default function Profile() {
             <button type="submit" disabled={saving || !dirty}
               className="btn-primary py-2.5 px-6 disabled:opacity-50 flex items-center gap-2">
               {saving && <Loader size={15} className="animate-spin" />}
-              {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+              {saving ? uiText("pages.Profile", "Enregistrement…") : uiText("pages.Profile", "Enregistrer les modifications")}
             </button>
           </div>
         </form>
@@ -135,11 +138,10 @@ export default function Profile() {
         {/* Compte */}
         <div className="card">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
-            <Shield size={17} /> Compte
-          </h3>
+            <Shield size={17} />{" " + uiText("pages.Profile", "Compte") + " "}</h3>
           <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
-            <div>Membre depuis le {user?.created_at ? new Date(user.created_at).toLocaleDateString('fr-FR') : '—'}</div>
-            <div>Identifiant : <span className="font-mono">{user?.username || user?.email}</span></div>
+            <div>{uiText("pages.Profile", "Membre depuis le") + " "}{user?.created_at ? formatDate(new Date(user.created_at)) : uiText("pages.Profile", "—")}</div>
+            <div>{uiText("pages.Profile", "Identifiant :") + " "}<span className="font-mono">{user?.username || user?.email}</span></div>
           </div>
         </div>
       </div>

@@ -16,7 +16,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
-from .email_utils import send_login_notification, send_welcome_email
+from .email_utils import (
+    contact_acknowledgement,
+    get_request_language,
+    get_user_language,
+    send_login_notification,
+    send_welcome_email,
+)
 from .models import ContactMessage, NewsletterCampaign, User, Notification, LoginCode
 from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer
 
@@ -50,11 +56,16 @@ class ContactAPIView(APIView):
                 fail_silently=False,
             )
             if message.email:
+                language = (
+                    request.user.language
+                    if request.user.is_authenticated
+                    else get_request_language(request)
+                )
+                subject, acknowledgement = contact_acknowledgement(
+                    message.first_name, language)
                 send_mail(
-                    subject='AutoLink Pro — Demande bien reçue',
-                    message=f"Bonjour {message.first_name},\n\n"
-                            "Nous avons bien reçu votre message et vous répondrons "
-                            "dans les meilleurs délais.\n\nL'équipe AutoLink Pro",
+                    subject=subject,
+                    message=acknowledgement,
                     from_email=None,
                     recipient_list=[message.email],
                     fail_silently=False,
@@ -160,7 +171,12 @@ class NewsletterSendView(APIView):
             )
             unsubscribe_url = f'{unsubscribe_base}?{urlencode({"token": token})}'
             plain_content = text_body or strip_tags(html_body)
-            plain_content = f'{plain_content}\n\nSe désinscrire : {unsubscribe_url}'
+            if get_user_language(user) == 'en':
+                plain_content = f'{plain_content}\n\nUnsubscribe: {unsubscribe_url}'
+                unsubscribe_label = 'Unsubscribe'
+            else:
+                plain_content = f'{plain_content}\n\nSe désinscrire : {unsubscribe_url}'
+                unsubscribe_label = 'Se désinscrire'
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=plain_content,
@@ -171,7 +187,7 @@ class NewsletterSendView(APIView):
             if html_body:
                 html_content = (
                     f'{html_body}\n<p><a href="{escape(unsubscribe_url)}">'
-                    'Se désinscrire</a></p>'
+                    f'{unsubscribe_label}</a></p>'
                 )
                 email.attach_alternative(html_content, 'text/html')
             messages.append(email)
@@ -210,7 +226,8 @@ class GoogleAuthView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        serializer = GoogleAuthSerializer(data=request.data)
+        serializer = GoogleAuthSerializer(
+            data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data)
 
@@ -223,7 +240,7 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        user = serializer.save(language=get_request_language(request))
         send_welcome_email(user)
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -243,8 +260,24 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 # ─── Connexion par code email (OTP) ───────────────────────────────────────────
 
-def _otp_email_html(code, first_name):
+def _otp_email_html(code, first_name, language='fr'):
     """Email HTML stylé avec le code de connexion à 6 chiffres."""
+    if language == 'en':
+        greeting = f'Hello {first_name or ""},'
+        introduction = (
+            'Here is your AutoLink Pro sign-in code. It is valid for '
+            '<strong>10 minutes</strong>.'
+        )
+        ignore = 'If you did not request this code, you can ignore this email.'
+        footer = 'Vehicle rental in Cameroon'
+    else:
+        greeting = f'Bonjour {first_name or ""},'
+        introduction = (
+            'Voici votre code de connexion AutoLink Pro. Il est valable '
+            '<strong>10 minutes</strong>.'
+        )
+        ignore = "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email."
+        footer = 'Location de véhicules au Cameroun'
     digits = ''.join(
         f'<td style="width:44px;height:52px;background:#0B2447;color:#fff;'
         f'font-size:26px;font-weight:800;text-align:center;border-radius:10px;'
@@ -259,17 +292,17 @@ def _otp_email_html(code, first_name):
       <span style="color:#D97706;font-size:13px">PRO</span></span>
   </div>
   <div style="background:#fff;border-radius:14px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-    <h2 style="margin:0 0 8px;color:#0F172A;font-size:18px">Bonjour {first_name or ''},</h2>
+    <h2 style="margin:0 0 8px;color:#0F172A;font-size:18px">{greeting}</h2>
     <p style="color:#475569;font-size:14px;margin:0 0 20px">
-      Voici votre code de connexion AutoLink Pro. Il est valable <strong>10 minutes</strong>.
+      {introduction}
     </p>
     <table align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 20px"><tr>{digits}</tr></table>
     <p style="color:#94A3B8;font-size:12px;margin:0;text-align:center">
-      Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+      {ignore}
     </p>
   </div>
   <p style="text-align:center;color:#94A3B8;font-size:11px;margin-top:20px">
-    AutoLink Pro — Location de véhicules au Cameroun
+    AutoLink Pro — {footer}
   </p>
 </div>"""
 
@@ -291,17 +324,33 @@ class OTPRequestView(APIView):
         if recent:
             return Response({'detail': 'Un code vient déjà d\'être envoyé. Patientez une minute.'}, status=429)
 
+        existing_user = User.objects.filter(email__iexact=email).only('language').first()
+        language = (
+            get_user_language(existing_user)
+            if existing_user
+            else get_request_language(request)
+        )
         code = f'{random.SystemRandom().randint(0, 999999):06d}'
         LoginCode.objects.filter(email=email).delete()
         LoginCode.objects.create(
             email=email, code=code, first_name=first_name, last_name=last_name,
             expires_at=timezone.now() + timedelta(minutes=10))
+        subject = (
+            f'AutoLink Pro — Your sign-in code: {code}'
+            if language == 'en'
+            else f'AutoLink Pro — Votre code de connexion : {code}'
+        )
+        message = (
+            f'Your AutoLink Pro sign-in code is {code} (valid for 10 minutes).'
+            if language == 'en'
+            else f'Votre code de connexion AutoLink Pro : {code} (valable 10 minutes).'
+        )
         send_mail(
-            subject=f'AutoLink Pro — Votre code de connexion : {code}',
-            message=f'Votre code de connexion AutoLink Pro : {code} (valable 10 minutes).',
+            subject=subject,
+            message=message,
             from_email=None,  # DEFAULT_FROM_EMAIL
             recipient_list=[email],
-            html_message=_otp_email_html(code, first_name),
+            html_message=_otp_email_html(code, first_name, language),
             fail_silently=False,
         )
         return Response({'detail': 'Code envoyé.', 'email': email})
@@ -337,7 +386,8 @@ class OTPVerifyView(APIView):
             user = User.objects.create_user(
                 username=username, email=email,
                 first_name=otp.first_name, last_name=otp.last_name,
-                role='CLIENT', is_verified=True)
+                role='CLIENT', is_verified=True,
+                language=get_request_language(request))
             user.set_unusable_password()
             user.save()
         if not user.is_active:

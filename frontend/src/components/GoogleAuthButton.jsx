@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Loader } from 'lucide-react';
+import { uiText } from '../i18n';
 
 // Logo Google officiel (SVG multicolore)
 const GoogleIcon = () => (
@@ -23,7 +24,7 @@ export default function GoogleAuthButton({ label = 'Continuer avec Google' }) {
   const [error, setError] = useState('');
 
   const submit = async () => {
-    if (!email.includes('@')) { setError('Entrez une adresse Gmail valide.'); return; }
+    if (!email.includes('@')) { setError(uiText("components.GoogleAuthButton", "Entrez une adresse Gmail valide.")); return; }
     setLoading(true); setError('');
     const parts = name.trim().split(/\s+/);
     const res = await googleLogin({
@@ -48,32 +49,30 @@ export default function GoogleAuthButton({ label = 'Continuer avec Google' }) {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2 font-bold text-slate-900"><GoogleIcon /> Compte Google</div>
+              <div className="flex items-center gap-2 font-bold text-slate-900"><GoogleIcon />{" " + uiText("components.GoogleAuthButton", "Compte Google")}</div>
               <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><X size={18} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="label">Adresse Gmail</label>
+                <label className="label">{uiText("components.GoogleAuthButton", "Adresse Gmail")}</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="email" className="input-field pl-10" placeholder="prenom.nom@gmail.com"
+                  <input type="email" className="input-field pl-10" placeholder={uiText("components.GoogleAuthButton", "prenom.nom@gmail.com")}
                     value={email} onChange={e => setEmail(e.target.value)} autoFocus />
                 </div>
               </div>
               <div>
-                <label className="label">Nom complet <span className="text-slate-400">(première connexion)</span></label>
-                <input type="text" className="input-field" placeholder="Prénom Nom"
+                <label className="label">{uiText("components.GoogleAuthButton", "Nom complet") + " "}<span className="text-slate-400">{uiText("components.GoogleAuthButton", "(première connexion)")}</span></label>
+                <input type="text" className="input-field" placeholder={uiText("components.GoogleAuthButton", "Prénom Nom")}
                   value={name} onChange={e => setName(e.target.value)} />
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button onClick={submit} disabled={loading}
                 className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
                 {loading && <Loader size={16} className="animate-spin" />}
-                {loading ? 'Connexion...' : 'Continuer'}
+                {loading ? uiText("components.GoogleAuthButton", "Connexion...") : uiText("components.GoogleAuthButton", "Continuer")}
               </button>
-              <p className="text-xs text-slate-400 text-center">
-                Si le compte n'existe pas, il sera créé automatiquement avec le rôle Client.
-              </p>
+              <p className="text-xs text-slate-400 text-center">{uiText("components.GoogleAuthButton", "Si le compte n'existe pas, il sera créé automatiquement avec le rôle Client.") + " "}</p>
             </div>
           </div>
         </div>

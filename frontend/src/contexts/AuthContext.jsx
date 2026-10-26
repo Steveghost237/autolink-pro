@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI, usersAPI } from '../services/api';
+import { uiText } from '../i18n';
 
 const AuthContext = createContext(null);
 
@@ -53,10 +54,10 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       // Identifiants invalides confirmés par l'API → erreur directe
       if (err.response?.status === 400 || err.response?.status === 401) {
-        return { success: false, error: 'Email ou mot de passe incorrect.' };
+        return { success: false, error: uiText('auth', 'Email ou mot de passe incorrect.') };
       }
       // API injoignable → erreur réseau honnête (aucun mode démo)
-      return { success: false, error: 'Serveur injoignable — vérifiez votre connexion puis réessayez.' };
+      return { success: false, error: uiText('auth', 'Serveur injoignable — vérifiez votre connexion puis réessayez.') };
     }
   };
 
@@ -100,7 +101,7 @@ export const AuthProvider = ({ children }) => {
         const first = Object.values(err.response.data)[0];
         return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
       }
-      return { success: false, error: 'Serveur injoignable — réessayez.' };
+        return { success: false, error: uiText('auth', 'Serveur injoignable — réessayez.') };
     }
   };
 
@@ -129,7 +130,7 @@ export const AuthProvider = ({ children }) => {
         const first = Object.values(err.response.data)[0];
         return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
       }
-      return { success: false, error: 'API injoignable — réessayez plus tard.' };
+        return { success: false, error: uiText('auth', 'API injoignable — réessayez plus tard.') };
     }
   };
 

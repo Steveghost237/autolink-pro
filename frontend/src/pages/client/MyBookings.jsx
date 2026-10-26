@@ -5,23 +5,28 @@ import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { bookingsAPI, paymentsAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { formatNumber,  uiText } from '../../i18n';
 
 const STATUS = {
-  completed: { label: 'Terminé', style: 'badge-success' },
-  pending: { label: 'Attente paiement', style: 'badge-warning' },
-  confirmed: { label: 'Confirmée', style: 'badge-info' },
-  active: { label: 'En cours', style: 'badge-info' },
-  cancelled: { label: 'Annulé', style: 'badge-error' },
-  disputed: { label: 'Litige en cours', style: 'badge-error' },
+  completed: { label: uiText("pages.client.MyBookings", "Terminé"), style: 'badge-success' },
+  pending: { label: uiText("pages.client.MyBookings", "Attente paiement"), style: 'badge-warning' },
+  confirmed: { label: uiText("pages.client.MyBookings", "Confirmée"), style: 'badge-info' },
+  active: { label: uiText("pages.client.MyBookings", "En cours"), style: 'badge-info' },
+  cancelled: { label: uiText("pages.client.MyBookings", "Annulé"), style: 'badge-error' },
+  disputed: { label: uiText("pages.client.MyBookings", "Litige en cours"), style: 'badge-error' },
 };
 
-const PAY_LABEL = { mtn: 'MTN MoMo', orange: 'Orange Money', senbid: 'SenBid', paybid: 'PayBid', paypal: 'PayPal', stripe: 'Stripe', wallet: 'Solde AutoLink' };
-const DRIVER_LABEL = { none: 'Sans chauffeur', internal: 'Chauffeur AutoLink', owner: 'Chauffeur du propriétaire' };
+const PAY_LABEL = { mtn: 'MTN MoMo', orange: 'Orange Money', senbid: 'SenBid', paybid: 'PayBid', paypal: 'PayPal', stripe: 'Stripe', wallet: uiText("pages.client.MyBookings", "Solde AutoLink") };
+const DRIVER_LABEL = {
+  none: uiText("pages.client.MyBookings", "Sans chauffeur"),
+  internal: uiText("pages.client.MyBookings", "Chauffeur AutoLink"),
+  owner: uiText("pages.client.MyBookings", "Chauffeur du propriétaire"),
+};
 
 const mapApiBooking = (b) => ({
   id: b.id,
-  vehicle: b.vehicle_name || 'Véhicule',
-  driver: b.driver_name || (b.driver_type === 'internal' ? 'Attribution automatique…' : b.driver_type === 'owner' ? 'Chauffeur du propriétaire' : 'Sans chauffeur'),
+  vehicle: b.vehicle_name || uiText("pages.client.MyBookings", "Véhicule"),
+  driver: b.driver_name || (b.driver_type === 'internal' ? uiText("pages.client.MyBookings", "Attribution automatique…") : b.driver_type === 'owner' ? uiText("pages.client.MyBookings", "Chauffeur du propriétaire") : uiText("pages.client.MyBookings", "Sans chauffeur")),
   driverPhone: b.driver_phone || null,
   driverType: b.driver_type || 'none',
   startDate: b.start_date,
@@ -49,9 +54,9 @@ function RatingModal({ booking, onClose }) {
         <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Star size={32} className="text-amber-400 fill-current" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-2">Merci pour votre avis !</h3>
-        <p className="text-slate-500 mb-5">Votre notation aide la communauté AutoLink.</p>
-        <button onClick={onClose} className="btn-primary w-full">Fermer</button>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">{uiText("pages.client.MyBookings", "Merci pour votre avis !")}</h3>
+        <p className="text-slate-500 mb-5">{uiText("pages.client.MyBookings", "Votre notation aide la communauté AutoLink.")}</p>
+        <button onClick={onClose} className="btn-primary w-full">{uiText("pages.client.MyBookings", "Fermer")}</button>
       </div>
     </div>
   );
@@ -59,7 +64,7 @@ function RatingModal({ booking, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h3 className="font-bold text-slate-900">Évaluer la location</h3>
+          <h3 className="font-bold text-slate-900">{uiText("pages.client.MyBookings", "Évaluer la location")}</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-5">
@@ -68,25 +73,25 @@ function RatingModal({ booking, onClose }) {
               <Car size={28} className="text-primary-600" />
             </div>
             <div className="font-semibold text-slate-800">{booking.vehicle}</div>
-            <div className="text-sm text-slate-500">Chauffeur : {booking.driver}</div>
+            <div className="text-sm text-slate-500">{uiText("pages.client.MyBookings", "Chauffeur :") + " "}{booking.driver}</div>
           </div>
           <div>
-            <label className="label text-center block">Votre note</label>
+            <label className="label text-center block">{uiText("pages.client.MyBookings", "Votre note")}</label>
             <div className="flex justify-center gap-2">
               {[1, 2, 3, 4, 5].map(n => (
-                <button key={n} onClick={() => setStars(n)} className={`text-3xl transition-transform hover:scale-110 ${n <= stars ? 'text-amber-400' : 'text-slate-200'}`}>★</button>
+                <button key={n} onClick={() => setStars(n)} className={`text-3xl transition-transform hover:scale-110 ${n <= stars ? 'text-amber-400' : 'text-slate-200'}`}>{uiText("pages.client.MyBookings", "★")}</button>
               ))}
             </div>
           </div>
           <div>
-            <label className="label">Commentaire (optionnel)</label>
-            <textarea className="input-field resize-none" rows={3} placeholder="Partagez votre expérience..."
+            <label className="label">{uiText("pages.client.MyBookings", "Commentaire (optionnel)")}</label>
+            <textarea className="input-field resize-none" rows={3} placeholder={uiText("pages.client.MyBookings", "Partagez votre expérience...")}
               value={comment} onChange={e => setComment(e.target.value)} />
           </div>
         </div>
         <div className="p-6 border-t border-slate-100 flex gap-3">
-          <button onClick={onClose} className="btn-outline flex-1 py-2.5">Annuler</button>
-          <button onClick={() => setSubmitted(true)} className="btn-primary flex-1 py-2.5">Envoyer l'avis</button>
+          <button onClick={onClose} className="btn-outline flex-1 py-2.5">{uiText("pages.client.MyBookings", "Annuler")}</button>
+          <button onClick={() => setSubmitted(true)} className="btn-primary flex-1 py-2.5">{uiText("pages.client.MyBookings", "Envoyer l'avis")}</button>
         </div>
       </div>
     </div>
@@ -100,9 +105,9 @@ function DisputeModal({ booking, onClose, onDone }) {
   const [error, setError] = useState('');
   const submit = async () => {
     const confirmed = await confirm({
-      title: 'Ouvrir un litige ?',
-      message: 'Un administrateur AutoLink examinera le problème et arbitrera la réservation.',
-      confirmLabel: 'Ouvrir le litige',
+      title: uiText("pages.client.MyBookings", "Ouvrir un litige ?"),
+      message: uiText("pages.client.MyBookings", "Un administrateur AutoLink examinera le problème et arbitrera la réservation."),
+      confirmLabel: uiText("pages.client.MyBookings", "Ouvrir le litige"),
       danger: true,
     });
     if (!confirmed) return;
@@ -112,7 +117,7 @@ function DisputeModal({ booking, onClose, onDone }) {
       await bookingsAPI.dispute(booking.id, reason);
       onDone();
     } catch (_) {
-      setError('Impossible d\'envoyer le litige — vérifiez votre connexion.');
+      setError(uiText("pages.client.MyBookings", "Impossible d'envoyer le litige — vérifiez votre connexion."));
     }
     setSending(false);
   };
@@ -120,28 +125,24 @@ function DisputeModal({ booking, onClose, onDone }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h3 className="font-bold text-slate-900 flex items-center gap-2"><AlertTriangle size={18} className="text-red-500" /> Signaler un problème</h3>
+          <h3 className="font-bold text-slate-900 flex items-center gap-2"><AlertTriangle size={18} className="text-red-500" />{" " + uiText("pages.client.MyBookings", "Signaler un problème")}</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-600">
-            Véhicule : <strong>{booking.vehicle}</strong><br />
-            En cas de panne ou de problème imputable au véhicule, la caution du propriétaire
-            reste <strong>gelée</strong> et un administrateur AutoLink arbitre votre dossier.
-          </p>
+          <p className="text-sm text-slate-600">{uiText("pages.client.MyBookings", "Véhicule :") + " "}<strong>{booking.vehicle}</strong><br />{uiText("pages.client.MyBookings", "En cas de panne ou de problème imputable au véhicule, la caution du propriétaire reste") + " "}<strong>{uiText("pages.client.MyBookings", "gelée")}</strong>{" " + uiText("pages.client.MyBookings", "et un administrateur AutoLink arbitre votre dossier.") + " "}</p>
           <div>
-            <label className="label">Décrivez le problème</label>
+            <label className="label">{uiText("pages.client.MyBookings", "Décrivez le problème")}</label>
             <textarea className="input-field resize-none" rows={3}
-              placeholder="Ex: panne moteur, climatisation HS, véhicule non conforme…"
+              placeholder={uiText("pages.client.MyBookings", "Ex: panne moteur, climatisation HS, véhicule non conforme…")}
               value={reason} onChange={e => setReason(e.target.value)} />
           </div>
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
         <div className="p-6 border-t border-slate-100 flex gap-3">
-          <button onClick={onClose} className="btn-outline flex-1 py-2.5">Annuler</button>
+          <button onClick={onClose} className="btn-outline flex-1 py-2.5">{uiText("pages.client.MyBookings", "Annuler")}</button>
           <button onClick={submit} disabled={!reason.trim() || sending}
             className="btn-primary flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50">
-            {sending ? 'Envoi…' : 'Ouvrir le litige'}
+            {sending ? uiText("pages.client.MyBookings", "Envoi…") : uiText("pages.client.MyBookings", "Ouvrir le litige")}
           </button>
         </div>
       </div>
@@ -208,9 +209,9 @@ export default function MyBookings() {
 
   const cancelBooking = async (id) => {
     const confirmed = await confirm({
-      title: 'Annuler cette réservation ?',
-      message: 'Cette action annulera la réservation et déclenchera le remboursement applicable.',
-      confirmLabel: 'Annuler la réservation',
+      title: uiText("pages.client.MyBookings", "Annuler cette réservation ?"),
+      message: uiText("pages.client.MyBookings", "Cette action annulera la réservation et déclenchera le remboursement applicable."),
+      confirmLabel: uiText("pages.client.MyBookings", "Annuler la réservation"),
       danger: true,
     });
     if (!confirmed) return;
@@ -219,7 +220,7 @@ export default function MyBookings() {
       await bookingsAPI.updateStatus(id, 'cancelled');
       setBookings(bs => bs.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
     } catch {
-      setActionError('Annulation impossible — vérifiez votre connexion puis réessayez.');
+      setActionError(uiText("pages.client.MyBookings", "Annulation impossible — vérifiez votre connexion puis réessayez."));
     }
     setCancelling(null);
   };
@@ -227,12 +228,10 @@ export default function MyBookings() {
   const filtered = bookings;
 
   return (
-    <DashboardLayout title="Mes réservations">
+    <DashboardLayout title={uiText("pages.client.MyBookings", "Mes réservations")}>
       <div className="max-w-4xl mx-auto space-y-6">
         {payBanner === 'success' && (
-          <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-emerald-50 text-emerald-700 border-emerald-200">
-            Paiement confirmé — votre réservation est validée. Le propriétaire a été notifié.
-          </div>
+          <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-emerald-50 text-emerald-700 border-emerald-200">{uiText("pages.client.MyBookings", "Paiement confirmé — votre réservation est validée. Le propriétaire a été notifié.") + " "}</div>
         )}
         {actionError && (
           <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-red-50 text-red-700 border-red-200 flex justify-between items-center">
@@ -243,13 +242,13 @@ export default function MyBookings() {
         {(payBanner === 'canceled' || payBanner === 'error') && (
           <div className="rounded-xl border px-4 py-3 text-sm font-semibold bg-amber-50 text-amber-700 border-amber-200">
             {payBanner === 'canceled'
-              ? 'Paiement annulé — la réservation reste en attente et aucun montant n\'a été débité.'
-              : 'Le paiement n\'a pas abouti — la réservation reste en attente.'}
+              ? uiText("pages.client.MyBookings", "Paiement annulé — la réservation reste en attente et aucun montant n'a été débité.")
+              : uiText("pages.client.MyBookings", "Le paiement n'a pas abouti — la réservation reste en attente.")}
           </div>
         )}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
-            {[['all', 'Toutes'], ['confirmed', 'Confirmées'], ['completed', 'Terminées'], ['cancelled', 'Annulées'], ['disputed', 'Litiges']].map(([val, label]) => (
+            {[['all', uiText("pages.client.MyBookings", "Toutes")], ['confirmed', uiText("pages.client.MyBookings", "Confirmées")], ['completed', uiText("pages.client.MyBookings", "Terminées")], ['cancelled', uiText("pages.client.MyBookings", "Annulées")], ['disputed', uiText("pages.client.MyBookings", "Litiges")]].map(([val, label]) => (
               <button key={val} onClick={() => setTab(val)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === val ? 'bg-white shadow text-primary-700' : 'text-slate-500 hover:text-slate-700'}`}>
                 {label}
@@ -267,13 +266,13 @@ export default function MyBookings() {
           sortOrder={sortOrder}
           onSortOrderChange={setSortOrder}
           sortOptions={[
-            { value: 'created_at', label: 'Date de création' },
-            { value: 'start_date', label: 'Date de début' },
-            { value: 'end_date', label: 'Date de fin' },
-            { value: 'subtotal', label: 'Montant' },
-            { value: 'status', label: 'Statut' },
+            { value: 'created_at', label: uiText("pages.client.MyBookings", "Date de création") },
+            { value: 'start_date', label: uiText("pages.client.MyBookings", "Date de début") },
+            { value: 'end_date', label: uiText("pages.client.MyBookings", "Date de fin") },
+            { value: 'subtotal', label: uiText("pages.client.MyBookings", "Montant") },
+            { value: 'status', label: uiText("pages.client.MyBookings", "Statut") },
           ]}
-          placeholder="Rechercher une réservation ou un véhicule"
+          placeholder={uiText("pages.client.MyBookings", "Rechercher une réservation ou un véhicule")}
         />
 
         <div className="space-y-4">
@@ -286,19 +285,18 @@ export default function MyBookings() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
                     <button onClick={() => navigate(`/client/bookings/${b.id}`)} className="font-bold text-slate-900 text-left">{b.vehicle}</button>
-                    <span className={STATUS[b.status]?.style || 'badge-info'}>{STATUS[b.status]?.label || b.status}</span>
+                    <span className={STATUS[b.status]?.style || uiText("pages.client.MyBookings", "badge-info")}>{STATUS[b.status]?.label || b.status}</span>
                   </div>
                   <div className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
-                    <Calendar size={13} /> {b.startDate} → {b.endDate} ({b.days} jour{b.days > 1 ? 's' : ''})
-                  </div>
+                    <Calendar size={13} /> {b.startDate}{" " + uiText("pages.client.MyBookings", "→") + " "}{b.endDate}{" " + uiText("pages.client.MyBookings", "(")}{b.days}{" " + uiText("pages.client.MyBookings", "jour")}{b.days > 1 ? uiText("pages.client.MyBookings", "s") : ''}{uiText("pages.client.MyBookings", ")") + " "}</div>
                   <div className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
-                    <Car size={13} /> {b.driver} · <CreditCard size={13} /> {b.payMethod}
+                    <Car size={13} /> {b.driver}{" " + uiText("pages.client.MyBookings", "·") + " "}<CreditCard size={13} /> {b.payMethod}
                   </div>
                   {b.escrowStatus === 'held' && (
-                    <div className="text-xs text-slate-400 mt-0.5">Paiement sécurisé — caution bloquée jusqu'à la fin de la location</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{uiText("pages.client.MyBookings", "Paiement sécurisé — caution bloquée jusqu'à la fin de la location")}</div>
                   )}
                   {b.escrowStatus === 'disputed' && (
-                    <div className="text-xs text-red-500 mt-0.5">Litige en cours — la caution est gelée en attendant l'arbitrage AutoLink</div>
+                    <div className="text-xs text-red-500 mt-0.5">{uiText("pages.client.MyBookings", "Litige en cours — la caution est gelée en attendant l'arbitrage AutoLink")}</div>
                   )}
                   {b.rating && (
                     <div className="flex items-center gap-1 mt-1">
@@ -307,17 +305,16 @@ export default function MyBookings() {
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xl font-black text-slate-900">{b.amount.toLocaleString()} <span className="text-sm font-normal text-slate-400">FCFA</span></div>
+                  <div className="text-xl font-black text-slate-900">{formatNumber(b.amount)} <span className="text-sm font-normal text-slate-400">{uiText("pages.client.MyBookings", "FCFA")}</span></div>
                   {b.discount > 0 && (
-                    <div className="text-xs text-emerald-600 font-semibold mt-0.5">-{b.discount}% longue durée appliqué</div>
+                    <div className="text-xs text-emerald-600 font-semibold mt-0.5">{uiText("pages.client.MyBookings", "-")}{b.discount}{uiText("pages.client.MyBookings", "% longue durée appliqué")}</div>
                   )}
                   {b.deposit > 0 && (
-                    <div className="text-xs text-amber-600 mt-0.5">
-                      Caution {b.deposit.toLocaleString()} F {b.depositStatus === 'released' ? '· restituée' : b.depositStatus === 'held' ? '· bloquée' : ''}
+                    <div className="text-xs text-amber-600 mt-0.5">{uiText("pages.client.MyBookings", "Caution") + " "}{formatNumber(b.deposit)}{" " + uiText("pages.client.MyBookings", "F") + " "}{b.depositStatus === 'released' ? uiText("pages.client.MyBookings", "· restituée") : b.depositStatus === 'held' ? uiText("pages.client.MyBookings", "· bloquée") : ''}
                     </div>
                   )}
                   {b.status === 'completed' && (
-                    <div className="text-xs text-slate-400 mt-0.5">Commission : {b.commission.toLocaleString()} F</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{uiText("pages.client.MyBookings", "Commission :") + " "}{formatNumber(b.commission)}{" " + uiText("pages.client.MyBookings", "F")}</div>
                   )}
                 </div>
               </div>
@@ -325,29 +322,25 @@ export default function MyBookings() {
               {b.status !== 'cancelled' && (
                 <div className="px-5 pb-4 pt-0 flex flex-wrap gap-2 border-t border-slate-50">
                   <button onClick={() => navigate(`/client/bookings/${b.id}`)} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
-                    <Download size={12} /> Reçu
-                  </button>
+                    <Download size={12} />{" " + uiText("pages.client.MyBookings", "Reçu") + " "}</button>
                   {b.driverPhone && (
                     <a href={`tel:${b.driverPhone}`} className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-                      <Phone size={12} /> Appeler chauffeur
-                    </a>
+                      <Phone size={12} />{" " + uiText("pages.client.MyBookings", "Appeler chauffeur") + " "}</a>
                   )}
                   {b.status === 'completed' && !b.rating && (
                     <button onClick={() => setRatingBooking(b)} className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors">
-                      <Star size={12} /> Évaluer
-                    </button>
+                      <Star size={12} />{" " + uiText("pages.client.MyBookings", "Évaluer") + " "}</button>
                   )}
                   {['pending', 'confirmed'].includes(b.status) && (
                     <button onClick={() => cancelBooking(b.id)} disabled={cancelling === b.id}
                       className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
-                      <X size={12} /> {cancelling === b.id ? 'Annulation...' : 'Annuler (remboursé)'}
+                      <X size={12} /> {cancelling === b.id ? uiText("pages.client.MyBookings", "Annulation...") : uiText("pages.client.MyBookings", "Annuler (remboursé)")}
                     </button>
                   )}
                   {['confirmed', 'active'].includes(b.status) && (
                     <button onClick={() => setDisputeBooking(b)}
                       className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
-                      <AlertTriangle size={12} /> Signaler un problème
-                    </button>
+                      <AlertTriangle size={12} />{" " + uiText("pages.client.MyBookings", "Signaler un problème") + " "}</button>
                   )}
                 </div>
               )}
@@ -359,8 +352,8 @@ export default function MyBookings() {
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ClipboardList size={28} className="text-slate-400" />
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">{offline ? 'Serveur injoignable' : 'Aucune réservation'}</h3>
-              <p className="text-slate-500">{offline ? 'Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.' : "Vous n'avez pas encore de réservation dans cette catégorie."}</p>
+              <h3 className="font-bold text-slate-900 mb-2">{offline ? uiText("pages.client.MyBookings", "Serveur injoignable") : uiText("pages.client.MyBookings", "Aucune réservation")}</h3>
+              <p className="text-slate-500">{offline ? uiText("pages.client.MyBookings", "Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.") : uiText("pages.client.MyBookings", "Vous n'avez pas encore de réservation dans cette catégorie.")}</p>
             </div>
           )}
         </div>

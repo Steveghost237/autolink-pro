@@ -4,11 +4,12 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { newsletterAPI } from '../../services/api';
+import { formatDateTime,  uiText } from '../../i18n';
 
 const SORT_OPTIONS = [
-  { value: 'sent_at', label: 'Date d’envoi' },
-  { value: 'subject', label: 'Objet' },
-  { value: 'recipients_count', label: 'Destinataires' },
+  { value: 'sent_at', label: uiText("pages.admin.Newsletter", "Date d’envoi") },
+  { value: 'subject', label: uiText("pages.admin.Newsletter", "Objet") },
+  { value: 'recipients_count', label: uiText("pages.admin.Newsletter", "Destinataires") },
 ];
 
 const escapeHtml = (value) => value.replace(/[&<>"]/g, character => ({
@@ -45,7 +46,7 @@ export default function Newsletter() {
       setCampaigns(data.results || data);
       setError('');
     } catch (_) {
-      setError('Impossible de charger l’historique des campagnes.');
+      setError(uiText("pages.admin.Newsletter", "Impossible de charger l’historique des campagnes."));
     } finally {
       setLoading(false);
     }
@@ -60,14 +61,14 @@ export default function Newsletter() {
     setError('');
     setSuccess('');
     if (!subject.trim() || (!htmlBody.trim() && !textBody.trim())) {
-      setError('Renseignez un objet et au moins une version du message.');
+      setError(uiText("pages.admin.Newsletter", "Renseignez un objet et au moins une version du message."));
       return;
     }
 
     const confirmed = await confirm({
-      title: 'Envoyer cette newsletter ?',
-      message: 'Le message sera envoyé à tous les utilisateurs actifs ayant accepté de recevoir la newsletter.',
-      confirmLabel: 'Envoyer',
+      title: uiText("pages.admin.Newsletter", "Envoyer cette newsletter ?"),
+      message: uiText("pages.admin.Newsletter", "Le message sera envoyé à tous les utilisateurs actifs ayant accepté de recevoir la newsletter."),
+      confirmLabel: uiText("pages.admin.Newsletter", "Envoyer"),
     });
     if (!confirmed) return;
 
@@ -85,7 +86,7 @@ export default function Newsletter() {
       setPreview(false);
       await loadCampaigns();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Impossible d’envoyer la newsletter.');
+      setError(err.response?.data?.detail || uiText("pages.admin.Newsletter", "Impossible d’envoyer la newsletter."));
     } finally {
       setSending(false);
     }
@@ -94,45 +95,43 @@ export default function Newsletter() {
   const previewDocument = htmlBody || `<pre style="font:14px/1.6 sans-serif;white-space:pre-wrap">${escapeHtml(textBody)}</pre>`;
 
   return (
-    <DashboardLayout title="Newsletter">
+    <DashboardLayout title={uiText("pages.admin.Newsletter", "Newsletter")}>
       <div className="mx-auto max-w-6xl space-y-6">
         <form onSubmit={sendCampaign} className="card space-y-5">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Composer une campagne</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              L’envoi est réservé aux utilisateurs actifs qui ont accepté la newsletter.
-            </p>
+            <h2 className="text-lg font-bold text-slate-900">{uiText("pages.admin.Newsletter", "Composer une campagne")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{uiText("pages.admin.Newsletter", "L’envoi est réservé aux utilisateurs actifs qui ont accepté la newsletter.") + " "}</p>
           </div>
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-slate-700">Objet</span>
+            <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Objet")}</span>
             <input
               value={subject}
               onChange={event => setSubject(event.target.value)}
               maxLength={200}
               required
               className="input-field"
-              placeholder="Actualités AutoLink Pro"
+              placeholder={uiText("pages.admin.Newsletter", "Actualités AutoLink Pro")}
             />
           </label>
           <div className="grid gap-5 lg:grid-cols-2">
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">Message HTML</span>
+              <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Message HTML")}</span>
               <textarea
                 value={htmlBody}
                 onChange={event => setHtmlBody(event.target.value)}
                 rows={12}
                 className="input-field resize-y font-mono text-xs"
-                placeholder="<h1>Bonjour !</h1><p>Les nouveautés AutoLink…</p>"
+                placeholder={uiText("pages.admin.Newsletter", "<h1>Bonjour !</h1><p>Les nouveautés AutoLink…</p>")}
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">Version texte</span>
+              <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Version texte")}</span>
               <textarea
                 value={textBody}
                 onChange={event => setTextBody(event.target.value)}
                 rows={12}
                 className="input-field resize-y"
-                placeholder="Bonjour ! Découvrez les nouveautés AutoLink…"
+                placeholder={uiText("pages.admin.Newsletter", "Bonjour ! Découvrez les nouveautés AutoLink…")}
               />
             </label>
           </div>
@@ -142,19 +141,19 @@ export default function Newsletter() {
               onClick={() => setPreview(value => !value)}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              <Eye size={16} /> {preview ? 'Masquer l’aperçu' : 'Aperçu'}
+              <Eye size={16} /> {preview ? uiText("pages.admin.Newsletter", "Masquer l’aperçu") : uiText("pages.admin.Newsletter", "Aperçu")}
             </button>
             <button
               type="submit"
               disabled={sending}
               className="btn-primary inline-flex items-center gap-2 py-2.5 disabled:opacity-60"
             >
-              <Send size={16} /> {sending ? 'Envoi…' : 'Envoyer la newsletter'}
+              <Send size={16} /> {sending ? uiText("pages.admin.Newsletter", "Envoi…") : uiText("pages.admin.Newsletter", "Envoyer la newsletter")}
             </button>
           </div>
           {preview && (
             <iframe
-              title="Aperçu de la newsletter"
+              title={uiText("pages.admin.Newsletter", "Aperçu de la newsletter")}
               sandbox=""
               srcDoc={previewDocument}
               className="h-72 w-full rounded-xl border border-slate-200 bg-white"
@@ -170,8 +169,8 @@ export default function Newsletter() {
 
         <section className="card space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Campagnes envoyées</h2>
-            <p className="mt-1 text-sm text-slate-500">Historique des envois et nombre de destinataires.</p>
+            <h2 className="text-lg font-bold text-slate-900">{uiText("pages.admin.Newsletter", "Campagnes envoyées")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Historique des envois et nombre de destinataires.")}</p>
           </div>
           <ListToolbar
             search={search}
@@ -181,12 +180,12 @@ export default function Newsletter() {
             sortOrder={sortOrder}
             onSortOrderChange={setSortOrder}
             sortOptions={SORT_OPTIONS}
-            placeholder="Rechercher une campagne"
+            placeholder={uiText("pages.admin.Newsletter", "Rechercher une campagne")}
           />
           {loading ? (
-            <p className="py-8 text-center text-sm text-slate-500">Chargement des campagnes…</p>
+            <p className="py-8 text-center text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Chargement des campagnes…")}</p>
           ) : campaigns.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aucune campagne trouvée.</p>
+            <p className="py-8 text-center text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Aucune campagne trouvée.")}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {campaigns.map(campaign => (
@@ -194,12 +193,11 @@ export default function Newsletter() {
                   <div>
                     <h3 className="font-semibold text-slate-800">{campaign.subject}</h3>
                     <p className="mt-1 text-xs text-slate-500">
-                      {new Date(campaign.sent_at).toLocaleString('fr-FR')}
+                      {formatDateTime(new Date(campaign.sent_at))}
                     </p>
                   </div>
                   <span className="rounded-full bg-primary-50 px-3 py-1 text-sm font-semibold text-primary-700">
-                    {campaign.recipients_count} destinataire(s)
-                  </span>
+                    {campaign.recipients_count}{" " + uiText("pages.admin.Newsletter", "destinataire(s)") + " "}</span>
                 </article>
               ))}
             </div>

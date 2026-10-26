@@ -349,8 +349,12 @@ class BookingEditAndReceiptTests(APITestCase):
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_receipt_email_has_pdf_attachment(self):
         booking = self.make_paid_booking()
+        self.client_user.language = 'en'
+        self.client_user.save(update_fields=['language'])
         self.client.force_authenticate(self.client_user)
         response = self.client.post(f'/api/bookings/{booking.pk}/receipt/email/')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Your AutoLink Pro receipt', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].body, 'Please find your booking receipt attached.')
         self.assertEqual(mail.outbox[0].attachments[0][2], 'application/pdf')

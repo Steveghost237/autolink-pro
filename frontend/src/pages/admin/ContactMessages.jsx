@@ -3,6 +3,7 @@ import { Check, Mail, Phone, Search, Trash2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { contactMessagesAPI } from '../../services/api';
+import { formatDateTime,  uiText } from '../../i18n';
 
 export default function ContactMessages() {
   const confirm = useConfirm();
@@ -19,7 +20,7 @@ export default function ContactMessages() {
       setMessages(data.results || data);
       setError('');
     } catch (_) {
-      setError('Impossible de charger les messages de contact.');
+      setError(uiText("pages.admin.ContactMessages", "Impossible de charger les messages de contact."));
     } finally {
       setLoading(false);
     }
@@ -37,15 +38,15 @@ export default function ContactMessages() {
         item.id === message.id ? { ...item, is_handled: !item.is_handled } : item
       )));
     } catch (_) {
-      setError('Impossible de mettre à jour ce message.');
+      setError(uiText("pages.admin.ContactMessages", "Impossible de mettre à jour ce message."));
     }
   };
 
   const deleteMessage = async (message) => {
     const confirmed = await confirm({
-      title: 'Supprimer ce message ?',
-      message: `Le message de ${message.first_name} ${message.last_name} sera supprimé définitivement.`,
-      confirmLabel: 'Supprimer',
+      title: uiText("pages.admin.ContactMessages", "Supprimer ce message ?"),
+      message: uiText("pages.admin.ContactMessages", "Le message de {{name}} sera supprimé définitivement.", { name: `${message.first_name} ${message.last_name}` }),
+      confirmLabel: uiText("pages.admin.ContactMessages", "Supprimer"),
       danger: true,
     });
     if (!confirmed) return;
@@ -53,21 +54,21 @@ export default function ContactMessages() {
       await contactMessagesAPI.delete(message.id);
       setMessages(current => current.filter(item => item.id !== message.id));
     } catch (_) {
-      setError('Impossible de supprimer ce message.');
+      setError(uiText("pages.admin.ContactMessages", "Impossible de supprimer ce message."));
     }
   };
 
   return (
-    <DashboardLayout title="Messages de contact">
+    <DashboardLayout title={uiText("pages.admin.ContactMessages", "Messages de contact")}>
       <div className="mx-auto max-w-5xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-slate-500">Demandes reçues depuis le formulaire public.</p>
+          <p className="text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Demandes reçues depuis le formulaire public.")}</p>
           <label className="flex min-w-64 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
             <Search size={16} className="text-slate-400" />
             <input
               value={search}
               onChange={event => setSearch(event.target.value)}
-              placeholder="Rechercher un message"
+              placeholder={uiText("pages.admin.ContactMessages", "Rechercher un message")}
               className="w-full text-sm outline-none"
             />
           </label>
@@ -75,19 +76,19 @@ export default function ContactMessages() {
             value={ordering}
             onChange={event => setOrdering(event.target.value)}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            aria-label="Trier les messages"
+            aria-label={uiText("pages.admin.ContactMessages", "Trier les messages")}
           >
-            <option value="-created_at">Plus récents</option>
-            <option value="created_at">Plus anciens</option>
-            <option value="last_name">Nom A–Z</option>
-            <option value="-last_name">Nom Z–A</option>
+            <option value="-created_at">{uiText("pages.admin.ContactMessages", "Plus récents")}</option>
+            <option value="created_at">{uiText("pages.admin.ContactMessages", "Plus anciens")}</option>
+            <option value="last_name">{uiText("pages.admin.ContactMessages", "Nom A–Z")}</option>
+            <option value="-last_name">{uiText("pages.admin.ContactMessages", "Nom Z–A")}</option>
           </select>
         </div>
         {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
         {loading ? (
-          <div className="card text-center text-sm text-slate-500">Chargement des messages…</div>
+          <div className="card text-center text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Chargement des messages…")}</div>
         ) : messages.length === 0 ? (
-          <div className="card text-center text-sm text-slate-500">Aucun message trouvé.</div>
+          <div className="card text-center text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Aucun message trouvé.")}</div>
         ) : (
           <div className="space-y-4">
             {messages.map(message => (
@@ -97,24 +98,23 @@ export default function ContactMessages() {
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-bold text-slate-900">{message.first_name} {message.last_name}</h2>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${message.is_handled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {message.is_handled ? 'Traité' : 'À traiter'}
+                        {message.is_handled ? uiText("pages.admin.ContactMessages", "Traité") : uiText("pages.admin.ContactMessages", "À traiter")}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">{new Date(message.created_at).toLocaleString('fr-FR')}</p>
+                    <p className="mt-1 text-xs text-slate-400">{formatDateTime(new Date(message.created_at))}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => toggleHandled(message)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                     >
-                      <Check size={14} /> {message.is_handled ? 'Marquer à traiter' : 'Marquer traité'}
+                      <Check size={14} /> {message.is_handled ? uiText("pages.admin.ContactMessages", "Marquer à traiter") : uiText("pages.admin.ContactMessages", "Marquer traité")}
                     </button>
                     <button
                       onClick={() => deleteMessage(message)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
                     >
-                      <Trash2 size={14} /> Supprimer
-                    </button>
+                      <Trash2 size={14} />{" " + uiText("pages.admin.ContactMessages", "Supprimer") + " "}</button>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">

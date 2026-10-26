@@ -59,6 +59,20 @@ class AuthTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['email'], 'nouveau@test.cm')
 
+    def test_me_can_update_language_preference(self):
+        user = User.objects.create_user(
+            username='language-user', email='language@example.com',
+            password='SecurePass2026!')
+        self.client.force_authenticate(user)
+
+        response = self.client.patch(
+            '/api/users/me/', {'language': 'en'}, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['language'], 'en')
+        user.refresh_from_db()
+        self.assertEqual(user.language, 'en')
+
     def test_user_list_admin_only(self):
         client = User.objects.create_user(username='c', email='c@c.cm', password='x', role='CLIENT')
         admin = User.objects.create_user(username='a', email='a@a.cm', password='x', role='ADMIN')
@@ -199,6 +213,21 @@ class ContactEndpointTests(APITestCase):
         self.assertEqual(mail.outbox[0].to, ['wibchallenge@gmail.com'])
         self.assertEqual(mail.outbox[1].to, ['jean@example.com'])
 
+    def test_english_accept_language_localizes_contact_acknowledgement(self):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'email': 'jean@example.com',
+            'message': 'I need a vehicle tomorrow.',
+        }, format='json', HTTP_ACCEPT_LANGUAGE='en-GB,en;q=0.9')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn('We received your message', mail.outbox[1].subject)
+        self.assertIn('Hello Jean', mail.outbox[1].body)
+        self.assertIn('get back to you', mail.outbox[1].body)
+
     @patch('apps.users.views.send_mail', side_effect=OSError('Mail unavailable'))
     def test_contact_saves_message_when_email_fails(self, send_mail_mock):
         response = self.client.post('/api/contact/', {
@@ -241,6 +270,23 @@ class AuthenticationEmailTests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Bienvenue', mail.outbox[0].subject)
         self.assertEqual(mail.outbox[0].to, ['welcome@example.com'])
+
+    def test_english_registration_sets_language_and_sends_english_welcome(self):
+        response = self.client.post('/api/users/register/', {
+            'username': 'welcome-english',
+            'email': 'welcome-english@example.com',
+            'first_name': 'Awa',
+            'last_name': 'Nana',
+            'password': 'SecurePass2026!',
+            'password2': 'SecurePass2026!',
+            'role': 'CLIENT',
+        }, format='json', HTTP_ACCEPT_LANGUAGE='en')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['user']['language'], 'en')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'Welcome to AutoLink Pro')
+        self.assertIn('Your account is ready', mail.outbox[0].body)
 
     def test_password_login_sends_notification_email(self):
         User.objects.create_user(
@@ -326,3 +372,22 @@ class NewsletterTests(APITestCase):
         self.assertEqual(campaign.sent_by, self.admin)
         self.assertTrue(opted_out.is_active)
         self.assertFalse(inactive.is_active)
+
+    def test_campaign_uses_english_unsubscribe_footer_for_english_recipient(self):
+        subscriber = User.objects.create_user(
+            username='english-subscriber',
+            email='english-subscriber@example.com',
+            password='SecurePass2026!',
+            language='en',
+        )
+
+        response = self.client.post('/api/users/newsletter/send/', {
+            'subject': 'AutoLink news',
+            'text_body': 'New vehicles are available.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['recipients_count'], 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [subscriber.email])
+        self.assertIn('Unsubscribe:', mail.outbox[0].body)

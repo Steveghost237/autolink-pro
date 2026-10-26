@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { driversAPI } from '../../services/api';
+import { uiText } from '../../i18n';
 
 const CHECKS = [
-  ['has_valid_license', 'Permis de conduire valide'],
-  ['has_clean_criminal_record', 'Casier judiciaire vierge'],
-  ['has_medical_certificate', 'Certificat médical valide'],
-  ['driving_test_passed', 'Test de conduite réussi'],
-  ['training_completed', 'Formation AutoLink terminée'],
+  ['has_valid_license', uiText("pages.driver.DriverApplicationForm", "Permis de conduire valide")],
+  ['has_clean_criminal_record', uiText("pages.driver.DriverApplicationForm", "Casier judiciaire vierge")],
+  ['has_medical_certificate', uiText("pages.driver.DriverApplicationForm", "Certificat médical valide")],
+  ['driving_test_passed', uiText("pages.driver.DriverApplicationForm", "Test de conduite réussi")],
+  ['training_completed', uiText("pages.driver.DriverApplicationForm", "Formation AutoLink terminée")],
 ];
 const DOCUMENTS = [
-  ['license_document', 'Copie du permis'],
-  ['criminal_record_document', 'Extrait de casier judiciaire'],
-  ['medical_certificate_document', 'Certificat médical'],
+  ['license_document', uiText("pages.driver.DriverApplicationForm", "Copie du permis")],
+  ['criminal_record_document', uiText("pages.driver.DriverApplicationForm", "Extrait de casier judiciaire")],
+  ['medical_certificate_document', uiText("pages.driver.DriverApplicationForm", "Certificat médical")],
 ];
 
 const initialForm = {
@@ -40,7 +41,7 @@ export default function DriverApplicationForm() {
         setForm(value => ({ ...value, ...current }));
       }
     } catch (_) {
-      setError('Impossible de charger votre candidature.');
+      setError(uiText("pages.driver.DriverApplicationForm", "Impossible de charger votre candidature."));
     } finally {
       setLoading(false);
     }
@@ -63,39 +64,36 @@ export default function DriverApplicationForm() {
         : await driversAPI.createApplication(payload);
       setApplication(response.data);
       setForm(value => ({ ...value, ...response.data }));
-      setSuccess('Votre candidature a été enregistrée.');
+      setSuccess(uiText("pages.driver.DriverApplicationForm", "Votre candidature a été enregistrée."));
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'La candidature n’a pas pu être enregistrée.');
+      setError(requestError.response?.data?.detail || uiText("pages.driver.DriverApplicationForm", "La candidature n’a pas pu être enregistrée."));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <DashboardLayout title="Devenir chauffeur">
+    <DashboardLayout title={uiText("pages.driver.DriverApplicationForm", "Devenir chauffeur")}>
       <div className="mx-auto max-w-3xl">
         <form onSubmit={submit} className="card space-y-5">
           <div>
-            <h2 className="text-xl font-bold">Candidature chauffeur</h2>
-            <p className="mt-1 text-sm text-slate-500">Renseignez votre expérience, les vérifications effectuées et les documents à examiner.</p>
+            <h2 className="text-xl font-bold">{uiText("pages.driver.DriverApplicationForm", "Candidature chauffeur")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{uiText("pages.driver.DriverApplicationForm", "Renseignez votre expérience, les vérifications effectuées et les documents à examiner.")}</p>
           </div>
-          {loading ? <p className="py-8 text-center text-slate-500">Chargement…</p> : (
+          {loading ? <p className="py-8 text-center text-slate-500">{uiText("pages.driver.DriverApplicationForm", "Chargement…")}</p> : (
             <>
-              {application && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">Statut : <strong>{application.status}</strong>{application.reviewer_notes && ` — ${application.reviewer_notes}`}</p>}
-              <label className="block text-sm">Années d’expérience
-                <input className="input-field mt-1" type="number" min="0" required value={form.experience_years}
+              {application && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{uiText("pages.driver.DriverApplicationForm", "Statut :") + " "}<strong>{application.status}</strong>{application.reviewer_notes && ` — ${application.reviewer_notes}`}</p>}
+              <label className="block text-sm">{uiText("pages.driver.DriverApplicationForm", "Années d’expérience") + " "}<input className="input-field mt-1" type="number" min="0" required value={form.experience_years}
                   onChange={event => setForm(value => ({ ...value, experience_years: event.target.value }))} />
               </label>
-              <label className="block text-sm">Numéro du permis
-                <input className="input-field mt-1" value={form.license_number || ''}
+              <label className="block text-sm">{uiText("pages.driver.DriverApplicationForm", "Numéro du permis") + " "}<input className="input-field mt-1" value={form.license_number || ''}
                   onChange={event => setForm(value => ({ ...value, license_number: event.target.value }))} />
               </label>
-              <label className="block text-sm">Expiration du permis
-                <input className="input-field mt-1" type="date" value={form.license_expiry || ''}
+              <label className="block text-sm">{uiText("pages.driver.DriverApplicationForm", "Expiration du permis") + " "}<input className="input-field mt-1" type="date" value={form.license_expiry || ''}
                   onChange={event => setForm(value => ({ ...value, license_expiry: event.target.value }))} />
               </label>
               <div className="space-y-2">
-                <h3 className="font-semibold">Éléments de candidature</h3>
+                <h3 className="font-semibold">{uiText("pages.driver.DriverApplicationForm", "Éléments de candidature")}</h3>
                 {CHECKS.map(([key, label]) => (
                   <label key={key} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 text-sm">
                     <input type="checkbox" checked={Boolean(form[key])}
@@ -105,17 +103,17 @@ export default function DriverApplicationForm() {
                 ))}
               </div>
               <div className="space-y-3">
-                <h3 className="font-semibold">Documents justificatifs</h3>
+                <h3 className="font-semibold">{uiText("pages.driver.DriverApplicationForm", "Documents justificatifs")}</h3>
                 {DOCUMENTS.map(([key, label]) => (
                   <label key={key} className="block text-sm">{label}
-                    {application?.[key] && <a className="ml-2 text-primary-600 underline" href={application[key]} target="_blank" rel="noreferrer">Document actuel</a>}
+                    {application?.[key] && <a className="ml-2 text-primary-600 underline" href={application[key]} target="_blank" rel="noreferrer">{uiText("pages.driver.DriverApplicationForm", "Document actuel")}</a>}
                     <input className="input-field mt-1" type="file" accept="image/*" onChange={event => setDocuments(value => ({ ...value, [key]: event.target.files[0] }))} />
                   </label>
                 ))}
               </div>
               {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
               {success && <p className="text-sm text-emerald-700">{success}</p>}
-              <button className="btn-primary w-full" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer ma candidature'}</button>
+              <button className="btn-primary w-full" disabled={saving}>{saving ? uiText("pages.driver.DriverApplicationForm", "Enregistrement…") : uiText("pages.driver.DriverApplicationForm", "Enregistrer ma candidature")}</button>
             </>
           )}
         </form>

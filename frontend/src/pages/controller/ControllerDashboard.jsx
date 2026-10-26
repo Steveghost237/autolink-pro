@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { controllerVehiclesAPI, inspectionsAPI } from '../../services/api';
+import { formatNumber,  uiText } from '../../i18n';
 
 export default function ControllerDashboard() {
   const { user } = useAuth();
@@ -35,7 +36,7 @@ export default function ControllerDashboard() {
       ]);
       setError('');
     } catch (_) {
-      setError('Impossible de charger le tableau de bord.');
+      setError(uiText("pages.controller.ControllerDashboard", "Impossible de charger le tableau de bord."));
     }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -49,7 +50,7 @@ export default function ControllerDashboard() {
       setVehicles(data.results || []);
       setVehicleCount(data.count || 0);
     } catch (_) {
-      setError('Impossible de charger les véhicules à valider.');
+      setError(uiText("pages.controller.ControllerDashboard", "Impossible de charger les véhicules à valider."));
     }
   }, [vehiclePage, vehicleSearch, vehicleSort, vehicleOrder]);
   useEffect(() => { loadVehicles(); }, [loadVehicles]);
@@ -57,35 +58,34 @@ export default function ControllerDashboard() {
   const decideVehicle = async (vehicle, status) => {
     const approved = status === 'approved';
     if (!(await confirm({
-      title: approved ? 'Approuver le véhicule ?' : 'Mettre le véhicule en suspension ?',
+      title: approved ? uiText("pages.controller.ControllerDashboard", "Approuver le véhicule ?") : uiText("pages.controller.ControllerDashboard", "Mettre le véhicule en suspension ?"),
       message: `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`,
-      confirmLabel: approved ? 'Approuver' : 'Mettre en suspension',
+      confirmLabel: approved ? uiText("pages.controller.ControllerDashboard", "Approuver") : uiText("pages.controller.ControllerDashboard", "Mettre en suspension"),
       danger: !approved,
     }))) return;
     try {
       await controllerVehiclesAPI.decide(vehicle.id, status);
       await loadVehicles();
     } catch (_) {
-      setError('Impossible de mettre à jour le statut du véhicule.');
+      setError(uiText("pages.controller.ControllerDashboard", "Impossible de mettre à jour le statut du véhicule."));
     }
   };
 
   const cards = [
-    { label: 'Fiches d’entrée à traiter', value: stats?.entry_pending ?? '—', icon: ClipboardList },
-    { label: 'Fiches de sortie à traiter', value: stats?.exit_pending ?? '—', icon: Clock },
-    { label: 'Inspections cette semaine', value: stats?.completed_week ?? '—', icon: Car },
-    { label: 'Problèmes signalés cette semaine', value: stats?.issues_week ?? '—', icon: AlertTriangle },
+    { label: uiText("pages.controller.ControllerDashboard", "Fiches d’entrée à traiter"), value: stats?.entry_pending ?? '—', icon: ClipboardList },
+    { label: uiText("pages.controller.ControllerDashboard", "Fiches de sortie à traiter"), value: stats?.exit_pending ?? '—', icon: Clock },
+    { label: uiText("pages.controller.ControllerDashboard", "Inspections cette semaine"), value: stats?.completed_week ?? '—', icon: Car },
+    { label: uiText("pages.controller.ControllerDashboard", "Problèmes signalés cette semaine"), value: stats?.issues_week ?? '—', icon: AlertTriangle },
   ];
 
   return (
-    <DashboardLayout title="Tableau de bord contrôleur">
+    <DashboardLayout title={uiText("pages.controller.ControllerDashboard", "Tableau de bord contrôleur")}>
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="rounded-2xl bg-gradient-to-br from-slate-900 to-primary-900 p-6 text-white">
-          <h2 className="mb-1 text-2xl font-bold">Bonjour, {user?.firstName || user?.email}</h2>
-          <p className="mb-5 text-primary-200">Activité réelle des inspections de la plateforme.</p>
+          <h2 className="mb-1 text-2xl font-bold">{uiText("pages.controller.ControllerDashboard", "Bonjour,") + " "}{user?.firstName || user?.email}</h2>
+          <p className="mb-5 text-primary-200">{uiText("pages.controller.ControllerDashboard", "Activité réelle des inspections de la plateforme.")}</p>
           <button onClick={() => navigate('/admin/inspections')} className="rounded-xl bg-white px-5 py-2.5 font-semibold text-primary-700">
-            <ClipboardList size={18} className="mr-2 inline" /> Voir les inspections
-          </button>
+            <ClipboardList size={18} className="mr-2 inline" />{" " + uiText("pages.controller.ControllerDashboard", "Voir les inspections") + " "}</button>
         </header>
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -99,43 +99,43 @@ export default function ControllerDashboard() {
         </div>
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-bold">Réservations à inspecter</h3>
-            <span className="text-sm text-slate-500">Score moyen récent : {stats ? `${Number(stats.average_score_week).toFixed(0)}/100` : '—'}</span>
+            <h3 className="font-bold">{uiText("pages.controller.ControllerDashboard", "Réservations à inspecter")}</h3>
+            <span className="text-sm text-slate-500">{uiText("pages.controller.ControllerDashboard", "Score moyen récent :") + " "}{stats ? `${Number(stats.average_score_week).toFixed(0)}/100` : uiText("pages.controller.ControllerDashboard", "—")}</span>
           </div>
           <div className="space-y-3">
             {tasks.map(task => (
               <article key={`${task.type}-${task.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
                 <div>
-                  <p className="font-semibold">{task.type} · {task.vehicle} ({task.plate})</p>
-                  <p className="text-sm text-slate-500">{task.client} · {task.booking_reference} · {task.start_date} — {task.end_date}</p>
+                  <p className="font-semibold">{task.type}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.vehicle}{" " + uiText("pages.controller.ControllerDashboard", "(")}{task.plate}{uiText("pages.controller.ControllerDashboard", ")")}</p>
+                  <p className="text-sm text-slate-500">{task.client}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.booking_reference}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.start_date}{" " + uiText("pages.controller.ControllerDashboard", "—") + " "}{task.end_date}</p>
                 </div>
-                <button className="btn-outline" onClick={() => navigate('/admin/inspections')}>Ouvrir la file</button>
+                <button className="btn-outline" onClick={() => navigate('/admin/inspections')}>{uiText("pages.controller.ControllerDashboard", "Ouvrir la file")}</button>
               </article>
             ))}
-            {tasks.length === 0 && <p className="py-8 text-center text-slate-500">Aucune inspection en attente.</p>}
+            {tasks.length === 0 && <p className="py-8 text-center text-slate-500">{uiText("pages.controller.ControllerDashboard", "Aucune inspection en attente.")}</p>}
           </div>
         </div>
         <section className="space-y-4">
-          <h3 className="text-lg font-bold">Véhicules à valider · {vehicleCount}</h3>
+          <h3 className="text-lg font-bold">{uiText("pages.controller.ControllerDashboard", "Véhicules à valider ·") + " "}{vehicleCount}</h3>
           <div className="card">
             <ListToolbar search={vehicleSearch} onSearchChange={value => { setVehicleSearch(value); setVehiclePage(1); }}
               sortField={vehicleSort} onSortFieldChange={setVehicleSort}
               sortOrder={vehicleOrder} onSortOrderChange={setVehicleOrder}
               sortOptions={[
-                { value: 'created_at', label: 'Date de demande' },
-                { value: 'brand', label: 'Marque' },
-                { value: 'year', label: 'Année' },
-                { value: 'daily_rate', label: 'Tarif journalier' },
-              ]} placeholder="Rechercher véhicule ou propriétaire" />
+                { value: 'created_at', label: uiText("pages.controller.ControllerDashboard", "Date de demande") },
+                { value: 'brand', label: uiText("pages.controller.ControllerDashboard", "Marque") },
+                { value: 'year', label: uiText("pages.controller.ControllerDashboard", "Année") },
+                { value: 'daily_rate', label: uiText("pages.controller.ControllerDashboard", "Tarif journalier") },
+              ]} placeholder={uiText("pages.controller.ControllerDashboard", "Rechercher véhicule ou propriétaire")} />
           </div>
           {vehicles.map(vehicle => (
             <article key={vehicle.id} className="card flex flex-wrap items-center justify-between gap-3">
-              <div><p className="font-semibold">{vehicle.brand} {vehicle.model} ({vehicle.plate})</p><p className="text-sm text-slate-500">{vehicle.owner_name} · {vehicle.year} · {Number(vehicle.daily_rate).toLocaleString('fr-FR')} FCFA/jour</p></div>
-              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>Approuver</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>Mettre en suspension</button></div>
+              <div><p className="font-semibold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.controller.ControllerDashboard", "(")}{vehicle.plate}{uiText("pages.controller.ControllerDashboard", ")")}</p><p className="text-sm text-slate-500">{vehicle.owner_name}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{vehicle.year}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.controller.ControllerDashboard", "FCFA/jour")}</p></div>
+              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>{uiText("pages.controller.ControllerDashboard", "Approuver")}</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>{uiText("pages.controller.ControllerDashboard", "Mettre en suspension")}</button></div>
             </article>
           ))}
-          {vehicles.length === 0 && <div className="card py-8 text-center text-slate-500">Aucun véhicule en attente de validation.</div>}
-          <div className="flex items-center justify-between text-sm"><span>Page {vehiclePage} / {Math.max(1, Math.ceil(vehicleCount / 20))}</span><div className="flex gap-2"><button className="btn-outline" disabled={vehiclePage <= 1} onClick={() => setVehiclePage(value => value - 1)}>Précédent</button><button className="btn-outline" disabled={vehiclePage * 20 >= vehicleCount} onClick={() => setVehiclePage(value => value + 1)}>Suivant</button></div></div>
+          {vehicles.length === 0 && <div className="card py-8 text-center text-slate-500">{uiText("pages.controller.ControllerDashboard", "Aucun véhicule en attente de validation.")}</div>}
+          <div className="flex items-center justify-between text-sm"><span>{uiText("pages.controller.ControllerDashboard", "Page") + " "}{vehiclePage}{" " + uiText("pages.controller.ControllerDashboard", "/") + " "}{Math.max(1, Math.ceil(vehicleCount / 20))}</span><div className="flex gap-2"><button className="btn-outline" disabled={vehiclePage <= 1} onClick={() => setVehiclePage(value => value - 1)}>{uiText("pages.controller.ControllerDashboard", "Précédent")}</button><button className="btn-outline" disabled={vehiclePage * 20 >= vehicleCount} onClick={() => setVehiclePage(value => value + 1)}>{uiText("pages.controller.ControllerDashboard", "Suivant")}</button></div></div>
         </section>
       </div>
     </DashboardLayout>

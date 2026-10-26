@@ -2,14 +2,18 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
-from .email_utils import send_login_notification, send_welcome_email
+from .email_utils import (
+    get_request_language,
+    send_login_notification,
+    send_welcome_email,
+)
 from .models import ContactMessage, NewsletterCampaign, User, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'balance', 'created_at']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'language', 'balance', 'created_at']
         read_only_fields = ['id', 'is_verified', 'balance', 'created_at']
 
 
@@ -165,6 +169,7 @@ class GoogleAuthSerializer(serializers.Serializer):
                 last_name=attrs.get('last_name', ''),
                 role='CLIENT',
                 is_verified=True,
+                language=get_request_language(self.context.get('request')),
             )
             user.set_unusable_password()
             user.save()
