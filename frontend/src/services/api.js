@@ -181,4 +181,12 @@ export const controllerVehiclesAPI = {
   decide: (id, status) => api.patch(`/vehicles/controller-review/${id}/`, { status }),
 };
 
+export const affiliatesAPI = {
+  agents: (params) => api.get('/affiliates/agents/', { params }),
+  createAgent: (payload) => api.post('/affiliates/agents/', payload),
+  updateAgent: (id, payload) => api.patch(`/affiliates/agents/${id}/`, payload),
+  payouts: (params) => api.get('/affiliates/payouts/', { params }),
+  createPayout: (payload) => api.post('/affiliates/payouts/', payload),
+};
+
 export default api;

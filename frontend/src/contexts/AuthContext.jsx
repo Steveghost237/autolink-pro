@@ -113,6 +113,7 @@ export const AuthProvider = ({ children }) => {
         last_name: userData.lastName || '',
         phone: userData.phone || '',
         role: userData.role || 'CLIENT',
+        agent_code: userData.agentCode || '',
         password: userData.password,
         password2: userData.password,
       });

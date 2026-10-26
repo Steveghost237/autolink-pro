@@ -45,7 +45,7 @@ export default function Register() {
     if (form.password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
     setError('');
     setLoading(true);
-    const result = await register(form);
+    const result = await register({ ...form, agentCode: params.get('ref') || '' });
     if (!result.success) { setLoading(false); setError(result.error); return; }
     // Compte créé → on envoie le code de validation par email (étape 3)
     setEmailSent(await sendCode());
@@ -98,6 +98,11 @@ export default function Register() {
             <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 mb-5 text-sm">
               <AlertCircle size={16} /> {error}
             </div>
+          )}
+          {params.get('ref') && step < 3 && (
+            <p className="mb-4 rounded-lg bg-primary-50 p-3 text-sm text-primary-700">
+              Code de parrainage appliqué : <strong>{params.get('ref')}</strong>
+            </p>
           )}
 
           {step === 1 ? (
@@ -169,7 +174,7 @@ export default function Register() {
               </div>
               <div>
                 <label className="label">Email</label>
-                <input type="email" required className="input-field" placeholder="votre@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
+                <input type="email" required className="input-field" placeholder="Votre adresse électronique" value={form.email} onChange={e => set('email', e.target.value)} />
               </div>
               <div>
                 <label className="label">Téléphone</label>

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from .email_utils import send_login_notification, send_welcome_email
 from .models import ContactMessage, NewsletterCampaign, User, Notification
@@ -78,10 +79,11 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
+    agent_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password', 'password2', 'role', 'phone']
+        fields = ['username', 'email', 'first_name', 'last_name', 'password', 'password2', 'role', 'phone', 'agent_code']
 
     # Rôles ouverts à l'inscription publique — ADMIN/CONTROLLER sont créés
     # uniquement par un admin existant, jamais via le formulaire public.
@@ -96,10 +98,24 @@ class RegisterSerializer(serializers.ModelSerializer):
         attrs['email'] = email
         if attrs.get('role') not in self.PUBLIC_ROLES:
             attrs['role'] = 'CLIENT'
+        code = attrs.get('agent_code', '').strip()
+        if code:
+            from apps.affiliates.models import Agent
+            agent = Agent.objects.filter(code=code, is_active=True).first()
+            if not agent:
+                raise serializers.ValidationError({'agent_code': 'Code agent invalide.'})
+            attrs['referring_agent'] = agent
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
+        agent = validated_data.pop('referring_agent', None)
+        validated_data.pop('agent_code', None)
+        user = User.objects.create_user(**validated_data)
+        if agent:
+            from apps.affiliates.models import AgentReferral
+            AgentReferral.objects.create(agent=agent, referred_user=user)
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
