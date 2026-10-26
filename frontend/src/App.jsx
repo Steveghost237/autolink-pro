@@ -23,6 +23,7 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
+import Disputes from './pages/admin/Disputes';
 import ContactMessages from './pages/admin/ContactMessages';
 import Newsletter from './pages/admin/Newsletter';
 import LegalPages from './pages/LegalPages';
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<Guard roles={['ADMIN']}><ManageUsers /></Guard>} />
       <Route path="/admin/catalog" element={<Guard roles={['ADMIN']}><CatalogManager /></Guard>} />
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
+      <Route path="/admin/disputes" element={<Guard roles={['ADMIN']}><Disputes /></Guard>} />
       <Route path="/admin/messages" element={<Guard roles={['ADMIN']}><ContactMessages /></Guard>} />
       <Route path="/admin/newsletter" element={<Guard roles={['ADMIN']}><Newsletter /></Guard>} />
 

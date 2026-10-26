@@ -57,9 +57,10 @@ class BookingViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'vehicle']
     search_fields = [
         'client__username', 'client__first_name', 'client__last_name',
-        'vehicle__brand', 'vehicle__model', 'vehicle__plate', 'status',
+        'client__email', 'vehicle__brand', 'vehicle__model', 'vehicle__plate',
+        'status', 'dispute_reason',
     ]
-    ordering_fields = ['created_at', 'start_date', 'end_date', 'subtotal', 'status']
+    ordering_fields = ['created_at', 'start_date', 'end_date', 'subtotal', 'status', 'dispute_opened_at']
 
     def get_queryset(self):
         Booking.auto_complete_expired()
@@ -554,6 +555,24 @@ class BookingViewSet(viewsets.ModelViewSet):
             payment.release_escrow()   # part propriétaire
             payment.forfeit_deposit()  # caution client versée au propriétaire
         return Response(BookingSerializer(booking).data)
+
+    @action(detail=False, methods=['get'])
+    def disputes(self, request):
+        if request.user.role != 'ADMIN':
+            raise PermissionDenied('Liste réservée à l’administration.')
+        queryset = self.get_queryset().filter(dispute_reason__gt='')
+        state = request.query_params.get('state', 'open')
+        if state == 'open':
+            queryset = queryset.filter(status='disputed')
+        elif state == 'resolved':
+            queryset = queryset.exclude(status='disputed')
+        else:
+            raise ValidationError({'state': 'Valeurs possibles : open, resolved.'})
+        queryset = self.filter_queryset(queryset)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            return self.get_paginated_response(self.get_serializer(page, many=True).data)
+        return Response(self.get_serializer(queryset, many=True).data)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):

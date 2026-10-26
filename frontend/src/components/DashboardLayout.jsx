@@ -8,7 +8,7 @@ import AutoLinkLogo from './AutoLinkLogo';
 import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck, Heart,
   LayoutDashboard, Search, FileText, Settings,
-  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home, Mail,
+  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home, Mail, AlertTriangle,
 } from 'lucide-react';
 
 const NAV_ITEMS = {
@@ -35,6 +35,7 @@ const NAV_ITEMS = {
     { icon: Car, label: 'Véhicules', path: '/admin/catalog' },
     { icon: UserCheck, label: 'Chauffeurs', path: '/admin/drivers' },
     { icon: DollarSign, label: 'Finance', path: '/admin/finance' },
+    { icon: AlertTriangle, label: 'Litiges', path: '/admin/disputes' },
     { icon: Tag, label: 'Agents affiliés', path: '/admin/agents' },
     { icon: ClipboardList, label: 'Inspections', path: '/admin/inspections' },
   ],

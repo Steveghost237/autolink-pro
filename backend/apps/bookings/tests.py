@@ -176,6 +176,23 @@ class BookingFlowTests(APITestCase):
                              {'decision': 'refund'}, format='json')
         self.assertIn(r.status_code, (403,))
 
+    def test_dispute_list_is_admin_only_and_includes_resolved(self):
+        booking = self._confirmed_booking()
+        self.client.post(f'/api/bookings/{booking.id}/dispute/', {'reason': 'Panne moteur'}, format='json')
+        self.client.force_authenticate(self.admin)
+        opened = self.client.get('/api/bookings/disputes/?state=open')
+        self.assertEqual(opened.status_code, 200, opened.data)
+        self.assertEqual([item['id'] for item in opened.data['results']], [booking.id])
+        resolved = self.client.post(
+            f'/api/bookings/{booking.id}/resolve-dispute/',
+            {'decision': 'refund'}, format='json')
+        self.assertEqual(resolved.status_code, 200, resolved.data)
+        response = self.client.get('/api/bookings/disputes/?state=resolved')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([item['id'] for item in response.data['results']], [booking.id])
+        self.client.force_authenticate(self.client_user)
+        self.assertEqual(self.client.get('/api/bookings/disputes/?state=open').status_code, 403)
+
     # ── Fin de location ─────────────────────────────────────────────────────
     def test_finish_releases_vehicle_and_pays_owner(self):
         booking = self._confirmed_booking()
