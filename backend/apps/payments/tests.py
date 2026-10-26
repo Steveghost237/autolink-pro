@@ -3,11 +3,12 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from apps.users.models import User
 from apps.vehicles.tests import make_user, make_vehicle
 from apps.bookings.models import Booking
-from .models import Payment, WalletTransaction
+from .models import Payment, Payout, WalletTransaction
 
 
 class WalletTopupTests(APITestCase):
@@ -278,3 +279,59 @@ class BookingExternalPaymentTests(APITestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, 'confirmed')
         self.assertEqual(booking.payment.status, 'completed')
+
+
+class FinanceReportingTests(APITestCase):
+    def setUp(self):
+        self.admin = make_user('finance-admin', 'ADMIN')
+        self.client_user = make_user('finance-client', 'CLIENT')
+        self.owner = make_user('finance-owner', 'OWNER')
+        self.vehicle = make_vehicle(self.owner, 'FN-001-AA')
+        self.client.force_authenticate(self.client_user)
+
+    def make_payment(self, ref, amount, commission, method='wallet'):
+        start = date.today() + timedelta(days=40)
+        booking = Booking.objects.create(
+            client=self.client_user, vehicle=self.vehicle,
+            start_date=start, end_date=start + timedelta(days=1),
+            daily_rate=Decimal('1000'), days=1, subtotal=Decimal('1000'),
+            commission_amount=Decimal('500'), owner_amount=Decimal('500'),
+        )
+        return Payment.objects.create(
+            booking=booking, payer=self.client_user, method=method,
+            status='completed', amount=Decimal(amount), commission=Decimal(commission),
+            owner_payout=Decimal(amount) - Decimal(commission), transaction_ref=ref,
+            paid_at=timezone.now(),
+        )
+
+    def test_finance_endpoints_are_admin_only(self):
+        self.assertEqual(self.client.get('/api/payments/finance/stats/').status_code, 403)
+        self.assertEqual(self.client.get('/api/payments/finance/transactions/').status_code, 403)
+        self.assertEqual(self.client.get('/api/payments/finance/transactions/export/').status_code, 403)
+
+    def test_finance_month_stats_sum_payments_and_payouts(self):
+        first = self.make_payment('FIN-001', '1000', '250')
+        self.make_payment('FIN-002', '500', '100')
+        Payout.objects.create(
+            payment=first, recipient=self.owner, amount=Decimal('700'),
+            method='wallet', status='completed', processed_at=timezone.now(),
+        )
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/api/payments/finance/stats/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(Decimal(response.data['revenue']), Decimal('1500'))
+        self.assertEqual(Decimal(response.data['commission']), Decimal('350'))
+        self.assertEqual(Decimal(response.data['owner_payouts']), Decimal('700'))
+        self.assertEqual(response.data['transaction_count'], 2)
+
+    def test_finance_csv_has_content_type_and_header(self):
+        self.make_payment('FIN-CSV', '1500', '500')
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/api/payments/finance/transactions/export/?method=wallet')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/csv'))
+        header = response.content.decode('utf-8').splitlines()[0]
+        self.assertIn('Référence', header)
+        self.assertIn('Client', header)
+        self.assertIn('Véhicule', header)
+        self.assertIn('Part propriétaire', header)

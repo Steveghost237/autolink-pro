@@ -22,10 +22,44 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class PayoutSerializer(serializers.ModelSerializer):
+    recipient_name = serializers.SerializerMethodField()
+    recipient_email = serializers.EmailField(source='recipient.email', read_only=True)
+
     class Meta:
         model = Payout
-        fields = '__all__'
+        fields = [
+            'id', 'payment', 'recipient', 'recipient_name', 'recipient_email',
+            'amount', 'method', 'status', 'transaction_ref', 'processed_at', 'created_at',
+        ]
         read_only_fields = ['processed_at', 'created_at']
+
+    def get_recipient_name(self, obj):
+        return obj.recipient.get_full_name() or obj.recipient.username
+
+
+class FinanceTransactionSerializer(serializers.ModelSerializer):
+    reference = serializers.SerializerMethodField()
+    client_name = serializers.SerializerMethodField()
+    client_email = serializers.EmailField(source='payer.email', read_only=True)
+    vehicle = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = [
+            'id', 'reference', 'client_name', 'client_email', 'vehicle',
+            'method', 'status', 'amount', 'commission', 'owner_payout',
+            'created_at', 'paid_at',
+        ]
+
+    def get_reference(self, obj):
+        return obj.transaction_ref or f'PAY-{obj.pk:04d}'
+
+    def get_client_name(self, obj):
+        return obj.payer.get_full_name() or obj.payer.username
+
+    def get_vehicle(self, obj):
+        vehicle = obj.booking.vehicle
+        return f'{vehicle.brand} {vehicle.model} ({vehicle.plate})'
 
 
 class WalletTransactionSerializer(serializers.ModelSerializer):

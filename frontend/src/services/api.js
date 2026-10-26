@@ -139,5 +139,15 @@ export const paymentsAPI = {
   methods: () => api.get('/payments/methods/'),
   bookingStatus: (reference) => api.get(`/payments/bookings/${reference}/status/`),
 };
+export const financeAPI = {
+  stats: () => api.get('/payments/finance/stats/'),
+  transactions: (params) => api.get('/payments/finance/transactions/', { params }),
+  exportTransactions: (params) => api.get('/payments/finance/transactions/export/', {
+    params, responseType: 'blob',
+  }),
+};
+export const payoutsAPI = {
+  list: (params) => api.get('/payments/payouts/', { params }),
+};
 
 export default api;

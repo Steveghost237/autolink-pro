@@ -1,25 +1,153 @@
+import csv
 import json
 import uuid
 import hmac
+from datetime import date
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction as db_transaction
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.utils import timezone
 from django.http import HttpResponseRedirect
-from rest_framework import filters, viewsets, permissions, status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, generics, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from config.pagination import StandardPagination
 from .models import Payment, Payout, WalletTransaction
 from apps.bookings.models import Booking
-from .serializers import PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
+from .serializers import FinanceTransactionSerializer, PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
 from . import providers
+
+
+class FinanceAdminPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+def _month_start(value):
+    return date(value.year, value.month, 1)
+
+
+def _next_month(value):
+    return date(value.year + (value.month == 12), value.month % 12 + 1, 1)
+
+
+def _completed_payments():
+    return Payment.objects.filter(status=Payment.Status.COMPLETED)
+
+
+class FinanceStatsView(APIView):
+    permission_classes = [FinanceAdminPermission]
+
+    def get(self, request):
+        today = timezone.localdate()
+        month_start = _month_start(today)
+        month_payments = _completed_payments().filter(
+            paid_at__date__gte=month_start, paid_at__date__lte=today)
+        month_payouts = Payout.objects.filter(
+            status=Payment.Status.COMPLETED,
+            processed_at__date__gte=month_start,
+            processed_at__date__lte=today,
+        )
+        payment_totals = month_payments.aggregate(
+            revenue=Coalesce(Sum('amount'), Decimal('0.00')),
+            commission=Coalesce(Sum('commission'), Decimal('0.00')),
+            transaction_count=Count('id'),
+        )
+        monthly_series = []
+        month = month_start
+        for _ in range(12):
+            monthly_series.append(month)
+            previous_year = month.year - (month.month == 1)
+            previous_month = month.month - 1 if month.month > 1 else 12
+            month = date(previous_year, previous_month, 1)
+        monthly_series.reverse()
+        series = []
+        for start in monthly_series:
+            end = _next_month(start)
+            payments = _completed_payments().filter(
+                paid_at__date__gte=start, paid_at__date__lt=end)
+            payouts = Payout.objects.filter(
+                status=Payment.Status.COMPLETED,
+                processed_at__date__gte=start, processed_at__date__lt=end,
+            )
+            payment_sums = payments.aggregate(
+                revenue=Coalesce(Sum('amount'), Decimal('0.00')),
+                commission=Coalesce(Sum('commission'), Decimal('0.00')),
+            )
+            series.append({
+                'month': start.strftime('%Y-%m'),
+                'revenue': payment_sums['revenue'],
+                'commission': payment_sums['commission'],
+                'owner_payouts': payouts.aggregate(
+                    total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
+            })
+        methods = list(month_payments.values('method').annotate(
+            amount=Coalesce(Sum('amount'), Decimal('0.00')),
+            transactions=Count('id'),
+        ).order_by('method'))
+        return Response({
+            'month': month_start.strftime('%Y-%m'),
+            'revenue': payment_totals['revenue'],
+            'commission': payment_totals['commission'],
+            'owner_payouts': month_payouts.aggregate(
+                total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
+            'transaction_count': payment_totals['transaction_count'],
+            'monthly_series': series,
+            'payment_methods': methods,
+        })
+
+
+class FinanceTransactionListView(generics.ListAPIView):
+    serializer_class = FinanceTransactionSerializer
+    permission_classes = [FinanceAdminPermission]
+    pagination_class = StandardPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'method']
+    search_fields = [
+        'transaction_ref', 'payer__username', 'payer__email', 'payer__first_name',
+        'payer__last_name', 'booking__vehicle__brand', 'booking__vehicle__model',
+        'booking__vehicle__plate',
+    ]
+    ordering_fields = ['created_at', 'paid_at', 'amount', 'commission', 'status', 'method']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Payment.objects.select_related('payer', 'booking__vehicle').all()
+
+
+class FinanceTransactionExportView(FinanceTransactionListView):
+    pagination_class = None
+
+    def get(self, request, *args, **kwargs):
+        rows = self.filter_queryset(self.get_queryset())
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'Référence', 'Client', 'Email', 'Véhicule', 'Méthode', 'Statut',
+            'Montant', 'Commission', 'Part propriétaire', 'Créée le', 'Payée le',
+        ])
+        for payment in rows.iterator():
+            data = FinanceTransactionSerializer(payment).data
+            writer.writerow([
+                data['reference'], data['client_name'], data['client_email'],
+                data['vehicle'], data['method'], data['status'], data['amount'],
+                data['commission'], data['owner_payout'], data['created_at'], data['paid_at'] or '',
+            ])
+        return response
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
     filterset_fields = ['status', 'method', 'escrow_status']
     search_fields = [
         'transaction_ref', 'payer__username', 'payer__email',
@@ -40,6 +168,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PayoutSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
     filterset_fields = ['status', 'method']
     search_fields = [
         'transaction_ref', 'recipient__username', 'recipient__email',
