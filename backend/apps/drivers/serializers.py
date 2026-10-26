@@ -1,9 +1,11 @@
 from rest_framework import serializers
-from .models import DriverApplication, DriverProfile
+from .models import DriverApplication, DriverEarning, DriverProfile
 
 
 class DriverApplicationSerializer(serializers.ModelSerializer):
     applicant_name = serializers.SerializerMethodField()
+    applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
+    applicant_phone = serializers.CharField(source='applicant.phone', read_only=True)
     compliance_score = serializers.ReadOnlyField()
 
     class Meta:
@@ -11,12 +13,21 @@ class DriverApplicationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['applicant', 'reviewer', 'applied_at', 'reviewed_at']
 
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if request and request.user.role != 'ADMIN':
+            fields['status'].read_only = True
+            fields['reviewer_notes'].read_only = True
+        return fields
+
     def get_applicant_name(self, obj):
         return obj.applicant.get_full_name()
 
 
 class DriverProfileSerializer(serializers.ModelSerializer):
     driver_name = serializers.SerializerMethodField()
+    driver_email = serializers.EmailField(source='driver.email', read_only=True)
 
     class Meta:
         model = DriverProfile
@@ -25,3 +36,19 @@ class DriverProfileSerializer(serializers.ModelSerializer):
 
     def get_driver_name(self, obj):
         return obj.driver.get_full_name()
+
+
+class DriverEarningSerializer(serializers.ModelSerializer):
+    booking_reference = serializers.SerializerMethodField()
+    vehicle_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DriverEarning
+        fields = ['id', 'booking', 'booking_reference', 'vehicle_name', 'amount', 'created_at']
+        read_only_fields = fields
+
+    def get_booking_reference(self, obj):
+        return f'BK-{obj.booking_id:04d}'
+
+    def get_vehicle_name(self, obj):
+        return f'{obj.booking.vehicle.brand} {obj.booking.vehicle.model}'

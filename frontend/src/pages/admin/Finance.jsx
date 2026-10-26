@@ -102,6 +102,7 @@ export default function Finance() {
   }));
   const series = (stats?.monthly_series || []).map(item => ({
     ...item, revenue: Number(item.revenue), commission: Number(item.commission),
+    driver_earnings: Number(item.driver_earnings), platform_net: Number(item.platform_net),
     owner_payouts: Number(item.owner_payouts),
     label: new Date(`${item.month}-01T00:00:00`).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
   }));
@@ -110,10 +111,12 @@ export default function Finance() {
     <DashboardLayout title="Finance & commissions">
       <div className="mx-auto max-w-7xl space-y-6">
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           {[
             { label: 'Chiffre d’affaires du mois', value: stats?.revenue, icon: TrendingUp, style: 'bg-blue-50 text-blue-600' },
-            { label: 'Commission AutoLink', value: stats?.commission, icon: DollarSign, style: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Commission brute AutoLink', value: stats?.commission, icon: DollarSign, style: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Gains des chauffeurs', value: stats?.driver_earnings, icon: CreditCard, style: 'bg-amber-50 text-amber-600' },
+            { label: 'Net plateforme', value: stats?.platform_net, icon: TrendingUp, style: 'bg-teal-50 text-teal-600' },
             { label: 'Versements propriétaires', value: stats?.owner_payouts, icon: CreditCard, style: 'bg-purple-50 text-purple-600' },
             { label: 'Transactions du mois', value: stats?.transaction_count, icon: Calendar, style: 'bg-amber-50 text-amber-600', currency: false },
           ].map(({ label, value, icon: Icon, style, currency = true }) => (
@@ -135,7 +138,9 @@ export default function Finance() {
                   <YAxis tickFormatter={value => `${Math.round(value / 1000)}k`} />
                   <Tooltip formatter={value => `${amount(value)} FCFA`} />
                   <Bar dataKey="revenue" name="Chiffre d’affaires" fill="#0d9488" />
-                  <Bar dataKey="commission" name="Commission" fill="#f97316" />
+                  <Bar dataKey="commission" name="Commission brute" fill="#f97316" />
+                  <Bar dataKey="driver_earnings" name="Gains chauffeurs" fill="#eab308" />
+                  <Bar dataKey="platform_net" name="Net plateforme" fill="#14b8a6" />
                   <Bar dataKey="owner_payouts" name="Versements" fill="#10b981" />
                 </BarChart>
               </ResponsiveContainer>

@@ -36,13 +36,14 @@ def _assign_internal_driver(booking):
         driver__isnull=False,
     ).values_list('driver_id', flat=True)
     driver = (User.objects
-              .filter(role='DRIVER', is_active=True)
+              .filter(role='DRIVER', is_active=True, driver_profile__is_online=True)
               .exclude(id__in=busy)
               .order_by('id')
               .first())
     if driver:
         booking.driver = driver
-        booking.save(update_fields=['driver', 'updated_at'])
+        booking.driver_response = 'offered'
+        booking.save(update_fields=['driver', 'driver_response', 'updated_at'])
         _notify(driver, 'Nouvelle course',
                 f'Vous êtes assigné à la location du véhicule {booking.vehicle} '
                 f'du {booking.start_date} au {booking.end_date}. '
@@ -72,6 +73,30 @@ class BookingViewSet(viewsets.ModelViewSet):
         if user.role == 'OWNER':
             return Booking.objects.filter(vehicle__owner=user)
         return Booking.objects.none()
+
+    def _driver_booking(self, user, booking):
+        if user.role != 'DRIVER' or booking.driver_id != user.id:
+            raise PermissionDenied('Cette course ne vous est pas assignée.')
+
+    @action(detail=True, methods=['post'], url_path='driver-accept')
+    def driver_accept(self, request, pk=None):
+        booking = self.get_object()
+        self._driver_booking(request.user, booking)
+        if booking.status != 'confirmed' or booking.driver_response != 'offered':
+            raise ValidationError({'detail': 'Cette course ne peut plus être acceptée.'})
+        booking.driver_response = 'accepted'
+        booking.save(update_fields=['driver_response', 'updated_at'])
+        return Response(self.get_serializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='driver-refuse')
+    def driver_refuse(self, request, pk=None):
+        booking = self.get_object()
+        self._driver_booking(request.user, booking)
+        if booking.status != 'confirmed' or booking.driver_response != 'offered':
+            raise ValidationError({'detail': 'Cette course ne peut plus être refusée.'})
+        booking.driver_response = 'refused'
+        booking.save(update_fields=['driver_response', 'updated_at'])
+        return Response(self.get_serializer(booking).data)
 
     def create(self, request, *args, **kwargs):
         # Ajoute payment_url à la réponse quand un checkout externe est créé
@@ -275,10 +300,15 @@ class BookingViewSet(viewsets.ModelViewSet):
             return
 
         if user.role == 'DRIVER':
-            if booking.driver_id != user.id:
-                raise PermissionDenied('Cette course ne vous est pas assignée.')
+            self._driver_booking(user, booking)
             if new_status not in DRIVER_ALLOWED_STATUS:
                 raise PermissionDenied('Action non autorisée.')
+            if new_status == 'active' and (
+                booking.status != 'confirmed' or booking.driver_response != 'accepted'
+            ):
+                raise ValidationError({'status': 'Acceptez la course avant de la démarrer.'})
+            if new_status == 'completed' and booking.status != 'active':
+                raise ValidationError({'status': 'Seule une course en cours peut être terminée.'})
             if new_status == 'completed':
                 booking.finish()  # statut + véhicule libéré + caution versée + notifs
                 serializer.instance = booking

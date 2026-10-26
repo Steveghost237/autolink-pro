@@ -10,6 +10,7 @@ from apps.users.models import User
 from apps.vehicles.models import Vehicle
 from apps.payments.models import Payment, WalletTransaction
 from apps.inspections.models import InspectionPhoto, VehicleInspection
+from apps.drivers.models import DriverProfile
 from apps.vehicles.tests import make_user, make_vehicle
 from .models import Booking
 
@@ -99,6 +100,7 @@ class BookingFlowTests(APITestCase):
     def test_internal_driver_auto_assigned(self):
         self.client_user.balance = 5_000_000
         self.client_user.save()
+        DriverProfile.objects.create(driver=self.driver, is_online=True)
         r = self._book(driver_type='internal')
         self.assertEqual(r.status_code, 201)
         booking = Booking.objects.get(pk=r.data['id'])

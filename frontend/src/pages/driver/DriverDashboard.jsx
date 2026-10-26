@@ -1,209 +1,229 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
-import { bookingsAPI, notificationsAPI } from '../../services/api';
-import { Car, Star, DollarSign, Clock, MapPin, Phone, CheckCircle, Navigation, Award, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { bookingsAPI, driversAPI, vehiclesAPI } from '../../services/api';
+import { Car, CheckCircle, Clock, MapPin, Phone, Star, Wifi, WifiOff } from 'lucide-react';
 
-const POLL = 10000;
-
-const STATUS_LABEL = {
-  confirmed: { label: 'À venir', cls: 'bg-blue-100 text-blue-700' },
-  active:    { label: 'En cours', cls: 'bg-emerald-100 text-emerald-700' },
-  completed: { label: 'Terminée', cls: 'bg-slate-100 text-slate-600' },
-  cancelled: { label: 'Annulée',  cls: 'bg-red-100 text-red-700' },
-};
+const SORT_OPTIONS = [
+  { value: 'start_date', label: 'Date de début' },
+  { value: 'end_date', label: 'Date de fin' },
+  { value: 'status', label: 'Statut' },
+];
+const EARNING_SORT_OPTIONS = [
+  { value: 'created_at', label: 'Date' },
+  { value: 'amount', label: 'Montant' },
+  { value: 'booking__start_date', label: 'Date de course' },
+];
+const STATUS = { pending: 'En attente', confirmed: 'À venir', active: 'En cours', completed: 'Terminée', cancelled: 'Annulée' };
 
 export default function DriverDashboard() {
   const confirm = useConfirm();
   const { user } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
+  const [earnings, setEarnings] = useState(null);
+  const [ledger, setLedger] = useState([]);
+  const [ledgerCount, setLedgerCount] = useState(0);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerSortField, setLedgerSortField] = useState('created_at');
+  const [ledgerSortOrder, setLedgerSortOrder] = useState('desc');
   const [bookings, setBookings] = useState([]);
-  const [notifs, setNotifs] = useState([]);
-  const [notificationSearch, setNotificationSearch] = useState('');
-  const [notificationSortField, setNotificationSortField] = useState('created_at');
-  const [notificationSortOrder, setNotificationSortOrder] = useState('desc');
-  const [online, setOnline] = useState(true);
+  const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [sortField, setSortField] = useState('start_date');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [b, n] = await Promise.all([
-        bookingsAPI.list({ page_size: 50 }),
-        notificationsAPI.list({
-          search: notificationSearch.trim(),
-          ordering: `${notificationSortOrder === 'desc' ? '-' : ''}${notificationSortField}`,
+      const [bookingResponse, profileResponse, earningsResponse] = await Promise.all([
+        bookingsAPI.list({
+          page, page_size: 20, search: search.trim(), status: status || undefined,
+          ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
         }),
+        driversAPI.profiles({ page_size: 1 }),
+        driversAPI.earnings(),
       ]);
-      setBookings(b.data.results || b.data || []);
-      setNotifs(n.data.results || []);
-      setOnline(true);
+      setBookings(bookingResponse.data.results || []);
+      setCount(bookingResponse.data.count ?? 0);
+      setProfile((profileResponse.data.results || [])[0] || null);
+      setEarnings(earningsResponse.data);
+      setError('');
     } catch (_) {
-      setOnline(false);
+      setError('Impossible de charger votre espace chauffeur.');
     }
-  }, [notificationSearch, notificationSortField, notificationSortOrder]);
+  }, [page, search, status, sortField, sortOrder]);
+  useEffect(() => { load(); }, [load]);
+
+  const loadLedger = useCallback(async () => {
+    try {
+      const { data } = await driversAPI.earningLedger({
+        page: ledgerPage, page_size: 20, search: ledgerSearch.trim(),
+        ordering: `${ledgerSortOrder === 'desc' ? '-' : ''}${ledgerSortField}`,
+      });
+      setLedger(data.results || []);
+      setLedgerCount(data.count ?? 0);
+    } catch (_) {
+      setLedger([]);
+      setLedgerCount(0);
+    }
+  }, [ledgerPage, ledgerSearch, ledgerSortField, ledgerSortOrder]);
+  useEffect(() => { loadLedger(); }, [loadLedger]);
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, POLL);
-    return () => clearInterval(t);
-  }, [load]);
+    if (!profile?.assigned_vehicle) { setVehicle(null); return; }
+    vehiclesAPI.detail(profile.assigned_vehicle).then(response => setVehicle(response.data)).catch(() => setVehicle(null));
+  }, [profile?.assigned_vehicle]);
 
-  const setStatus = async (id, status) => {
-    if (status === 'completed') {
-      const confirmed = await confirm({
-        title: 'Terminer cette course ?',
-        message: 'La course sera clôturée et le véhicule sera libéré.',
-        confirmLabel: 'Terminer la course',
-      });
-      if (!confirmed) return;
-    }
-    setBusy(id);
+  const setAvailability = async () => {
     try {
-      await bookingsAPI.updateStatus(id, status);
-      await load();
-    } catch (_) {}
-    setBusy(null);
+      const { data } = await driversAPI.availability(!profile?.is_online);
+      setProfile(data);
+    } catch (_) { setError('La disponibilité n’a pas pu être modifiée.'); }
   };
 
-  const upcoming = bookings.filter(b => b.status === 'confirmed');
-  const active = bookings.filter(b => b.status === 'active');
-  const history = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
-  const totalEarned = bookings.filter(b => b.status === 'completed')
-    .reduce((s, b) => s + Number(b.subtotal || 0) * 0.10, 0); // part indicative chauffeur
+  const actOnRide = async (booking, action) => {
+    if (action === 'refuse' && !(await confirm({
+      title: 'Refuser cette course ?',
+      message: 'Le refus sera enregistré dans votre dossier de course.',
+      confirmLabel: 'Refuser', danger: true,
+    }))) return;
+    if (action === 'finish' && !(await confirm({
+      title: 'Terminer cette course ?',
+      message: 'La course sera clôturée.',
+      confirmLabel: 'Terminer',
+    }))) return;
+    setBusy(booking.id);
+    try {
+      if (action === 'accept') await bookingsAPI.acceptDriverRide(booking.id);
+      if (action === 'refuse') await bookingsAPI.refuseDriverRide(booking.id);
+      if (action === 'start') await bookingsAPI.updateStatus(booking.id, 'active');
+      if (action === 'finish') await bookingsAPI.updateStatus(booking.id, 'completed');
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'Cette action n’a pas pu être réalisée.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const monthLabel = value => new Date(value).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
   return (
-    <DashboardLayout title="Espace Chauffeur">
-      <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* Bandeau connexion */}
-        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium ${online ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-          <div className="flex items-center gap-2">
-            {online ? <Wifi size={16} /> : <WifiOff size={16} />}
-            {online ? 'Connecté — courses synchronisées automatiquement' : 'API injoignable'}
+    <DashboardLayout title="Espace chauffeur">
+      <div className="mx-auto max-w-6xl space-y-5">
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <section className="card flex flex-wrap items-center justify-between gap-4 bg-gradient-to-br from-slate-900 to-primary-900 text-white">
+          <div>
+            <h2 className="text-2xl font-bold">Bonjour, {user?.first_name || user?.username}</h2>
+            <p className="text-sm text-white/70">Gérez votre disponibilité et les courses qui vous sont attribuées.</p>
           </div>
-          <button onClick={load} className="flex items-center gap-1 underline"><RefreshCw size={13} /> Actualiser</button>
-        </div>
+          {profile && <button onClick={setAvailability} className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold ${profile.is_online ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+            {profile.is_online ? <Wifi size={17} /> : <WifiOff size={17} />}
+            {profile.is_online ? 'En ligne' : 'Hors ligne'}
+          </button>}
+        </section>
 
-        {/* Header */}
-        <div className="bg-gradient-to-br from-slate-900 to-primary-900 rounded-2xl p-6 text-white">
-          <h2 className="text-2xl font-bold mb-1">Bonjour, {user?.first_name || user?.firstName}</h2>
-          <p className="text-white/60 text-sm">Chauffeur interne AutoLink — les courses vous sont assignées automatiquement.</p>
-        </div>
-
-        {/* Notifications */}
-        <div className="card">
-          <h3 className="font-bold text-slate-900 mb-3">Notifications</h3>
-          <ListToolbar
-            search={notificationSearch}
-            onSearchChange={setNotificationSearch}
-            sortField={notificationSortField}
-            onSortFieldChange={setNotificationSortField}
-            sortOrder={notificationSortOrder}
-            onSortOrderChange={setNotificationSortOrder}
-            sortOptions={[
-              { value: 'created_at', label: 'Date' },
-              { value: 'title', label: 'Titre' },
-              { value: 'is_read', label: 'Statut' },
-            ]}
-            placeholder="Rechercher une notification"
-            className="mb-3"
-          />
-          {notifs.length > 0 ? (
-            <div className="space-y-2">
-              {notifs.slice(0, 5).map(n => (
-                <div key={n.id} className={`p-3 rounded-xl text-sm ${n.is_read ? 'bg-slate-50 text-slate-500' : 'bg-blue-50 text-slate-800 font-medium'}`}>
-                  <span className="font-semibold">{n.title} — </span>{n.message}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="py-4 text-center text-sm text-slate-400">Aucune notification trouvée.</p>
-          )}
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Courses à venir', value: upcoming.length, color: 'text-blue-600 bg-blue-50', icon: Clock },
-            { label: 'En cours', value: active.length, color: 'text-emerald-600 bg-emerald-50', icon: Navigation },
-            { label: 'Terminées', value: history.length, color: 'text-slate-600 bg-slate-100', icon: CheckCircle },
-            { label: 'Gains cumulés', value: `${Math.round(totalEarned).toLocaleString()} F`, color: 'text-primary-600 bg-primary-50', icon: DollarSign },
-          ].map(({ label, value, color, icon: Icon }) => (
-            <div key={label} className="card p-4 text-center">
-              <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center mx-auto mb-2`}><Icon size={16} /></div>
-              <div className="font-black text-slate-900">{value}</div>
-              <div className="text-xs text-slate-400">{label}</div>
-            </div>
-          ))}
+            ['Note', profile ? `${Number(profile.rating).toFixed(1)} / 5` : '—', Star],
+            ['Courses terminées', earnings?.total_trips ?? 0, CheckCircle],
+            ['Gains enregistrés', earnings ? `${Number(earnings.total_earned).toLocaleString('fr-FR')} F` : '—', Car],
+            ['Véhicule attribué', vehicle ? `${vehicle.brand} ${vehicle.model}` : profile?.assigned_vehicle ? `Véhicule #${profile.assigned_vehicle}` : 'Aucun', Car],
+          ].map(([label, value, Icon]) => <div key={label} className="card flex items-center gap-3">
+            <Icon size={20} className="text-primary-600" /><div><div className="font-bold">{value}</div><div className="text-xs text-slate-500">{label}</div></div>
+          </div>)}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Courses actives + à venir */}
-          <div className="card">
-            <h3 className="font-bold text-slate-900 mb-4">Mes courses</h3>
-            {active.length === 0 && upcoming.length === 0 && (
-              <p className="text-sm text-slate-400 py-8 text-center">Aucune course assignée pour le moment.</p>
-            )}
-            <div className="space-y-4">
-              {[...active, ...upcoming].map(b => {
-                const st = STATUS_LABEL[b.status] || STATUS_LABEL.confirmed;
-                return (
-                  <div key={b.id} className={`border-2 rounded-xl p-4 ${b.status === 'active' ? 'border-emerald-300 bg-emerald-50' : 'border-primary-100 bg-primary-50'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-semibold text-slate-900 text-sm">{b.client_name} — {b.vehicle_name}</div>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
-                    </div>
-                    <div className="space-y-1 text-xs text-slate-600 mb-3">
-                      <div className="flex items-center gap-1.5"><Clock size={11} /> {b.start_date} → {b.end_date}</div>
-                      {b.pickup_address && <div className="flex items-center gap-1.5"><MapPin size={11} className="text-emerald-500" /> Départ : {b.pickup_address}</div>}
-                      {b.dropoff_address && <div className="flex items-center gap-1.5"><Navigation size={11} className="text-red-500" /> Arrivée : {b.dropoff_address}</div>}
-                    </div>
-                    <div className="flex gap-2">
-                      {b.status === 'confirmed' && (
-                        <button onClick={() => setStatus(b.id, 'active')} disabled={busy === b.id}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">
-                          <Navigation size={12} /> Démarrer la course
-                        </button>
-                      )}
-                      {b.status === 'active' && (
-                        <button onClick={() => setStatus(b.id, 'completed')} disabled={busy === b.id}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
-                          <CheckCircle size={12} /> {busy === b.id ? 'Clôture…' : 'Course terminée — libérer la voiture'}
-                        </button>
-                      )}
-                      {b.client_phone && (
-                        <a href={`tel:${b.client_phone}`} className="flex items-center justify-center gap-1.5 text-xs bg-slate-200 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-300">
-                          <Phone size={12} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <section className="card space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="font-bold">Mes courses</h2><p className="text-sm text-slate-500">{count} course(s)</p></div>
+            {vehicle && <p className="text-sm text-slate-500">Véhicule attribué : {vehicle.brand} {vehicle.model} · {vehicle.plate}</p>}
           </div>
-
-          {/* Historique */}
-          <div className="card">
-            <h3 className="font-bold text-slate-900 mb-4">Historique</h3>
-            {history.length === 0 && <p className="text-sm text-slate-400 py-8 text-center">Aucune course terminée.</p>}
-            <div className="space-y-3">
-              {history.map(b => (
-                <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-                  <div className="w-9 h-9 bg-primary-50 text-primary-600 rounded-lg flex items-center justify-center shrink-0"><Car size={16} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 text-sm">{b.client_name} — {b.vehicle_name}</div>
-                    <div className="text-xs text-slate-500">{b.start_date} → {b.end_date}</div>
+          <div className="flex flex-wrap items-center gap-3">
+            <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
+              sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
+              sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
+              sortOptions={SORT_OPTIONS} placeholder="Rechercher client, véhicule, adresse" />
+            <select className="input-field w-auto" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
+              <option value="">Tous les statuts</option>
+              {Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-3">
+            {bookings.map(booking => (
+              <article key={booking.id} className="rounded-xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{booking.client_name} · {booking.vehicle_name}</h3>
+                    <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><Clock size={14} />{booking.start_date} → {booking.end_date} · {STATUS[booking.status] || booking.status}</p>
+                    {booking.client_phone && <a href={`tel:${booking.client_phone}`} className="mt-1 inline-flex items-center gap-1 text-sm text-primary-600"><Phone size={14} />{booking.client_phone}</a>}
+                    {booking.pickup_address && <a className="mt-1 flex items-center gap-1 text-sm text-slate-600" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.pickup_address)}`}><MapPin size={14} />Départ : {booking.pickup_address}</a>}
+                    {booking.dropoff_address && <a className="mt-1 flex items-center gap-1 text-sm text-slate-600" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.dropoff_address)}`}><MapPin size={14} />Arrivée : {booking.dropoff_address}</a>}
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${(STATUS_LABEL[b.status] || STATUS_LABEL.completed).cls}`}>
-                    {(STATUS_LABEL[b.status] || STATUS_LABEL.completed).label}
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {booking.status === 'confirmed' && booking.driver_response === 'offered' && <>
+                      <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'accept')}>Accepter</button>
+                      <button disabled={busy === booking.id} className="btn-outline text-red-600" onClick={() => actOnRide(booking, 'refuse')}>Refuser</button>
+                    </>}
+                    {booking.status === 'confirmed' && booking.driver_response === 'accepted' && <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'start')}>Démarrer</button>}
+                    {booking.status === 'active' && <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'finish')}>Terminer la course</button>}
+                  </div>
                 </div>
-              ))}
+              </article>
+            ))}
+            {bookings.length === 0 && <p className="py-8 text-center text-slate-500">Aucune course ne correspond à votre recherche.</p>}
+          </div>
+          <div className="flex items-center justify-between border-t pt-3 text-sm">
+            <span>Page {page} / {Math.max(1, Math.ceil(count / 20))}</span>
+            <div className="flex gap-2">
+              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Précédent</button>
+              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>Suivant</button>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section className="card">
+          <h2 className="mb-3 font-bold">Gains mensuels</h2>
+          {(earnings?.monthly_earnings || []).every(item => !Number(item.earnings)) && <p className="text-sm text-slate-500">Aucun gain enregistré.</p>}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {(earnings?.monthly_earnings || []).map(item => (
+              <div key={item.month} className="rounded-lg bg-slate-50 p-3 text-sm">
+                <div className="font-semibold">{monthLabel(`${item.month}-01`)}</div>
+                <div className="text-slate-600">{Number(item.trips || 0)} course(s) · {Number(item.earnings || 0).toLocaleString('fr-FR')} F</div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="card space-y-4">
+          <div><h2 className="font-bold">Historique des gains</h2><p className="text-sm text-slate-500">{ledgerCount} écriture(s)</p></div>
+          <ListToolbar search={ledgerSearch} onSearchChange={value => { setLedgerSearch(value); setLedgerPage(1); }}
+            sortField={ledgerSortField} onSortFieldChange={value => { setLedgerSortField(value); setLedgerPage(1); }}
+            sortOrder={ledgerSortOrder} onSortOrderChange={value => { setLedgerSortOrder(value); setLedgerPage(1); }}
+            sortOptions={EARNING_SORT_OPTIONS} placeholder="Rechercher par véhicule ou client" />
+          <div className="divide-y">
+            {ledger.map(entry => (
+              <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                <div><div className="font-semibold">{entry.booking_reference} · {entry.vehicle_name}</div><div className="text-slate-500">{new Date(entry.created_at).toLocaleDateString('fr-FR')}</div></div>
+                <strong className="text-emerald-700">+{Number(entry.amount).toLocaleString('fr-FR')} F</strong>
+              </div>
+            ))}
+            {ledger.length === 0 && <p className="py-6 text-center text-sm text-slate-500">Aucun gain correspondant à votre recherche.</p>}
+          </div>
+          <div className="flex items-center justify-between border-t pt-3 text-sm">
+            <span>Page {ledgerPage} / {Math.max(1, Math.ceil(ledgerCount / 20))}</span>
+            <div className="flex gap-2">
+              <button className="btn-outline px-3 py-1" disabled={ledgerPage <= 1} onClick={() => setLedgerPage(value => value - 1)}>Précédent</button>
+              <button className="btn-outline px-3 py-1" disabled={ledgerPage * 20 >= ledgerCount} onClick={() => setLedgerPage(value => value + 1)}>Suivant</button>
+            </div>
+          </div>
+        </section>
       </div>
     </DashboardLayout>
   );

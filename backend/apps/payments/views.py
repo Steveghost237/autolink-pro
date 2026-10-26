@@ -20,6 +20,7 @@ from rest_framework.permissions import AllowAny
 from config.pagination import StandardPagination
 from .models import Payment, Payout, WalletTransaction
 from apps.bookings.models import Booking
+from apps.drivers.models import DriverEarning
 from .serializers import FinanceTransactionSerializer, PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
 from . import providers
 
@@ -59,6 +60,9 @@ class FinanceStatsView(APIView):
             commission=Coalesce(Sum('commission'), Decimal('0.00')),
             transaction_count=Count('id'),
         )
+        driver_earnings = DriverEarning.objects.filter(
+            created_at__date__gte=month_start, created_at__date__lte=today,
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
         monthly_series = []
         month = month_start
         for _ in range(12):
@@ -80,10 +84,15 @@ class FinanceStatsView(APIView):
                 revenue=Coalesce(Sum('amount'), Decimal('0.00')),
                 commission=Coalesce(Sum('commission'), Decimal('0.00')),
             )
+            earning_total = DriverEarning.objects.filter(
+                created_at__date__gte=start, created_at__date__lt=end,
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
             series.append({
                 'month': start.strftime('%Y-%m'),
                 'revenue': payment_sums['revenue'],
                 'commission': payment_sums['commission'],
+                'driver_earnings': earning_total,
+                'platform_net': payment_sums['commission'] - earning_total,
                 'owner_payouts': payouts.aggregate(
                     total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
             })
@@ -95,6 +104,8 @@ class FinanceStatsView(APIView):
             'month': month_start.strftime('%Y-%m'),
             'revenue': payment_totals['revenue'],
             'commission': payment_totals['commission'],
+            'driver_earnings': driver_earnings,
+            'platform_net': payment_totals['commission'] - driver_earnings,
             'owner_payouts': month_payouts.aggregate(
                 total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
             'transaction_count': payment_totals['transaction_count'],

@@ -24,7 +24,7 @@ class BookingSerializer(serializers.ModelSerializer):
         read_only_fields = ['client', 'driver', 'daily_rate', 'days', 'subtotal',
                             'commission_amount', 'owner_amount', 'discount_percent',
                             'deposit_amount',
-                            'dispute_reason', 'dispute_opened_at',
+                            'dispute_reason', 'dispute_opened_at', 'driver_response',
                             'created_at', 'updated_at']
 
     def get_client_name(self, obj): return obj.client.get_full_name()

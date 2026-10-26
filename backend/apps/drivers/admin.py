@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DriverApplication, DriverProfile
+from .models import DriverApplication, DriverEarning, DriverProfile
 
 
 @admin.register(DriverApplication)
@@ -15,3 +15,10 @@ class DriverProfileAdmin(admin.ModelAdmin):
     list_display = ['driver', 'assigned_vehicle', 'rating', 'total_trips', 'total_earned', 'is_online']
     list_filter = ['is_online']
     readonly_fields = ['total_trips', 'total_earned', 'rating', 'rating_count']
+
+
+@admin.register(DriverEarning)
+class DriverEarningAdmin(admin.ModelAdmin):
+    list_display = ['driver', 'booking', 'amount', 'created_at']
+    search_fields = ['driver__username', 'booking__vehicle__brand', 'booking__vehicle__model']
+    list_filter = ['created_at']

@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 from apps.users.models import User
 from apps.vehicles.tests import make_user, make_vehicle
 from apps.bookings.models import Booking
+from apps.drivers.models import DriverEarning
 from .models import Payment, Payout, WalletTransaction
 
 
@@ -312,6 +313,9 @@ class FinanceReportingTests(APITestCase):
     def test_finance_month_stats_sum_payments_and_payouts(self):
         first = self.make_payment('FIN-001', '1000', '250')
         self.make_payment('FIN-002', '500', '100')
+        driver = make_user('finance-driver', 'DRIVER')
+        DriverEarning.objects.create(
+            driver=driver, booking=first.booking, amount=Decimal('125'))
         Payout.objects.create(
             payment=first, recipient=self.owner, amount=Decimal('700'),
             method='wallet', status='completed', processed_at=timezone.now(),
@@ -321,6 +325,8 @@ class FinanceReportingTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(Decimal(response.data['revenue']), Decimal('1500'))
         self.assertEqual(Decimal(response.data['commission']), Decimal('350'))
+        self.assertEqual(Decimal(response.data['driver_earnings']), Decimal('125'))
+        self.assertEqual(Decimal(response.data['platform_net']), Decimal('225'))
         self.assertEqual(Decimal(response.data['owner_payouts']), Decimal('700'))
         self.assertEqual(response.data['transaction_count'], 2)
 

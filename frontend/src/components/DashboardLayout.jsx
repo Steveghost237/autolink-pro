@@ -17,6 +17,7 @@ const NAV_ITEMS = {
     { icon: Search, label: 'Chercher un véhicule', path: '/client/search' },
     { icon: FileText, label: 'Mes réservations', path: '/client/bookings' },
     { icon: Heart, label: 'Mes favoris', path: '/client/favorites' },
+    { icon: UserCheck, label: 'Devenir chauffeur', path: '/driver/application' },
   ],
   OWNER: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },

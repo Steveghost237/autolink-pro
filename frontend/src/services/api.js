@@ -86,6 +86,8 @@ export const bookingsAPI = {
   create: (payload) => api.post('/bookings/', payload),
   update: (id, payload) => api.patch(`/bookings/${id}/`, payload),
   updateStatus: (id, status) => api.patch(`/bookings/${id}/`, { status }),
+  acceptDriverRide: (id) => api.post(`/bookings/${id}/driver-accept/`),
+  refuseDriverRide: (id) => api.post(`/bookings/${id}/driver-refuse/`),
   dispute: (id, reason) => api.post(`/bookings/${id}/dispute/`, { reason }),
   resolveDispute: (id, decision) => api.post(`/bookings/${id}/resolve-dispute/`, { decision }),
   stats: () => api.get('/bookings/stats/'),
@@ -148,6 +150,22 @@ export const financeAPI = {
 };
 export const payoutsAPI = {
   list: (params) => api.get('/payments/payouts/', { params }),
+};
+export const driversAPI = {
+  applications: (params) => api.get('/drivers/applications/', { params }),
+  createApplication: (payload) => api.post('/drivers/applications/', payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  updateApplication: (id, payload) => api.patch(`/drivers/applications/${id}/`, payload, {
+    headers: payload instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  }),
+  adminApplications: (params) => api.get('/drivers/admin/applications/', { params }),
+  updateAdminApplication: (id, payload) => api.patch(`/drivers/admin/applications/${id}/`, payload),
+  profiles: (params) => api.get('/drivers/profiles/', { params }),
+  adminProfiles: (params) => api.get('/drivers/admin/profiles/', { params }),
+  availability: (is_online) => api.patch('/drivers/profiles/availability/', { is_online }),
+  earnings: () => api.get('/drivers/profiles/earnings/'),
+  earningLedger: (params) => api.get('/drivers/earnings/', { params }),
 };
 
 export default api;
