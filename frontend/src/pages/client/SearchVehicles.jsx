@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Users, Fuel, CheckCircle, X, Car, Filter, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
+import { Star, CheckCircle, X, Car, Filter, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
@@ -69,7 +69,6 @@ const DRIVER_OPTIONS = [
 ];
 
 function BookingModal({ vehicle, onClose }) {
-  const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const requestedType = new URLSearchParams(window.location.search).get('type');
   const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
@@ -153,7 +152,6 @@ function BookingModal({ vehicle, onClose }) {
 
   const basePrice   = computePrice();
   const kmIncluded  = vehicle.kmIncluded || rentalType.kmIncluded;
-  const commission  = Math.round(basePrice * 0.50);
   const deposit     = vehicle.deposit || 0;
 
   if (step === 3) return (

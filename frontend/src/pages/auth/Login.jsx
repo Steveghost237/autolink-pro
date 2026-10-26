@@ -20,7 +20,6 @@ export default function Login() {
   const [otpMode, setOtpMode] = useState(params.get('otp') === '1');
   const [otpStep, setOtpStep] = useState(1); // 1 = identité+email, 2 = code
   const [otp, setOtp] = useState({ firstName: '', lastName: '', email: '', code: '' });
-  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,7 +44,6 @@ export default function Login() {
         first_name: otp.firstName.trim(),
         last_name: otp.lastName.trim(),
       });
-      setSent(true);
       setOtpStep(2);
     } catch (err) {
       const d = err.response?.data;
@@ -142,7 +140,7 @@ export default function Login() {
             <div>
               <div className="flex justify-between mb-1">
                 <label className="label mb-0">{uiText("pages.auth.Login", "Mot de passe")}</label>
-                <a href="#" className="text-xs text-primary-600 hover:underline">{uiText("pages.auth.Login", "Mot de passe oublié ?")}</a>
+                <button type="button" className="text-xs text-primary-600 hover:underline">{uiText("pages.auth.Login", "Mot de passe oublié ?")}</button>
               </div>
               <div className="relative">
                 <input

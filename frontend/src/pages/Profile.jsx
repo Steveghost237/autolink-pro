@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Mail, Shield, Wallet, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { User, Mail, Shield, Wallet, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { formatNumber, formatDate,  uiText } from '../i18n';

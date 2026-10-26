@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { bookingsAPI, usersAPI, vehiclesAPI } from '../../services/api';
 import {
-  Users, Car, DollarSign, TrendingUp, UserCheck, ClipboardList,
-  ArrowRight, AlertTriangle, CheckCircle, Clock, Shield, RefreshCw,
+  Users, Car, DollarSign, TrendingUp, AlertTriangle, RefreshCw,
   XCircle, CheckCircle2, Wifi, WifiOff
 } from 'lucide-react';
-import { formatTime, formatNumber,  uiText } from '../../i18n';
+import { formatDate, formatTime, formatNumber,  uiText } from '../../i18n';
 
 const POLL_INTERVAL = 8000; // rafraîchissement toutes les 8s
 
@@ -32,7 +30,6 @@ const timeAgo = (iso) => {
 
 export default function AdminDashboard() {
   const confirm = useConfirm();
-  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [users, setUsers] = useState([]);

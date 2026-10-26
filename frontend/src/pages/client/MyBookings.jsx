@@ -17,12 +17,6 @@ const STATUS = {
 };
 
 const PAY_LABEL = { mtn: 'MTN MoMo', orange: 'Orange Money', senbid: 'SenBid', paybid: 'PayBid', paypal: 'PayPal', stripe: 'Stripe', wallet: uiText("pages.client.MyBookings", "Solde AutoLink") };
-const DRIVER_LABEL = {
-  none: uiText("pages.client.MyBookings", "Sans chauffeur"),
-  internal: uiText("pages.client.MyBookings", "Chauffeur AutoLink"),
-  owner: uiText("pages.client.MyBookings", "Chauffeur du propriétaire"),
-};
-
 const mapApiBooking = (b) => ({
   id: b.id,
   vehicle: b.vehicle_name || uiText("pages.client.MyBookings", "Véhicule"),

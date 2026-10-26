@@ -3,7 +3,7 @@ import { Camera, Car, ClipboardList, X } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { inspectionsAPI } from '../../services/api';
-import { formatDateTime,  uiText } from '../../i18n';
+import { formatDateTime, formatNumber,  uiText } from '../../i18n';
 
 const INSPECTION_ITEMS = {
   exterior: {

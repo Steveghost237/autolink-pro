@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
-import { Car, TrendingUp, DollarSign, Clock, PlusCircle, ArrowRight, CheckCircle, AlertTriangle, MapPin, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck } from 'lucide-react';
+import { Car, TrendingUp, DollarSign, PlusCircle, ArrowRight, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck } from 'lucide-react';
 import { bookingsAPI, vehiclesAPI, notificationsAPI, walletAPI } from '../../services/api';
 import { formatNumber,  uiText } from '../../i18n';
 
@@ -61,7 +61,7 @@ export default function OwnerDashboard() {
     } catch (_) {
       setOnline(false);
     }
-  }, [user?.id, notificationSearch, notificationSortField, notificationSortOrder]);
+  }, [notificationSearch, notificationSortField, notificationSortOrder]);
 
   useEffect(() => {
     load();
