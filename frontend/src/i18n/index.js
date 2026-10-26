@@ -48,6 +48,65 @@ export function uiText(scope, source, options = {}) {
   return i18n.t(selected, { ...options, defaultValue: raw });
 }
 
+const VEHICLE_LABELS = {
+  category: {
+    berline: 'Berline',
+    sedan: 'Berline',
+    suv: 'SUV',
+    van: 'Van',
+    minibus: 'Minibus',
+    pickup: 'Pick-up',
+    'pick-up': 'Pick-up',
+    citadine: 'Citadine',
+    economique: 'Économique',
+    basic: 'Économique',
+    intermediaire: 'Intermédiaire',
+    standard: 'Intermédiaire',
+    premium: 'Premium',
+    luxe: 'Luxe',
+    gold: 'Luxe',
+    'super luxe': 'Super Luxe',
+    collection: 'Super Luxe',
+  },
+  fuel: {
+    essence: 'Essence',
+    petrol: 'Essence',
+    gasoline: 'Essence',
+    diesel: 'Diesel',
+    super: 'Super',
+    gasoil: 'Gasoil',
+    hybrid: 'Hybride',
+    hybride: 'Hybride',
+    electric: 'Électrique',
+    electrique: 'Électrique',
+  },
+  tier: {
+    basic: 'Économique',
+    economique: 'Économique',
+    standard: 'Intermédiaire',
+    intermediaire: 'Intermédiaire',
+    premium: 'Premium',
+    gold: 'Luxe',
+    luxe: 'Luxe',
+    collection: 'Super Luxe',
+    'super luxe': 'Super Luxe',
+  },
+  status: {
+    pending: 'En attente de validation',
+    approved: 'Approuvé',
+    rented: 'En location',
+    maintenance: 'En maintenance',
+    suspended: 'Suspendu',
+  },
+};
+
+export function vehicleLabel(value, type) {
+  const raw = String(value ?? '');
+  const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const source = VEHICLE_LABELS[type]?.[normalized];
+  return source ? uiText(`vehicle.${type}`, source) : raw;
+}
+
 export function formatNumber(value, options = {}) {
   const locale = i18n.language === 'en' ? 'en-GB' : 'fr-FR';
   return new Intl.NumberFormat(locale, options).format(Number(value) || 0);
@@ -81,6 +140,21 @@ export function formatTime(value, options = { hour: '2-digit', minute: '2-digit'
   if (Number.isNaN(date.getTime())) return '—';
   const locale = i18n.language === 'en' ? 'en-GB' : 'fr-FR';
   return new Intl.DateTimeFormat(locale, options).format(date);
+}
+
+export function formatTimeRange(schedule) {
+  if (!schedule?.open || !schedule?.close) return '—';
+  const locale = i18n.language === 'en' ? 'en-GB' : 'fr-FR';
+  const formatter = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const format = (time) => {
+    const [hour, minute] = time.split(':').map(Number);
+    return formatter.format(new Date(2000, 0, 1, hour, minute));
+  };
+  return `${format(schedule.open)}–${format(schedule.close)}`;
 }
 
 export default i18n;

@@ -6,16 +6,16 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { Car, TrendingUp, DollarSign, PlusCircle, ArrowRight, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck } from 'lucide-react';
 import { bookingsAPI, vehiclesAPI, notificationsAPI, walletAPI } from '../../services/api';
-import { formatNumber,  uiText } from '../../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../../i18n';
 
 const POLL = 10000;
 
 const V_STATUS = {
-  pending:    { label: uiText("pages.owner.OwnerDashboard", "En vérification"), cls: 'bg-amber-100 text-amber-700' },
-  approved:   { label: uiText("pages.owner.OwnerDashboard", "Disponible"),      cls: 'bg-emerald-100 text-emerald-700' },
-  rented:     { label: uiText("pages.owner.OwnerDashboard", "En location"),     cls: 'bg-blue-100 text-blue-700' },
-  maintenance:{ label: uiText("pages.owner.OwnerDashboard", "Maintenance"),     cls: 'bg-orange-100 text-orange-700' },
-  suspended:  { label: uiText("pages.owner.OwnerDashboard", "Suspendu"),        cls: 'bg-red-100 text-red-700' },
+  pending:    { cls: 'bg-amber-100 text-amber-700' },
+  approved:   { cls: 'bg-emerald-100 text-emerald-700' },
+  rented:     { cls: 'bg-blue-100 text-blue-700' },
+  maintenance:{ cls: 'bg-orange-100 text-orange-700' },
+  suspended:  { cls: 'bg-red-100 text-red-700' },
 };
 
 const B_STATUS = {
@@ -201,9 +201,9 @@ export default function OwnerDashboard() {
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
                         <div className="font-bold text-primary-700 text-sm">{formatNumber(Number(v.computed_rate || v.daily_rate))}{" " + uiText("pages.owner.OwnerDashboard", "F")}</div>
-                        <div className="text-xs text-slate-400">{uiText("pages.owner.OwnerDashboard", "/jour ·") + " "}{v.tier_label || v.tier}</div>
+                        <div className="text-xs text-slate-400">{uiText("pages.owner.OwnerDashboard", "/jour ·") + " "}{vehicleLabel(v.tier_label || v.tier, 'tier')}</div>
                       </div>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>{st.label}</span>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>{vehicleLabel(v.status, 'status')}</span>
                     </div>
                   </div>
                 );

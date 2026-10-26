@@ -4,7 +4,7 @@ import { ArrowLeft, Heart, MapPin } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { vehiclesAPI } from '../services/api';
-import { formatNumber,  uiText } from '../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../i18n';
 
 export default function VehicleDetail() {
   const { id } = useParams();
@@ -61,7 +61,7 @@ export default function VehicleDetail() {
           <section className="card space-y-4">
             <div><h1 className="text-2xl font-bold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.VehicleDetail", "(")}{vehicle.year}{uiText("pages.VehicleDetail", ")")}</h1><p className="text-slate-500 flex gap-1 items-center"><MapPin size={15} /> {vehicle.city}</p></div>
             <p className="text-xl font-bold text-primary-700">{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.VehicleDetail", "F / jour")}</p>
-            <dl className="grid grid-cols-2 gap-3 text-sm">{[[uiText("pages.VehicleDetail", "Catégorie"), vehicle.category], [uiText("pages.VehicleDetail", "Carburant"), vehicle.fuel], [uiText("pages.VehicleDetail", "Places"), vehicle.seats], [uiText("pages.VehicleDetail", "Kilométrage"), `${formatNumber(Number(vehicle.mileage || 0))} km`], [uiText("pages.VehicleDetail", "Caution"), `${formatNumber(Number(vehicle.deposit_amount || 0))} FCFA`], [uiText("pages.VehicleDetail", "Propriétaire"), vehicle.owner_name], [uiText("pages.VehicleDetail", "Note"), vehicle.rating ? `${formatNumber(Number(vehicle.rating))} / 5` : uiText("pages.VehicleDetail", "Nouveau")]].map(([label, value]) => <div key={label}><dt className="text-slate-500">{label}</dt><dd className="font-semibold">{value || uiText("pages.VehicleDetail", "—")}</dd></div>)}</dl>
+            <dl className="grid grid-cols-2 gap-3 text-sm">{[[uiText("pages.VehicleDetail", "Catégorie"), vehicleLabel(vehicle.category, 'category')], [uiText("pages.VehicleDetail", "Carburant"), vehicleLabel(vehicle.fuel, 'fuel')], [uiText("pages.VehicleDetail", "Places"), vehicle.seats], [uiText("pages.VehicleDetail", "Kilométrage"), `${formatNumber(Number(vehicle.mileage || 0))} km`], [uiText("pages.VehicleDetail", "Caution"), `${formatNumber(Number(vehicle.deposit_amount || 0))} FCFA`], [uiText("pages.VehicleDetail", "Propriétaire"), vehicle.owner_name], [uiText("pages.VehicleDetail", "Note"), vehicle.rating ? `${formatNumber(Number(vehicle.rating))} / 5` : uiText("pages.VehicleDetail", "Nouveau")]].map(([label, value]) => <div key={label}><dt className="text-slate-500">{label}</dt><dd className="font-semibold">{value || uiText("pages.VehicleDetail", "—")}</dd></div>)}</dl>
             <p>{vehicle.description}</p>
             <button className="btn-primary w-full" onClick={() => isAuthenticated ? navigate(`/client/search?vehicle=${vehicle.id}`) : navigate(`/login?next=${encodeURIComponent(location.pathname)}`)}>{uiText("pages.VehicleDetail", "Réserver")}</button>
           </section>

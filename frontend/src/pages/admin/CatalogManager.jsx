@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { adminVehiclesAPI } from '../../services/api';
-import { formatNumber,  uiText } from '../../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../../i18n';
 
 const SORT_OPTIONS = [
   { value: 'created_at', label: uiText("pages.admin.CatalogManager", "Date d’ajout") },
@@ -15,8 +15,7 @@ const SORT_OPTIONS = [
   { value: 'status', label: uiText("pages.admin.CatalogManager", "Statut") },
 ];
 const STATUSES = [
-  ['pending', uiText("pages.admin.CatalogManager", "À valider")], ['approved', uiText("pages.admin.CatalogManager", "Approuvé")], ['suspended', uiText("pages.admin.CatalogManager", "Suspendu")],
-  ['rented', uiText("pages.admin.CatalogManager", "En location")], ['maintenance', uiText("pages.admin.CatalogManager", "Maintenance")],
+  ['pending'], ['approved'], ['suspended'], ['rented'], ['maintenance'],
 ];
 
 function VehicleEditor({ vehicle, onClose, onSaved }) {
@@ -52,7 +51,7 @@ function VehicleEditor({ vehicle, onClose, onSaved }) {
             </label>
           ))}
           <label className="text-sm">{uiText("pages.admin.CatalogManager", "Statut") + " "}<select className="input-field mt-1" value={form.status} onChange={event => setForm(value => ({ ...value, status: event.target.value }))}>
-              {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {STATUSES.map(([value]) => <option key={value} value={value}>{vehicleLabel(value, 'status')}</option>)}
             </select>
           </label>
         </div>
@@ -146,9 +145,9 @@ export default function CatalogManager() {
                     <div className="text-xs text-slate-500">{vehicle.plate}</div>
                   </td>
                   <td className="px-4 py-3">{vehicle.owner_name || vehicle.owner}</td>
-                  <td className="px-4 py-3">{vehicle.category}</td>
+                  <td className="px-4 py-3">{vehicleLabel(vehicle.category, 'category')}</td>
                   <td className="px-4 py-3">{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.admin.CatalogManager", "FCFA")}</td>
-                  <td className="px-4 py-3">{STATUSES.find(([value]) => value === vehicle.status)?.[1] || vehicle.status}</td>
+                  <td className="px-4 py-3">{vehicleLabel(vehicle.status, 'status')}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       <button title={uiText("pages.admin.CatalogManager", "Modifier")} className="rounded-lg p-2 text-blue-600" onClick={() => setEditing(vehicle)}><Edit3 size={16} /></button>

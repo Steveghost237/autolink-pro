@@ -223,6 +223,7 @@ class VehicleMediaAndDiscoveryTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Toyota', response.data['brands'])
         self.assertIn('Corolla', response.data['models']['Toyota'])
+        self.assertEqual(response.data['cities'], ['Douala'])
         self.assertEqual(response.data['max_rate'], self.vehicle.daily_rate)
 
     def test_available_filter_excludes_overlapping_booking(self):

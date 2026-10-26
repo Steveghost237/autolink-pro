@@ -247,7 +247,11 @@ class ContactEndpointTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['contact_email'], 'wibchallenge@gmail.com')
         self.assertEqual(len(response.data['phones']), 2)
-        self.assertIn('weekdays', response.data['hours'])
+        self.assertEqual(response.data['hours'], {
+            'weekdays': {'open': '06:00', 'close': '22:00'},
+            'saturday': {'open': '07:00', 'close': '21:00'},
+            'sunday': None,
+        })
 
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')

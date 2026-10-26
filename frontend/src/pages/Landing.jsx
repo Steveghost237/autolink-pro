@@ -4,7 +4,7 @@ import AutoLinkLogo from '../components/AutoLinkLogo';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import PromoPopup from '../components/PromoPopup';
 import { useAuth } from '../contexts/AuthContext';
-import { contactAPI, siteAPI, vehiclesAPI } from '../services/api';
+import { contactAPI, paymentsAPI, siteAPI, vehiclesAPI } from '../services/api';
 import {
   siBentley, siBmw, siChevrolet, siCitroen, siDacia, siFerrari, siFiat,
   siFord, siHonda, siHyundai, siJeep, siKia, siLamborghini, siMaserati,
@@ -13,7 +13,7 @@ import {
   siVolkswagen, siVolvo,
 } from 'simple-icons';
 import './Landing.css';
-import { formatNumber,  uiText } from '../i18n';
+import { formatNumber, formatTimeRange, uiText, vehicleLabel } from '../i18n';
 
 /* ────────────────────────────────────────────────
    IMAGES — Unsplash (libres, haute résolution)
@@ -44,9 +44,9 @@ const FALLBACK_SITE_CONFIG = {
   phones: ['+237 656 789 000', '+237 699 456 000'],
   addresses: ['Akwa, Rue Joss, Douala', 'Centre-ville, Yaoundé'],
   hours: {
-    weekdays: '6h à 22h',
-    saturday: '7h à 21h',
-    sunday: 'Sur réservation',
+    weekdays: { open: '06:00', close: '22:00' },
+    saturday: { open: '07:00', close: '21:00' },
+    sunday: null,
   },
 };
 
@@ -56,6 +56,12 @@ const EMPTY_SITE_CONFIG = {
   addresses: [],
   hours: {},
 };
+
+const displayHours = (schedule) => schedule === null
+  ? uiText("pages.Landing", "Sur réservation")
+  : schedule
+    ? formatTimeRange(schedule)
+    : uiText("pages.Landing", "—");
 
 const CAR_BRANDS = [
   siToyota, siHonda, siNissan, siVolkswagen, siFord, siHyundai, siKia,
@@ -145,11 +151,18 @@ const STEPS = [
    COMPOSANT : Counter animé
 ──────────────────────────────────────────────── */
 function AnimatedCounter({ target, suffix = '', duration = 2000 }) {
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(null);
   const ref = useRef(null);
   const started = useRef(false);
 
   useEffect(() => {
+    if (target === null || target === undefined) {
+      setCount(null);
+      return undefined;
+    }
+    setCount(0);
+    started.current = false;
+    let timer;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
@@ -157,7 +170,7 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }) {
           const steps = 60;
           const inc = target / steps;
           let cur = 0;
-          const timer = setInterval(() => {
+          timer = setInterval(() => {
             cur += inc;
             if (cur >= target) { clearInterval(timer); setCount(target); }
             else setCount(Math.floor(cur));
@@ -167,10 +180,13 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }) {
       { threshold: 0.3 }
     );
     if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (timer) clearInterval(timer);
+    };
   }, [target, duration]);
 
-  return <span ref={ref}>{formatNumber(count)}{suffix}</span>;
+  return <span ref={ref}>{count === null ? '—' : `${formatNumber(count)}${suffix}`}</span>;
 }
 
 /* ────────────────────────────────────────────────
@@ -219,7 +235,7 @@ function Navbar({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
               {siteConfig.contact_email}
             </a>}
           </div>
-          <span className="text-slate-500">{uiText("pages.Landing", "Lun–Ven :") + " "}{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}{" " + uiText("pages.Landing", "· Sam :") + " "}{siteConfig.hours.saturday || uiText("pages.Landing", "—")}{" " + uiText("pages.Landing", "· Dim :") + " "}{siteConfig.hours.sunday || uiText("pages.Landing", "—")}
+          <span className="text-slate-500">{uiText("pages.Landing", "Lun–Ven :") + " "}{displayHours(siteConfig.hours.weekdays)}{" " + uiText("pages.Landing", "· Sam :") + " "}{displayHours(siteConfig.hours.saturday)}{" " + uiText("pages.Landing", "· Dim :") + " "}{displayHours(siteConfig.hours.sunday)}
           </span>
         </div>
       </div>
@@ -403,7 +419,7 @@ function HeroSlider({ onReserve }) {
 /* ────────────────────────────────────────────────
    SECTION : A PROPOS
 ──────────────────────────────────────────────── */
-function AboutSection() {
+function AboutSection({ stats }) {
   return (
     <section id="apropos" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -435,9 +451,9 @@ function AboutSection() {
         {/* Counters — style trireno */}
         <div className="grid grid-cols-3 gap-8 mt-16 pt-12 border-t border-slate-100">
           {[
-            { target: 85,   suffix: '+',  label: uiText("pages.Landing", "Véhicules au catalogue") },
-            { target: 6,    suffix: '',   label: uiText("pages.Landing", "Moyens de paiement") },
-            { target: 8,    suffix: '',   label: uiText("pages.Landing", "Villes couvertes") },
+            { target: stats.vehicleCount, label: uiText("pages.Landing", "Véhicules au catalogue") },
+            { target: stats.paymentMethodCount, label: uiText("pages.Landing", "Moyens de paiement") },
+            { target: stats.cityCount, label: uiText("pages.Landing", "Villes couvertes") },
           ].map(({ target, suffix, label }) => (
             <div key={label} className="text-center">
               <div className="text-4xl md:text-5xl font-black text-teal-600 mb-2">
@@ -565,7 +581,7 @@ function FleetSection({ vehicles, loading, onReserve }) {
                       onError={e => { e.target.src = IMG.fleet8; }} />
                   </div>
                   <div className="p-4 bg-white">
-                    <span className="text-xs font-bold text-teal-600 uppercase tracking-wide">{vehicle.category || vehicle.tier_label || uiText("pages.Landing", "Véhicule")}</span>
+                    <span className="text-xs font-bold text-teal-600 uppercase tracking-wide">{vehicle.category ? vehicleLabel(vehicle.category, 'category') : vehicleLabel(vehicle.tier_label || vehicle.tier, 'tier') || uiText("pages.Landing", "Véhicule")}</span>
                     <h4 className="font-black text-slate-900 text-sm mt-1 mb-2">{name}</h4>
                     <div className="flex items-center justify-between">
                       <span className="text-teal-700 font-black text-sm">{price}{" " + uiText("pages.Landing", "F/j")}</span>
@@ -653,7 +669,7 @@ function PaymentSection() {
 /* ────────────────────────────────────────────────
    SECTION : APPLICATION MOBILE
 ──────────────────────────────────────────────── */
-function AppSection() {
+function AppSection({ stats }) {
   return (
     <section className="py-20 bg-teal-700">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -663,7 +679,7 @@ function AppSection() {
             <h2 className="text-3xl md:text-4xl font-black text-white mb-5 leading-snug">{uiText("pages.Landing", "Téléchargez l'application AutoLink Pro") + " "}</h2>
             <p className="text-teal-100 leading-relaxed mb-6">{uiText("pages.Landing", "Toutes les fonctionnalités de la plateforme dans votre poche. Réservez, suivez votre chauffeur, payez en mobile money et notez votre expérience — tout en un seul endroit.") + " "}</p>
             <ul className="space-y-3 mb-8 text-teal-100 text-sm">
-              {[uiText("pages.Landing", "Disponible sur Android"), uiText("pages.Landing", "Interface intuitive en français"), uiText("pages.Landing", "Paiement Orange Money et MTN intégré"), uiText("pages.Landing", "Suivi en temps réel"), uiText("pages.Landing", "Historique complet des courses")].map(f => (
+              {[uiText("pages.Landing", "Disponible sur Android"), uiText("pages.Landing", "Application disponible en français et en anglais"), uiText("pages.Landing", "Paiement Orange Money et MTN intégré"), uiText("pages.Landing", "Suivi en temps réel"), uiText("pages.Landing", "Historique complet des courses")].map(f => (
                 <li key={f} className="flex items-center gap-3">
                   <svg className="w-4 h-4 text-teal-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
@@ -680,12 +696,12 @@ function AppSection() {
           </div>
           <div className="flex justify-center gap-8 text-center">
             {[
-              { v: '85+',   l: uiText("pages.Landing", "Véhicules au catalogue") },
-              { v: '6',     l: uiText("pages.Landing", 'Moyens de paiement') },
-              { v: '5',     l: uiText("pages.Landing", 'Catégories de véhicules') },
+              { v: stats.vehicleCount, l: uiText("pages.Landing", "Véhicules au catalogue") },
+              { v: stats.paymentMethodCount, l: uiText("pages.Landing", "Moyens de paiement") },
+              { v: stats.categoryCount, l: uiText("pages.Landing", "Catégories de véhicules") },
             ].map(s => (
               <div key={s.l}>
-                <div className="text-3xl md:text-4xl font-black text-white mb-1">{s.v}</div>
+                <div className="text-3xl md:text-4xl font-black text-white mb-1">{s.v === null ? '—' : formatNumber(s.v)}</div>
                 <div className="text-teal-200 text-sm">{s.l}</div>
               </div>
             ))}
@@ -868,13 +884,13 @@ function ContactSection({ siteConfig }) {
               <h4 className="font-black text-slate-900 text-sm mb-3">{uiText("pages.Landing", "Horaires")}</h4>
               <div className="space-y-1 text-sm text-slate-500">
                 <div className="flex justify-between">
-                  <span>{uiText("pages.Landing", "Lundi au Vendredi")}</span><span className="font-semibold text-slate-700">{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}</span>
+                  <span>{uiText("pages.Landing", "Lundi au Vendredi")}</span><span className="font-semibold text-slate-700">{displayHours(siteConfig.hours.weekdays)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{uiText("pages.Landing", "Samedi")}</span><span className="font-semibold text-slate-700">{siteConfig.hours.saturday || uiText("pages.Landing", "—")}</span>
+                  <span>{uiText("pages.Landing", "Samedi")}</span><span className="font-semibold text-slate-700">{displayHours(siteConfig.hours.saturday)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{uiText("pages.Landing", "Dimanche")}</span><span className="font-semibold text-teal-600">{siteConfig.hours.sunday || uiText("pages.Landing", "—")}</span>
+                  <span>{uiText("pages.Landing", "Dimanche")}</span><span className="font-semibold text-teal-600">{displayHours(siteConfig.hours.sunday)}</span>
                 </div>
               </div>
             </div>
@@ -958,15 +974,15 @@ function Footer({ navigate, isAuthenticated, dashboardPath, siteConfig }) {
               <div className="flex justify-between">
                 <span>{uiText("pages.Landing", "Lundi au Vendredi")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.weekdays || uiText("pages.Landing", "—")}</div>
+              <div className="text-teal-400 font-semibold">{displayHours(siteConfig.hours.weekdays)}</div>
               <div className="flex justify-between mt-2">
                 <span>{uiText("pages.Landing", "Samedi")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.saturday || uiText("pages.Landing", "—")}</div>
+              <div className="text-teal-400 font-semibold">{displayHours(siteConfig.hours.saturday)}</div>
               <div className="flex justify-between mt-2">
                 <span>{uiText("pages.Landing", "Dimanche")}</span>
               </div>
-              <div className="text-teal-400 font-semibold">{siteConfig.hours.sunday || uiText("pages.Landing", "—")}</div>
+              <div className="text-teal-400 font-semibold">{displayHours(siteConfig.hours.sunday)}</div>
             </div>
           </div>
 
@@ -1046,6 +1062,12 @@ export default function Landing() {
   const [siteConfigLoading, setSiteConfigLoading] = useState(true);
   const [vehicles, setVehicles] = useState([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
+  const [stats, setStats] = useState({
+    vehicleCount: null,
+    paymentMethodCount: null,
+    categoryCount: null,
+    cityCount: null,
+  });
 
   useEffect(() => {
     siteAPI.config()
@@ -1056,9 +1078,26 @@ export default function Landing() {
 
   useEffect(() => {
     vehiclesAPI.list({ status: 'approved', ordering: '-created_at', page_size: 8 })
-      .then(({ data }) => setVehicles(data.results || data || []))
+      .then(({ data }) => {
+        const results = data.results || data || [];
+        setVehicles(results);
+        setStats(current => ({ ...current, vehicleCount: data.count ?? results.length }));
+      })
       .catch(() => setVehicles([]))
       .finally(() => setVehiclesLoading(false));
+    vehiclesAPI.facets().then(({ data }) => {
+      setStats(current => ({
+        ...current,
+        categoryCount: (data.categories || []).length,
+        cityCount: (data.cities || []).length,
+      }));
+    }).catch(() => {});
+    paymentsAPI.methods().then(({ data }) => {
+      setStats(current => ({
+        ...current,
+        paymentMethodCount: (data.methods || []).length + 1,
+      }));
+    }).catch(() => {});
   }, []);
 
   const contactConfig = siteConfig || (siteConfigLoading ? FALLBACK_SITE_CONFIG : EMPTY_SITE_CONFIG);
@@ -1072,13 +1111,13 @@ export default function Landing() {
     <div className="min-h-screen bg-white">
       <Navbar navigate={navigate} isAuthenticated={isAuthenticated} dashboardPath={dashboardPath} siteConfig={contactConfig} />
       <HeroSlider onReserve={reserve} />
-      <AboutSection />
+      <AboutSection stats={stats} />
       <BrandMarquee />
       <ServicesSection onReserve={reserve} />
       <FleetSection vehicles={vehicles} loading={vehiclesLoading} onReserve={reserve} />
       <HowItWorksSection />
       <PaymentSection />
-      <AppSection />
+      <AppSection stats={stats} />
       <ContactSection siteConfig={contactConfig} />
       <Footer navigate={navigate} isAuthenticated={isAuthenticated} dashboardPath={dashboardPath} siteConfig={contactConfig} />
       <PromoPopup />

@@ -90,9 +90,9 @@ class SiteConfigAPIView(APIView):
             'phones': ['+237 656 789 000', '+237 699 456 000'],
             'addresses': ['Akwa, Rue Joss, Douala', 'Centre-ville, Yaoundé'],
             'hours': {
-                'weekdays': '6h à 22h',
-                'saturday': '7h à 21h',
-                'sunday': 'Sur réservation',
+                'weekdays': {'open': '06:00', 'close': '22:00'},
+                'saturday': {'open': '07:00', 'close': '21:00'},
+                'sunday': None,
             },
         })
 

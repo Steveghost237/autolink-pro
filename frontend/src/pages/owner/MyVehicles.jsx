@@ -5,15 +5,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { vehiclesAPI } from '../../services/api';
 import { useConfirm } from '../../contexts/ConfirmContext';
-import { formatNumber,  uiText } from '../../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../../i18n';
 
-const TIER_LABEL = {
-  basic: uiText("pages.owner.MyVehicles", "Économique"),
-  standard: uiText("pages.owner.MyVehicles", "Intermédiaire"),
-  premium: uiText("pages.owner.MyVehicles", "Premium"),
-  gold: uiText("pages.owner.MyVehicles", "Luxe"),
-  collection: uiText("pages.owner.MyVehicles", "Super Luxe"),
-};
 const TIER_CLS = {
   basic: 'bg-slate-100 text-slate-700',
   standard: 'bg-blue-100 text-blue-700',
@@ -22,11 +15,11 @@ const TIER_CLS = {
   collection: 'bg-rose-100 text-rose-700',
 };
 const STATUS = {
-  pending: { label: uiText("pages.owner.MyVehicles", "En vérification AutoLink"), cls: 'badge-warning', icon: Clock },
-  approved: { label: uiText("pages.owner.MyVehicles", "Disponible"), cls: 'badge-success', icon: CheckCircle },
-  rented: { label: uiText("pages.owner.MyVehicles", "En location"), cls: 'badge-info', icon: RefreshCw },
-  maintenance: { label: uiText("pages.owner.MyVehicles", "Maintenance"), cls: 'badge-warning', icon: Wrench },
-  suspended: { label: uiText("pages.owner.MyVehicles", "Suspendu"), cls: 'badge-error', icon: Ban },
+  pending: { cls: 'badge-warning', icon: Clock },
+  approved: { cls: 'badge-success', icon: CheckCircle },
+  rented: { cls: 'badge-info', icon: RefreshCw },
+  maintenance: { cls: 'badge-warning', icon: Wrench },
+  suspended: { cls: 'badge-error', icon: Ban },
 };
 
 export default function MyVehicles() {
@@ -129,8 +122,8 @@ export default function MyVehicles() {
                         <div className="min-w-0">
                           <h3 className="text-xl font-bold text-slate-900 truncate">{v.brand} {v.model} {v.year}</h3>
                           <div className="flex flex-wrap gap-2 mt-1">
-                            <span className={`badge ${TIER_CLS[v.tier] || TIER_CLS.basic}`}>{TIER_LABEL[v.tier] || v.category}</span>
-                            <span className={st.cls}><StIcon size={12} className="inline mr-1" />{st.label}</span>
+                            <span className={`badge ${TIER_CLS[v.tier] || TIER_CLS.basic}`}>{vehicleLabel(v.tier_label || v.tier, 'tier') || vehicleLabel(v.category, 'category')}</span>
+                            <span className={st.cls}><StIcon size={12} className="inline mr-1" />{vehicleLabel(v.status, 'status')}</span>
                           </div>
                         </div>
                         <div className="text-right">

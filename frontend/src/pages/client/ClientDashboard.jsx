@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Car, Search, FileText, Star, Clock, CreditCard, ArrowRight, Timer, Navigation, Calendar, Wallet, Plus, X, Loader, CheckCircle } from 'lucide-react';
 import { walletAPI, bookingsAPI, vehiclesAPI } from '../../services/api';
-import { formatNumber, formatDate,  uiText } from '../../i18n';
+import { formatNumber, formatDate, uiText, vehicleLabel } from '../../i18n';
 
 const TOPUP_METHODS = [
   { id: 'mtn',    label: uiText("pages.client.ClientDashboard", "MTN MoMo"),    color: 'bg-yellow-400', text: uiText("pages.client.ClientDashboard", "text-yellow-900") },
@@ -202,7 +202,8 @@ export default function ClientDashboard() {
         setFeaturedVehicles(list.slice(0, 3).map(v => ({
           id: v.id,
           name: `${v.brand} ${v.model} ${v.year}`,
-          category: v.tier_label || v.category || v.tier,
+          category: v.category || v.tier_label || v.tier,
+          categoryType: v.category ? 'category' : 'tier',
           price: Number(v.daily_rate || 0),
           rating: Number(v.rating) || 5.0,
           image: v.image_url,
@@ -363,7 +364,7 @@ export default function ClientDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-slate-900 dark:text-white text-xs leading-snug">{v.name}</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{v.category}
+                      <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{vehicleLabel(v.category, v.categoryType)}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

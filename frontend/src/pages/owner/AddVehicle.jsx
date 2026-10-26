@@ -4,7 +4,7 @@ import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { vehiclesAPI } from '../../services/api';
 import { useConfirm } from '../../contexts/ConfirmContext';
-import { formatNumber,  uiText } from '../../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../../i18n';
 
 const EMPTY = {
   name: '', brand: '', model: '', year: '', plate: '', category: '',
@@ -22,12 +22,12 @@ const STEPS = [
 ];
 
 const FUEL_TYPES = [
-  { value: 'essence', label: uiText("pages.owner.AddVehicle", "Essence") },
-  { value: 'diesel', label: uiText("pages.owner.AddVehicle", "Diesel") },
-  { value: 'super', label: uiText("pages.owner.AddVehicle", "Super") },
-  { value: 'gasoil', label: uiText("pages.owner.AddVehicle", "Gasoil") },
-  { value: 'hybrid', label: uiText("pages.owner.AddVehicle", "Hybride") },
-  { value: 'electric', label: uiText("pages.owner.AddVehicle", "Électrique") },
+  { value: 'essence' },
+  { value: 'diesel' },
+  { value: 'super' },
+  { value: 'gasoil' },
+  { value: 'hybrid' },
+  { value: 'electric' },
 ];
 const CATEGORIES = ['Berline', 'SUV', 'Van', 'Minibus', 'Pick-up', 'Citadine'];
 const INSURANCE_TYPES = [
@@ -167,7 +167,7 @@ export default function AddVehicle() {
         <h2 className="text-2xl font-bold text-slate-900 mb-3">{uiText("pages.owner.AddVehicle", "Véhicule soumis avec succès !")}</h2>
         {created && (
           <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4 text-sm">
-            <div className="font-bold text-primary-800">{uiText("pages.owner.AddVehicle", "Gamme attribuée automatiquement :") + " "}{created.tier_label || created.tier}</div>
+            <div className="font-bold text-primary-800">{uiText("pages.owner.AddVehicle", "Gamme attribuée automatiquement :") + " "}{vehicleLabel(created.tier_label || created.tier, 'tier')}</div>
             <div className="text-slate-600 mt-1">{uiText("pages.owner.AddVehicle", "Prix indicatif :") + " "}{formatNumber(Number(created.computed_rate || 0))}{" " + uiText("pages.owner.AddVehicle", "F/jour · Votre tarif :") + " "}{formatNumber(Number(created.daily_rate || 0))}{" " + uiText("pages.owner.AddVehicle", "F/jour")}<br />{uiText("pages.owner.AddVehicle", "Caution client :") + " "}{formatNumber(Number(created.deposit_amount || 0))}{" " + uiText("pages.owner.AddVehicle", "F ·") + " "}{created.km_included_per_day}{" " + uiText("pages.owner.AddVehicle", "km/j inclus ·") + " "}{formatNumber(created.extra_km_rate)}{" " + uiText("pages.owner.AddVehicle", "F/km supp.") + " "}</div>
           </div>
         )}
@@ -238,14 +238,14 @@ export default function AddVehicle() {
                   <label className="label">{uiText("pages.owner.AddVehicle", "Catégorie")}</label>
                   <select className="input-field" value={form.category} onChange={e => set('category', e.target.value)}>
                     <option value="">{uiText("pages.owner.AddVehicle", "Choisir...")}</option>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CATEGORIES.map(c => <option key={c} value={c}>{vehicleLabel(c, 'category')}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="label">{uiText("pages.owner.AddVehicle", "Carburant")}</label>
                   <select className="input-field" value={form.fuel} onChange={e => set('fuel', e.target.value)}>
                     <option value="">{uiText("pages.owner.AddVehicle", "Choisir...")}</option>
-                    {FUEL_TYPES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    {FUEL_TYPES.map(f => <option key={f.value} value={f.value}>{vehicleLabel(f.value, 'fuel')}</option>)}
                   </select>
                 </div>
               </div>
@@ -385,12 +385,12 @@ export default function AddVehicle() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
                     ['Véhicule', `${form.brand} ${form.model} ${form.year}`],
-                    ['Catégorie', form.category],
+                    [uiText("pages.owner.AddVehicle", "Catégorie"), vehicleLabel(form.category, 'category')],
                     ['Ville', form.city],
                     [uiText("pages.owner.AddVehicle", "Kilométrage"), form.mileage ? `${formatNumber(Number(form.mileage))} km` : ''],
                     ['Valeur marchande', form.marketValue ? `${formatNumber(Number(form.marketValue))} FCFA` : ''],
                     ['Immatriculation', form.plate],
-                    ['Carburant', form.fuel],
+                    [uiText("pages.owner.AddVehicle", "Carburant"), vehicleLabel(form.fuel, 'fuel')],
                     ['Places', form.seats],
                     [uiText("pages.owner.AddVehicle", "Mode de gestion"), form.mode === 'platform' ? uiText("pages.owner.AddVehicle", "Confié à AutoLink") : uiText("pages.owner.AddVehicle", "À domicile")],
                     ['Assurance', INSURANCE_TYPES.find(i => i.value === form.insurance)?.label],

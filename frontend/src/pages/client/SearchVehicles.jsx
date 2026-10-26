@@ -7,14 +7,14 @@ import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carIma
 import { vehiclesAPI, bookingsAPI, paymentsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { TIERS } from '../../utils/carImages';
-import { formatNumber,  uiText } from '../../i18n';
+import { formatNumber, uiText, vehicleLabel } from '../../i18n';
 
 const TIER_STYLE = {
-  basic:      { label: uiText("pages.client.SearchVehicles", "Économique"),    cls: 'bg-slate-600' },
-  standard:   { label: uiText("pages.client.SearchVehicles", "Intermédiaire"), cls: 'bg-blue-600' },
-  premium:    { label: uiText("pages.client.SearchVehicles", "Premium"),       cls: 'bg-purple-600' },
-  gold:       { label: uiText("pages.client.SearchVehicles", "Luxe"),          cls: 'bg-amber-500' },
-  collection: { label: uiText("pages.client.SearchVehicles", "Super Luxe"),    cls: 'bg-rose-700' },
+  basic:      { cls: 'bg-slate-600' },
+  standard:   { cls: 'bg-blue-600' },
+  premium:    { cls: 'bg-purple-600' },
+  gold:       { cls: 'bg-amber-500' },
+  collection: { cls: 'bg-rose-700' },
 };
 
 // Mappe un véhicule API vers le format affiché par les cartes
@@ -186,7 +186,7 @@ function BookingModal({ vehicle, onClose }) {
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-700">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white">{vehicle.name}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{vehicle.category}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicle.fuel}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicle.seats}{" " + uiText("pages.client.SearchVehicles", "places")}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{vehicleLabel(vehicle.category, 'category')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicleLabel(vehicle.fuel, 'fuel')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicle.seats}{" " + uiText("pages.client.SearchVehicles", "places")}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
         </div>
@@ -478,7 +478,7 @@ export default function SearchVehicles() {
             {[{ id: '', label: uiText("pages.client.SearchVehicles", "Toutes les gammes"), desc: uiText("pages.client.SearchVehicles", "Économique à Super Luxe") }, ...TIERS].map(t => (
               <button key={t.id} onClick={() => setTier(t.id)}
                 className={`p-3 rounded-xl border-2 text-left transition-all ${selectedTier === t.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-primary-200'}`}>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">{t.label}</div>
+                <div className="font-bold text-sm text-slate-900 dark:text-white">{t.id ? vehicleLabel(t.id, 'tier') : t.label}</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</div>
               </button>
             ))}
@@ -529,13 +529,13 @@ export default function SearchVehicles() {
           <div className="flex flex-wrap gap-3 mt-4">
             <select className="input-field max-w-xs" value={brand} onChange={e => { setBrand(e.target.value); setModel(''); }}><option value="">{uiText("pages.client.SearchVehicles", "Toutes les marques")}</option>{facets.brands.map(value => <option key={value}>{value}</option>)}</select>
             <select className="input-field max-w-xs" value={model} onChange={e => setModel(e.target.value)}><option value="">{uiText("pages.client.SearchVehicles", "Tous les modèles")}</option>{(facets.models[brand] || []).map(value => <option key={value}>{value}</option>)}</select>
-            <select className="input-field max-w-xs" value={fuel} onChange={e => setFuel(e.target.value)}><option value="">{uiText("pages.client.SearchVehicles", "Tous les carburants")}</option>{facets.fuels.map(value => <option key={value}>{value}</option>)}</select>
+            <select className="input-field max-w-xs" value={fuel} onChange={e => setFuel(e.target.value)}><option value="">{uiText("pages.client.SearchVehicles", "Tous les carburants")}</option>{facets.fuels.map(value => <option key={value} value={value}>{vehicleLabel(value, 'fuel')}</option>)}</select>
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
             {CATEGORIES.map(c => (
               <button key={c} onClick={() => setCategory(c)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${category === c ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                {c}
+                {c === 'Tous' ? uiText("pages.client.SearchVehicles", "Tous") : vehicleLabel(c, 'category')}
               </button>
             ))}
           </div>
@@ -562,9 +562,9 @@ export default function SearchVehicles() {
                   </div>
                 )}
                 <div className="absolute top-2 left-2 flex gap-1.5">
-                  <span className="bg-primary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{v.category}</span>
+                  <span className="bg-primary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{vehicleLabel(v.category, 'category')}</span>
                   <span className={`${TIER_STYLE[v.tier]?.cls || 'bg-slate-600'} text-white text-xs font-bold px-2.5 py-1 rounded-full`}>
-                    {TIER_STYLE[v.tier]?.label || uiText("pages.client.SearchVehicles", "Standard")}
+                    {vehicleLabel(v.tier, 'tier') || uiText("pages.client.SearchVehicles", "Standard")}
                   </span>
                 </div>
                 <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
@@ -577,7 +577,7 @@ export default function SearchVehicles() {
               </div>
               <div className="p-4">
                 <button className="font-bold text-slate-900 dark:text-white text-sm mb-0.5 text-left" onClick={() => navigate(`/vehicles/${v.id}`)}>{v.name}</button>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{v.fuel}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{v.seats}{" " + uiText("pages.client.SearchVehicles", "places · Score qualité") + " "}{v.score}{uiText("pages.client.SearchVehicles", "/100")}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{vehicleLabel(v.fuel, 'fuel')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{v.seats}{" " + uiText("pages.client.SearchVehicles", "places · Score qualité") + " "}{v.score}{uiText("pages.client.SearchVehicles", "/100")}</p>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 mb-3 text-xs text-blue-700 dark:text-blue-400">
                   {v.kmIncluded}{" " + uiText("pages.client.SearchVehicles", "km inclus ·") + " "}{formatNumber(v.kmRate)}{" " + uiText("pages.client.SearchVehicles", "F/km supp.") + " "}</div>
                 <div className="flex items-center justify-between">

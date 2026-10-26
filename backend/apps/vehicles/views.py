@@ -229,6 +229,7 @@ class VehicleFacetsView(APIView):
             'models': models,
             'categories': list(vehicles.order_by('category').values_list('category', flat=True).distinct()),
             'fuels': list(vehicles.order_by('fuel').values_list('fuel', flat=True).distinct()),
+            'cities': list(vehicles.exclude(city='').order_by('city').values_list('city', flat=True).distinct()),
             'max_rate': vehicles.aggregate(max_rate=Max('daily_rate'))['max_rate'] or 0,
         })
 
