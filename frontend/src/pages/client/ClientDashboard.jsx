@@ -138,10 +138,9 @@ export default function ClientDashboard() {
   const [showTopUp, setShowTopUp] = useState(false);
   const [recentBookings, setRecentBookings] = useState([]);
   const [featuredVehicles, setFeaturedVehicles] = useState([]);
-  const [clientStats, setClientStats] = useState({ average_rating: 0, distinct_vehicles: 0 });
+  const [clientStats, setClientStats] = useState({ average_rating: 0, distinct_vehicles: 0, bookings_total: 0, total_spent: 0 });
   const [walletHistory, setWalletHistory] = useState([]);
   const topupResult = searchParams.get('topup');
-  const totalSpent = recentBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
 
   useEffect(() => {
     walletAPI.get()
@@ -268,8 +267,8 @@ export default function ClientDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: FileText,  label: 'Réservations totales', value: recentBookings.length,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { icon: CreditCard,label: 'Total dépensé',        value: `${totalSpent.toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
+            { icon: FileText,  label: 'Réservations totales', value: clientStats.bookings_total,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
+            { icon: CreditCard,label: 'Total dépensé',        value: `${Number(clientStats.total_spent || 0).toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
             { icon: Star,      label: 'Note moyenne donnée',  value: `${Number(clientStats.average_rating || 0).toFixed(1)} / 5`, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
             { icon: Car,       label: 'Véhicules essayés',    value: clientStats.distinct_vehicles,      color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
           ].map(({ icon: Icon, label, value, color }) => (

@@ -63,7 +63,7 @@ export default function AddVehicle() {
   const [apiError, setApiError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(EMPTY);
-  const previews = useMemo(() => mediaFiles.map(file => URL.createObjectURL(file)), [mediaFiles]);
+  const previews = useMemo(() => mediaFiles.map(({ file }) => URL.createObjectURL(file)), [mediaFiles]);
   useEffect(() => () => previews.forEach(url => URL.revokeObjectURL(url)), [previews]);
 
   useEffect(() => {
@@ -86,7 +86,10 @@ export default function AddVehicle() {
     }).catch(() => setApiError('Impossible de charger le véhicule.')).finally(() => setLoading(false));
   }, [vehicleId]);
 
-  const addFiles = (files) => setMediaFiles(current => [...current, ...Array.from(files)]);
+  const addFiles = (files) => setMediaFiles(current => [
+    ...current,
+    ...Array.from(files, file => ({ file, position: 'exterior' })),
+  ]);
   const removeExistingMedia = async (media) => {
     if (!(await confirm({ title: 'Supprimer ce média', message: 'Retirer ce média du véhicule ?', confirmLabel: 'Supprimer', danger: true }))) return;
     await vehiclesAPI.deleteMedia(vehicleId, media.id);
@@ -101,7 +104,7 @@ export default function AddVehicle() {
   };
 
   const submit = async () => {
-    if (!vehicleId && mediaFiles.filter(file => file.type.startsWith('image/')).length < 4) {
+    if (!vehicleId && mediaFiles.filter(item => item.file.type.startsWith('image/')).length < 4) {
       setApiError('Ajoutez au moins 4 photos avant de soumettre le véhicule.');
       setStep(2);
       return;
@@ -134,7 +137,10 @@ export default function AddVehicle() {
       setCreated(res.data);
       if (mediaFiles.length) {
         const body = new FormData();
-        mediaFiles.forEach(file => body.append('files', file));
+        mediaFiles.forEach(({ file, position }) => {
+          body.append('files', file);
+          body.append('positions', position);
+        });
         await vehiclesAPI.uploadMedia(res.data.id, body);
         setMediaFiles([]);
       }
@@ -346,18 +352,31 @@ export default function AddVehicle() {
                 </div>
               </div>
 
-              <label onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); setMediaFiles(files => [...files, ...Array.from(e.dataTransfer.files)]); }} className={`block border-2 border-dashed rounded-xl p-8 text-center hover:border-primary-400 transition-colors cursor-pointer ${dragging ? 'border-primary-500 bg-primary-50' : 'border-slate-300'}`}>
-                <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e => addFiles(e.target.files)} />
-                <Upload size={32} className="text-slate-400 mx-auto mb-3" />
-                <p className="font-medium text-slate-600">Photos et vidéos du véhicule</p>
-                <p className="text-xs text-slate-400 mt-1">Min. 4 photos : avant, arrière, côtés, intérieur. Vidéos facultatives.</p>
-                <p className="text-xs text-primary-600 mt-2">Cliquez ou glissez vos fichiers ici</p>
-                <div className="mt-3 text-xs">{existingMedia.length} média(s) déjà téléversé(s) · {mediaFiles.filter(file => file.type.startsWith('image/')).length} photo(s) sélectionnée(s)</div>
-                {mediaFiles.map((file, index) => <button type="button" key={`${file.name}-${index}`} onClick={e => { e.preventDefault(); setMediaFiles(files => files.filter((_, i) => i !== index)); }} className="inline-flex flex-col m-1 p-1 rounded bg-slate-100 text-xs">
-                  {file.type.startsWith('video/') ? <video src={previews[index]} className="w-20 h-14 object-cover" /> : <img src={previews[index]} alt={file.name} className="w-20 h-14 object-cover" />}
-                  <span className="max-w-20 truncate">{file.name} ×</span>
-                </button>)}
-              </label>
+              <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }} className={`border-2 border-dashed rounded-xl p-5 hover:border-primary-400 transition-colors ${dragging ? 'border-primary-500 bg-primary-50' : 'border-slate-300'}`}>
+                <label className="block p-3 text-center cursor-pointer">
+                  <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e => addFiles(e.target.files)} />
+                  <Upload size={32} className="text-slate-400 mx-auto mb-3" />
+                  <p className="font-medium text-slate-600">Photos et vidéos du véhicule</p>
+                  <p className="text-xs text-slate-400 mt-1">Min. 4 photos : avant, arrière, côtés, intérieur. Vidéos facultatives.</p>
+                  <p className="text-xs text-primary-600 mt-2">Cliquez ou glissez vos fichiers ici</p>
+                </label>
+                <div className="mt-3 text-xs">{existingMedia.length} média(s) déjà téléversé(s) · {mediaFiles.filter(item => item.file.type.startsWith('image/')).length} photo(s) sélectionnée(s)</div>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {mediaFiles.map((item, index) => <div key={`${item.file.name}-${index}`} className="flex gap-2 items-center p-2 rounded bg-slate-50">
+                    {item.file.type.startsWith('video/') ? <video src={previews[index]} className="w-20 h-14 object-cover" /> : <img src={previews[index]} alt={item.file.name} className="w-20 h-14 object-cover" />}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <span className="block max-w-full truncate text-xs">{item.file.name}</span>
+                      <select aria-label={`Position de ${item.file.name}`} className="input-field py-1 text-xs"
+                        value={item.position} onChange={e => setMediaFiles(items => items.map((media, i) => i === index ? { ...media, position: e.target.value } : media))}>
+                        <option value="exterior">Extérieur</option>
+                        <option value="interior">Intérieur</option>
+                        <option value="other">Autre</option>
+                      </select>
+                    </div>
+                    <button type="button" onClick={() => setMediaFiles(items => items.filter((_, i) => i !== index))} className="text-red-600 text-sm" aria-label={`Retirer ${item.file.name}`}>×</button>
+                  </div>)}
+                </div>
+              </div>
               {existingMedia.length > 0 && <div className="flex flex-wrap gap-2">{existingMedia.map(item => <div key={item.id} className="relative">
                 {item.kind === 'video' ? <video src={item.image} className="w-20 h-14 object-cover rounded" /> : <img src={item.image} alt={item.caption || ''} className="w-20 h-14 object-cover rounded" />}
                 <button type="button" onClick={() => removeExistingMedia(item)} className="absolute -top-2 -right-2 rounded-full bg-red-600 text-white px-1.5" aria-label="Supprimer le média">×</button>

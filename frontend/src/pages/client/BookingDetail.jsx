@@ -89,8 +89,26 @@ export default function BookingDetail() {
             </div>
             <div className="border-t pt-3 text-sm text-slate-500">
               <strong>Suivi :</strong> créée le {booking.created_at ? new Date(booking.created_at).toLocaleDateString('fr-FR') : '—'} · statut {booking.status}
-              <span className="ml-4">Inspections : {booking.inspections?.length || 0}</span>
             </div>
+          </section>
+          <section className="card space-y-4">
+            <h3 className="font-bold">Inspections du véhicule</h3>
+            {!booking.inspections?.length ? <p className="text-sm text-slate-500">Aucune inspection enregistrée pour cette réservation.</p> : booking.inspections.map(inspection => (
+              <article key={inspection.id} className="border-t pt-4 space-y-2 text-sm">
+                <div className="flex flex-wrap justify-between gap-2 font-semibold">
+                  <span>{inspection.inspection_type === 'entry' ? 'Fiche d’entrée' : 'Fiche de sortie'}</span>
+                  <span>{inspection.inspection_date ? new Date(inspection.inspection_date).toLocaleString('fr-FR') : '—'}</span>
+                </div>
+                <p>Inspecteur : {inspection.controller_name || '—'} · Score : {inspection.condition_score ?? '—'}/100</p>
+                {inspection.notes && <p className="whitespace-pre-wrap">Notes : {inspection.notes}</p>}
+                {inspection.photos?.length > 0 && <div className="flex flex-wrap gap-3">
+                  {inspection.photos.map(photo => <figure key={photo.id} className="w-28">
+                    <img src={photo.image} alt={photo.caption || 'Photo d’inspection'} className="h-20 w-full rounded object-cover" />
+                    {photo.caption && <figcaption className="mt-1 text-xs text-slate-500">{photo.caption}</figcaption>}
+                  </figure>)}
+                </div>}
+              </article>
+            ))}
           </section>
           {canEdit && <form onSubmit={save} className="card space-y-4">
             <h3 className="font-bold">Modifier la réservation</h3>

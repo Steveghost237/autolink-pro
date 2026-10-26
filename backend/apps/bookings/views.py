@@ -387,6 +387,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             'rated_count': bookings.exclude(client_rating__isnull=True).count(),
             'distinct_vehicles': bookings.values('vehicle_id').distinct().count(),
             'bookings_total': bookings.count(),
+            'total_spent': bookings.exclude(status='cancelled').aggregate(
+                value=Sum('subtotal'))['value'] or Decimal('0'),
         })
 
     @staticmethod

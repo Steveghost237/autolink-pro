@@ -1,12 +1,15 @@
 from datetime import date, timedelta
 from decimal import Decimal
+import tempfile
 from unittest.mock import patch
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from django.test import override_settings
 from rest_framework.test import APITestCase
 from apps.users.models import User
 from apps.vehicles.models import Vehicle
 from apps.payments.models import Payment, WalletTransaction
+from apps.inspections.models import InspectionPhoto, VehicleInspection
 from apps.vehicles.tests import make_user, make_vehicle
 from .models import Booking
 
@@ -57,6 +60,26 @@ class BookingFlowTests(APITestCase):
         self.assertEqual(self.client_user.balance, Decimal('5000000') - total)
         # commission 50 %
         self.assertEqual(pay.commission + pay.owner_payout, pay.amount)
+
+    def test_client_stats_sum_non_cancelled_subtotals(self):
+        first = self._confirmed_booking()
+        later_start = self.start + timedelta(days=20)
+        response = self._book(
+            start_date=str(later_start),
+            end_date=str(later_start + timedelta(days=2)),
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        cancelled = self.client.patch(
+            f"/api/bookings/{response.data['id']}/",
+            {'status': 'cancelled'},
+            format='json',
+        )
+        self.assertEqual(cancelled.status_code, 200, cancelled.data)
+
+        stats = self.client.get('/api/bookings/client-stats/')
+        self.assertEqual(stats.status_code, 200, stats.data)
+        self.assertEqual(stats.data['bookings_total'], 2)
+        self.assertEqual(Decimal(str(stats.data['total_spent'])), first.subtotal)
 
     def test_date_conflict_rejected(self):
         self.client_user.balance = 5_000_000
@@ -217,6 +240,31 @@ class BookingEditAndReceiptTests(APITestCase):
             owner_payout=booking.owner_amount,
         )
         return booking
+
+    def test_booking_detail_includes_inspection_records_and_photos(self):
+        booking = self.make_paid_booking()
+        inspector = make_user('inspection-controller', 'CONTROLLER')
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            inspection = VehicleInspection.objects.create(
+                booking=booking, vehicle=self.vehicle, controller=inspector,
+                inspection_type='entry', mileage_at_inspection=45000,
+                fuel_level=75, condition_score=92, notes='Carrosserie en bon état.',
+            )
+            InspectionPhoto.objects.create(
+                inspection=inspection,
+                image=SimpleUploadedFile('inspection.jpg', b'image', content_type='image/jpeg'),
+                caption='Vue avant',
+            )
+            self.client.force_authenticate(self.client_user)
+            response = self.client.get(f'/api/bookings/{booking.pk}/')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        record = response.data['inspections'][0]
+        self.assertEqual(record['inspection_type'], 'entry')
+        self.assertEqual(record['controller_name'], inspector.get_full_name())
+        self.assertEqual(record['condition_score'], 92)
+        self.assertEqual(record['notes'], 'Carrosserie en bon état.')
+        self.assertEqual(record['photos'][0]['caption'], 'Vue avant')
 
     def test_wallet_booking_edit_charges_difference(self):
         booking = self.make_paid_booking()

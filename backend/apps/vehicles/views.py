@@ -65,8 +65,12 @@ class VehicleViewSet(ModelViewSet):
                     return qs.filter(owner=self.request.user)
         qs = qs.filter(status='approved')
         if self.request.query_params.get('available') == '1':
-            start = self.request.query_params.get('start_date') or date.today().isoformat()
-            end = self.request.query_params.get('end_date') or start
+            start = (self.request.query_params.get('start')
+                     or self.request.query_params.get('start_date')
+                     or date.today().isoformat())
+            end = (self.request.query_params.get('end')
+                   or self.request.query_params.get('end_date')
+                   or start)
             try:
                 date.fromisoformat(start)
                 date.fromisoformat(end)
@@ -109,11 +113,13 @@ class VehicleViewSet(ModelViewSet):
         uploads = request.FILES.getlist('files') or request.FILES.getlist('files[]')
         if not uploads:
             return Response({'files': 'Ajoutez au moins un fichier.'}, status=status.HTTP_400_BAD_REQUEST)
+        positions = request.data.getlist('positions') if hasattr(request.data, 'getlist') else []
+        default_position = request.data.get('position', 'exterior')
         serializers = []
-        for file in uploads:
+        for index, file in enumerate(uploads):
             serializer = VehicleMediaUploadSerializer(data={
                 'image': file,
-                'position': request.data.get('position', 'exterior'),
+                'position': positions[index] if index < len(positions) else default_position,
                 'caption': request.data.get('caption', ''),
             })
             serializer.is_valid(raise_exception=True)

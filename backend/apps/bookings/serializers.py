@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.inspections.serializers import VehicleInspectionSerializer
 from .models import Booking
 
 
@@ -15,6 +16,7 @@ class BookingSerializer(serializers.ModelSerializer):
     payment_status = serializers.CharField(source='payment.status', read_only=True)
     escrow_status = serializers.CharField(source='payment.escrow_status', read_only=True)
     deposit_status = serializers.CharField(source='payment.deposit_status', read_only=True)
+    inspections = VehicleInspectionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Booking

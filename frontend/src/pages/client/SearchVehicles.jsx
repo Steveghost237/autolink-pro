@@ -377,6 +377,8 @@ export default function SearchVehicles() {
   const [selectedVehicle, setSelected] = useState(null);
   const [selectedType, setType]       = useState('');
   const [selectedTier, setTier]       = useState('');
+  const [availabilityStart, setAvailabilityStart] = useState('');
+  const [availabilityEnd, setAvailabilityEnd] = useState('');
   const [vehicles, setVehicles]       = useState([]);
   const [offline, setOffline]         = useState(false);
   const [loadingList, setLoadingList] = useState(true);
@@ -405,7 +407,13 @@ export default function SearchVehicles() {
 
   useEffect(() => {
     let mounted = true;
-    vehiclesAPI.getAll({ ...(onlyAvailable ? { available: 1 } : {}) })
+    vehiclesAPI.getAll({
+      ...(onlyAvailable ? {
+        available: 1,
+        ...(availabilityStart ? { start: availabilityStart } : {}),
+        ...(availabilityEnd ? { end: availabilityEnd } : {}),
+      } : {}),
+    })
       .then(res => {
         if (!mounted) return;
         const list = (res.data.results || res.data || []).map(mapApiVehicle);
@@ -419,7 +427,7 @@ export default function SearchVehicles() {
       })
       .catch(() => { setOffline(true); setLoadingList(false); });
     return () => { mounted = false; };
-  }, [onlyAvailable]);
+  }, [onlyAvailable, availabilityStart, availabilityEnd]);
 
   const filtered = vehicles.filter(v =>
     (category === 'Tous' || v.category === category) &&
@@ -512,6 +520,18 @@ export default function SearchVehicles() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={onlyAvailable} onChange={e => setOnly(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Disponibles uniquement</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <label className="label">Disponible à partir du
+              <input type="date" className="input-field mt-1" value={availabilityStart}
+                min={new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable}
+                onChange={e => setAvailabilityStart(e.target.value)} />
+            </label>
+            <label className="label">Jusqu’au
+              <input type="date" className="input-field mt-1" value={availabilityEnd}
+                min={availabilityStart || new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable}
+                onChange={e => setAvailabilityEnd(e.target.value)} />
             </label>
           </div>
           <div className="flex flex-wrap gap-3 mt-4">

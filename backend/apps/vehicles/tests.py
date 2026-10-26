@@ -118,11 +118,12 @@ class VehicleMediaAndDiscoveryTests(APITestCase):
             {'files': [
                 SimpleUploadedFile('front.jpg', b'image', content_type='image/jpeg'),
                 SimpleUploadedFile('walkaround.mp4', b'video', content_type='video/mp4'),
-            ]},
+            ], 'positions': ['interior', 'other']},
             format='multipart',
         )
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual({item['kind'] for item in response.data}, {'image', 'video'})
+        self.assertEqual([item['position'] for item in response.data], ['interior', 'other'])
         bad = self.client.post(
             f'/api/vehicles/{self.vehicle.pk}/media/',
             {'files': [SimpleUploadedFile('document.pdf', b'pdf', content_type='application/pdf')]},
@@ -216,7 +217,7 @@ class VehicleMediaAndDiscoveryTests(APITestCase):
             daily_rate=25000, days=2, subtotal=0, commission_amount=0, owner_amount=0,
         )
         response = self.client.get(
-            f'/api/vehicles/?available=1&start_date={start}&end_date={start + timedelta(days=1)}')
+            f'/api/vehicles/?available=1&start={start}&end={start + timedelta(days=1)}')
         self.assertEqual(response.status_code, 200)
         plates = {item['plate'] for item in response.data.get('results', response.data)}
         self.assertNotIn(self.vehicle.plate, plates)
