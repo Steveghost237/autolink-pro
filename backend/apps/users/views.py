@@ -300,7 +300,7 @@ class OTPRequestView(APIView):
             from_email=None,  # DEFAULT_FROM_EMAIL
             recipient_list=[email],
             html_message=_otp_email_html(code, first_name),
-            fail_silently=True,
+            fail_silently=False,
         )
         return Response({'detail': 'Code envoyé.', 'email': email})
 
