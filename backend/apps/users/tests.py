@@ -67,6 +67,32 @@ class AuthTests(APITestCase):
         self.client.force_authenticate(admin)
         self.assertEqual(self.client.get('/api/users/').status_code, 200)
 
+    def test_admin_user_create_update_delete_permissions_and_activity(self):
+        client = User.objects.create_user(username='ordinary', email='ordinary@test.cm', password='x', role='CLIENT')
+        admin = User.objects.create_user(username='admin-user', email='admin-user@test.cm', password='x', role='ADMIN')
+        payload = {
+            'username': 'created-user', 'email': 'created@test.cm',
+            'first_name': 'Created', 'last_name': 'User', 'role': 'CLIENT',
+            'phone': '+237690000001', 'password': 'ValidPassword2026!',
+        }
+
+        self.client.force_authenticate(client)
+        self.assertEqual(self.client.post('/api/users/', payload, format='json').status_code, 403)
+        self.assertEqual(self.client.patch(f'/api/users/{admin.pk}/', {'is_active': False}, format='json').status_code, 403)
+        self.assertEqual(self.client.delete(f'/api/users/{admin.pk}/').status_code, 403)
+
+        self.client.force_authenticate(admin)
+        created = self.client.post('/api/users/', payload, format='json')
+        self.assertEqual(created.status_code, 201, created.data)
+        user = User.objects.get(username='created-user')
+        listed = self.client.get('/api/users/', {'search': 'created@test.cm'})
+        self.assertEqual(listed.data['results'][0]['bookings_count'], 0)
+        self.assertEqual(listed.data['results'][0]['vehicles_count'], 0)
+        updated = self.client.patch(f'/api/users/{user.pk}/', {'is_active': False}, format='json')
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertFalse(updated.data['is_active'])
+        self.assertEqual(self.client.delete(f'/api/users/{user.pk}/').status_code, 204)
+
 
 class OTPLoginTests(APITestCase):
     """Connexion par code email — type agence : nom + email → code → JWT."""

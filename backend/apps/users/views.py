@@ -4,11 +4,13 @@ from urllib.parse import urlencode
 from django.core import signing
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
+from django.db.models import Count
+from django.db.models.deletion import ProtectedError
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape, strip_tags
 from datetime import timedelta
-from rest_framework import filters, generics, permissions, status
+from rest_framework import filters, generics, permissions, serializers, status
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +18,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from .email_utils import send_login_notification, send_welcome_email
 from .models import ContactMessage, NewsletterCampaign, User, Notification, LoginCode
-from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
+from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -353,20 +355,52 @@ class OTPVerifyView(APIView):
         })
 
 
-class UserListView(generics.ListAPIView):
-    queryset = User.objects.all().order_by('-created_at')
-    serializer_class = AdminUserSerializer
+class UserListView(generics.ListCreateAPIView):
     permission_classes = [IsAdminRole]
     filterset_fields = ['role', 'is_verified', 'is_active']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering_fields = ['created_at', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_verified']
 
+    def get_queryset(self):
+        return User.objects.annotate(
+            bookings_count=Count('bookings', distinct=True),
+            vehicles_count=Count('vehicles', distinct=True),
+            trips_count=Count('driven_bookings', distinct=True),
+        ).order_by('-created_at')
 
-class UserDetailView(generics.RetrieveUpdateAPIView):
-    """Admin peut activer/désactiver/vérifier/modifier n'importe quel compte."""
-    queryset = User.objects.all()
+    def get_serializer_class(self):
+        return AdminUserCreateSerializer if self.request.method == 'POST' else AdminUserSerializer
+
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Admin peut modifier et supprimer un compte."""
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminRole]
+
+    def get_queryset(self):
+        return User.objects.annotate(
+            bookings_count=Count('bookings', distinct=True),
+            vehicles_count=Count('vehicles', distinct=True),
+            trips_count=Count('driven_bookings', distinct=True),
+        )
+
+    def perform_update(self, serializer):
+        if serializer.instance == self.request.user and serializer.validated_data.get('is_active') is False:
+            raise serializers.ValidationError({'is_active': 'Vous ne pouvez pas suspendre votre propre compte.'})
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.pk == request.user.pk:
+            return Response({'detail': 'Vous ne pouvez pas supprimer votre propre compte.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'Ce compte est lié à des réservations et ne peut pas être supprimé. Suspendez-le plutôt.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class NotificationListView(generics.ListAPIView):

@@ -68,6 +68,22 @@ class VehicleCatalogueTests(APITestCase):
         r = self.client.post('/api/vehicles/', {'brand': 'X'}, format='json')
         self.assertIn(r.status_code, (401, 403))
 
+    def test_admin_vehicle_management_is_admin_only(self):
+        admin = make_user('catalog-admin', 'ADMIN')
+        self.client.force_authenticate(self.client_user)
+        self.assertEqual(self.client.get('/api/vehicles/admin/').status_code, 403)
+        self.assertEqual(self.client.patch(f'/api/vehicles/admin/{self.approved.pk}/', {'status': 'suspended'}, format='json').status_code, 403)
+        self.assertEqual(self.client.delete(f'/api/vehicles/admin/{self.approved.pk}/').status_code, 403)
+
+        self.client.force_authenticate(admin)
+        self.assertEqual(self.client.get('/api/vehicles/admin/').status_code, 200)
+        updated = self.client.patch(
+            f'/api/vehicles/admin/{self.approved.pk}/',
+            {'status': 'suspended'}, format='json')
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(updated.data['status'], 'suspended')
+        self.assertEqual(self.client.delete(f'/api/vehicles/admin/{self.approved.pk}/').status_code, 204)
+
 
 class TierClassificationTests(APITestCase):
     """Classification objective : la catégorie est recalculée au save()."""

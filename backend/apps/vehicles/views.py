@@ -1,5 +1,6 @@
 from datetime import date
 from django.db.models import Max, Q
+from django.db.models.deletion import ProtectedError
 import django_filters
 from rest_framework import generics, permissions, filters, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -30,7 +31,7 @@ class VehicleFilter(django_filters.FilterSet):
 
     class Meta:
         model = Vehicle
-        fields = ['category', 'fuel']
+        fields = ['category', 'fuel', 'status']
 
 
 class VehicleViewSet(ModelViewSet):
@@ -141,6 +142,44 @@ class VehicleViewSet(ModelViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
         media.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminVehicleViewSet(ModelViewSet):
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = VehicleFilter
+    search_fields = ['brand', 'model', 'plate', 'category', 'owner__username',
+                     'owner__email', 'owner__first_name', 'owner__last_name']
+    ordering_fields = ['brand', 'model', 'year', 'daily_rate', 'status', 'created_at']
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_permissions(self):
+        return [AdminVehiclePermission()]
+
+    def get_queryset(self):
+        return Vehicle.objects.select_related('owner').all()
+
+    def destroy(self, request, *args, **kwargs):
+        vehicle = self.get_object()
+        if vehicle.bookings.exists():
+            return Response(
+                {'detail': 'Ce véhicule possède des réservations et ne peut pas être supprimé.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            vehicle.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'Ce véhicule est lié à des données protégées et ne peut pas être supprimé.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminVehiclePermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'ADMIN'
 
 
 class VehicleFacetsView(APIView):

@@ -52,12 +52,27 @@ class NewsletterSendSerializer(serializers.Serializer):
 
 class AdminUserSerializer(serializers.ModelSerializer):
     """Réservé à l'admin — permet d'activer/suspendre/vérifier/changer le rôle."""
+    bookings_count = serializers.IntegerField(read_only=True)
+    vehicles_count = serializers.IntegerField(read_only=True)
+    trips_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'balance',
-                  'is_active', 'is_verified', 'id_document_verified', 'is_staff', 'created_at']
+                  'is_active', 'is_verified', 'id_document_verified', 'is_staff', 'created_at',
+                  'bookings_count', 'vehicles_count', 'trips_count']
         read_only_fields = ['id', 'created_at']
+
+
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'phone', 'password']
+
+    def create(self, validated_data):
+        return User.objects.create_user(**validated_data)
 
 
 class RegisterSerializer(serializers.ModelSerializer):

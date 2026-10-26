@@ -31,7 +31,7 @@ const NAV_ITEMS = {
     { icon: ClipboardList, label: 'Messages de contact', path: '/admin/messages' },
     { icon: Mail, label: 'Newsletter', path: '/admin/newsletter' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
-    { icon: Car, label: 'Véhicules', path: '/admin/inspections' },
+    { icon: Car, label: 'Véhicules', path: '/admin/catalog' },
     { icon: UserCheck, label: 'Chauffeurs', path: '/admin/drivers' },
     { icon: DollarSign, label: 'Finance', path: '/admin/finance' },
     { icon: Tag, label: 'Agents affiliés', path: '/admin/agents' },

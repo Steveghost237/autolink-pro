@@ -73,6 +73,12 @@ export const vehiclesAPI = {
   removeFavorite: (vehicle) => api.delete(`/vehicles/favorites/${vehicle}/`),
 };
 
+export const adminVehiclesAPI = {
+  list: (params) => api.get('/vehicles/admin/', { params }),
+  update: (id, payload) => api.patch(`/vehicles/admin/${id}/`, payload),
+  delete: (id) => api.delete(`/vehicles/admin/${id}/`),
+};
+
 export const bookingsAPI = {
   list: (params) => api.get('/bookings/', { params }),
   getAll: (params) => api.get('/bookings/', { params }),
@@ -116,7 +122,9 @@ export const newsletterAPI = {
 export const usersAPI = {
   list: (params) => api.get('/users/', { params }),
   getAll: (params) => api.get('/users/', { params }),
+  create: (payload) => api.post('/users/', payload),
   update: (id, payload) => api.patch(`/users/${id}/`, payload),
+  delete: (id) => api.delete(`/users/${id}/`),
   me: () => api.get('/users/me/'),
   updateMe: (payload) => api.patch('/users/me/', payload),
 };
