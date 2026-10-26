@@ -1,6 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AdminVehicleViewSet, FavoriteViewSet, VehicleFacetsView, VehicleViewSet, VehicleAvailabilityView
+from .views import (
+    AdminVehicleViewSet, ControllerPendingVehicleListView, ControllerVehicleDecisionView,
+    FavoriteViewSet, VehicleFacetsView, VehicleViewSet, VehicleAvailabilityView,
+)
 
 router = DefaultRouter()
 router.register(r'favorites', FavoriteViewSet, basename='vehicle-favorite')
@@ -14,6 +17,8 @@ urlpatterns = [
         'patch': 'partial_update',
         'delete': 'destroy',
     }), name='admin-vehicle-detail'),
+    path('controller-review/', ControllerPendingVehicleListView.as_view(), name='controller-vehicle-review-list'),
+    path('controller-review/<int:pk>/', ControllerVehicleDecisionView.as_view(), name='controller-vehicle-review-detail'),
     path('<int:vehicle_id>/availability/', VehicleAvailabilityView.as_view()),
     path('', include(router.urls)),
 ]

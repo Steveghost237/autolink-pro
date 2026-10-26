@@ -139,6 +139,8 @@ class Vehicle(models.Model):
     insurance_expiry = models.DateField()
     technical_control_date = models.DateField(null=True, blank=True)
     condition_score = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    last_inspection_at = models.DateTimeField(null=True, blank=True)
+    last_inspection_score = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
 
     mileage = models.IntegerField(default=0)
     fuel_level = models.IntegerField(default=100, validators=[MinValueValidator(0), MaxValueValidator(100)])

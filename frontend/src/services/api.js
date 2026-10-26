@@ -168,4 +168,17 @@ export const driversAPI = {
   earningLedger: (params) => api.get('/drivers/earnings/', { params }),
 };
 
+export const inspectionsAPI = {
+  queue: (params) => api.get('/inspections/queue/', { params }),
+  dashboard: () => api.get('/inspections/dashboard/'),
+  list: (params) => api.get('/inspections/', { params }),
+  create: (payload) => api.post('/inspections/', payload, payload instanceof FormData
+    ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
+};
+
+export const controllerVehiclesAPI = {
+  list: (params) => api.get('/vehicles/controller-review/', { params }),
+  decide: (id, status) => api.patch(`/vehicles/controller-review/${id}/`, { status }),
+};
+
 export default api;

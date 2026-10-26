@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
+from config.pagination import StandardPagination
 from .models import Favorite, Vehicle, VehicleAvailability, VehiclePhoto
 from .serializers import VehicleMediaUploadSerializer, VehicleSerializer, VehicleAvailabilitySerializer, VehiclePhotoSerializer
 
@@ -180,6 +181,37 @@ class AdminVehicleViewSet(ModelViewSet):
 class AdminVehiclePermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+class ControllerVehicleReviewPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ('ADMIN', 'CONTROLLER')
+
+
+class ControllerPendingVehicleListView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+    permission_classes = [ControllerVehicleReviewPermission]
+    pagination_class = StandardPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['brand', 'model', 'plate', 'owner__username', 'owner__email']
+    ordering_fields = ['created_at', 'brand', 'year', 'daily_rate']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Vehicle.objects.filter(status='pending').select_related('owner')
+
+
+class ControllerVehicleDecisionView(APIView):
+    permission_classes = [ControllerVehicleReviewPermission]
+
+    def patch(self, request, pk):
+        status_value = request.data.get('status')
+        if status_value not in ('approved', 'suspended'):
+            return Response({'status': 'Valeurs possibles : approved ou suspended.'}, status=400)
+        updated = Vehicle.objects.filter(pk=pk, status='pending').update(status=status_value)
+        if not updated:
+            return Response({'detail': 'Véhicule en attente introuvable.'}, status=404)
+        return Response(VehicleSerializer(Vehicle.objects.select_related('owner').get(pk=pk)).data)
 
 
 class VehicleFacetsView(APIView):

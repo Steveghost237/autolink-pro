@@ -1,102 +1,142 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ClipboardList, Clock, AlertTriangle, Car } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
-import { ClipboardList, CheckCircle, Clock, AlertTriangle, Car, ArrowRight, LogIn, LogOut, MapPin, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-const TODAY_TASKS = [
-  { id: 'INS001', type: 'entry', vehicle: 'Toyota Corolla 2022', plate: 'LT-4523-A', client: 'Marie Ngo Bell', time: '08:00', location: 'Agence AutoLink — Akwa, Douala', priority: 'high' },
-  { id: 'INS003', type: 'entry', vehicle: 'BMW Série 5 2022', plate: 'CE-8810-K', client: 'Awa Mbarga', time: '10:30', location: 'Agence AutoLink — Akwa, Douala', priority: 'high' },
-  { id: 'INS002', type: 'exit', vehicle: 'Hyundai Tucson 2023', plate: 'LT-2210-G', client: 'Yves Kamga', time: '14:00', location: 'Résidence client — Bonanjo, Douala', priority: 'normal' },
-];
-
-const WEEKLY_STATS = { done: 18, pending: 3, issues: 2, avgScore: 89 };
+import ListToolbar from '../../components/ListToolbar';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import { controllerVehiclesAPI, inspectionsAPI } from '../../services/api';
 
 export default function ControllerDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const [stats, setStats] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [error, setError] = useState('');
+  const [vehicles, setVehicles] = useState([]);
+  const [vehicleCount, setVehicleCount] = useState(0);
+  const [vehiclePage, setVehiclePage] = useState(1);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleSort, setVehicleSort] = useState('created_at');
+  const [vehicleOrder, setVehicleOrder] = useState('desc');
+
+  const load = useCallback(async () => {
+    try {
+      const [dashboard, entry, exit] = await Promise.all([
+        inspectionsAPI.dashboard(),
+        inspectionsAPI.queue({ type: 'entry', page_size: 5, ordering: 'start_date' }),
+        inspectionsAPI.queue({ type: 'exit', page_size: 5, ordering: 'start_date' }),
+      ]);
+      setStats(dashboard.data);
+      setTasks([
+        ...(entry.data.results || []).map(item => ({ ...item, type: 'Entrée' })),
+        ...(exit.data.results || []).map(item => ({ ...item, type: 'Sortie' })),
+      ]);
+      setError('');
+    } catch (_) {
+      setError('Impossible de charger le tableau de bord.');
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const loadVehicles = useCallback(async () => {
+    try {
+      const { data } = await controllerVehiclesAPI.list({
+        page: vehiclePage, page_size: 20, search: vehicleSearch.trim(),
+        ordering: `${vehicleOrder === 'desc' ? '-' : ''}${vehicleSort}`,
+      });
+      setVehicles(data.results || []);
+      setVehicleCount(data.count || 0);
+    } catch (_) {
+      setError('Impossible de charger les véhicules à valider.');
+    }
+  }, [vehiclePage, vehicleSearch, vehicleSort, vehicleOrder]);
+  useEffect(() => { loadVehicles(); }, [loadVehicles]);
+
+  const decideVehicle = async (vehicle, status) => {
+    const approved = status === 'approved';
+    if (!(await confirm({
+      title: approved ? 'Approuver le véhicule ?' : 'Rejeter le véhicule ?',
+      message: `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`,
+      confirmLabel: approved ? 'Approuver' : 'Rejeter',
+      danger: !approved,
+    }))) return;
+    try {
+      await controllerVehiclesAPI.decide(vehicle.id, status);
+      await loadVehicles();
+    } catch (_) {
+      setError('Impossible de mettre à jour le statut du véhicule.');
+    }
+  };
+
+  const cards = [
+    { label: 'Fiches d’entrée à traiter', value: stats?.entry_pending ?? '—', icon: ClipboardList },
+    { label: 'Fiches de sortie à traiter', value: stats?.exit_pending ?? '—', icon: Clock },
+    { label: 'Inspections cette semaine', value: stats?.completed_week ?? '—', icon: Car },
+    { label: 'Problèmes signalés cette semaine', value: stats?.issues_week ?? '—', icon: AlertTriangle },
+  ];
 
   return (
-    <DashboardLayout title="Tableau de bord Contrôleur">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-gradient-to-br from-slate-900 to-primary-900 rounded-2xl p-6 text-white">
-          <h2 className="text-2xl font-bold mb-1">Bonjour, {user?.firstName}</h2>
-          <p className="text-primary-200 mb-5">Vous avez <strong className="text-white">{TODAY_TASKS.length} inspections</strong> à effectuer aujourd'hui.</p>
-          <button onClick={() => navigate('/admin/inspections')} className="flex items-center gap-2 bg-white text-primary-700 font-semibold py-2.5 px-5 rounded-xl hover:bg-primary-50 transition-all shadow-md">
-            <ClipboardList size={18} /> Voir toutes les inspections
+    <DashboardLayout title="Tableau de bord contrôleur">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <header className="rounded-2xl bg-gradient-to-br from-slate-900 to-primary-900 p-6 text-white">
+          <h2 className="mb-1 text-2xl font-bold">Bonjour, {user?.firstName || user?.email}</h2>
+          <p className="mb-5 text-primary-200">Activité réelle des inspections de la plateforme.</p>
+          <button onClick={() => navigate('/admin/inspections')} className="rounded-xl bg-white px-5 py-2.5 font-semibold text-primary-700">
+            <ClipboardList size={18} className="mr-2 inline" /> Voir les inspections
           </button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Faites cette semaine', value: WEEKLY_STATS.done, icon: CheckCircle, color: 'text-emerald-600 bg-emerald-50' },
-            { label: 'En attente', value: WEEKLY_STATS.pending, icon: Clock, color: 'text-amber-600 bg-amber-50' },
-            { label: 'Problèmes signalés', value: WEEKLY_STATS.issues, icon: AlertTriangle, color: 'text-red-600 bg-red-50' },
-            { label: 'Score moyen', value: `${WEEKLY_STATS.avgScore}/100`, icon: ClipboardList, color: 'text-primary-600 bg-primary-50' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="card">
-              <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}><Icon size={18} /></div>
-              <div className="text-xl font-bold text-slate-900">{value}</div>
+        </header>
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map(({ label, value, icon: Icon }) => (
+            <div className="card" key={label}>
+              <Icon size={20} className="mb-3 text-primary-600" />
+              <div className="text-xl font-bold">{value}</div>
               <div className="text-sm text-slate-500">{label}</div>
             </div>
           ))}
         </div>
-
-        {/* Today's tasks */}
         <div className="card">
-          <h3 className="font-bold text-slate-900 mb-5">Programme du jour — {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-          <div className="space-y-4">
-            {TODAY_TASKS.sort((a, b) => a.time.localeCompare(b.time)).map(task => (
-              <div key={task.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${task.priority === 'high' ? 'border-primary-200 bg-primary-50' : 'border-slate-100 bg-white'}`}>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${task.type === 'entry' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                  {task.type === 'entry' ? <LogIn size={22} /> : <LogOut size={22} />}
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-bold">Réservations à inspecter</h3>
+            <span className="text-sm text-slate-500">Score moyen récent : {stats ? `${Number(stats.average_score_week).toFixed(0)}/100` : '—'}</span>
+          </div>
+          <div className="space-y-3">
+            {tasks.map(task => (
+              <article key={`${task.type}-${task.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+                <div>
+                  <p className="font-semibold">{task.type} · {task.vehicle} ({task.plate})</p>
+                  <p className="text-sm text-slate-500">{task.client} · {task.booking_reference} · {task.start_date} — {task.end_date}</p>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${task.type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      {task.type === 'entry' ? 'ENTRÉE' : 'SORTIE'}
-                    </span>
-                    <span className="font-semibold text-slate-900">{task.vehicle}</span>
-                    {task.priority === 'high' && <span className="badge-warning">Priorité haute</span>}
-                  </div>
-                  <div className="text-sm text-slate-500 flex items-center gap-3 flex-wrap">
-                    <span className="inline-flex items-center gap-1"><Clock size={12} /> {task.time}</span>
-                    <span className="inline-flex items-center gap-1"><User size={12} /> {task.client}</span>
-                    <span className="inline-flex items-center gap-1"><MapPin size={12} /> {task.location}</span>
-                  </div>
-                  <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1"><Car size={12} /> {task.plate}</div>
-                </div>
-                <button onClick={() => navigate('/admin/inspections')} className="btn-primary py-2 px-4 text-sm flex items-center gap-1 shrink-0">
-                  Inspecter <ArrowRight size={14} />
-                </button>
-              </div>
+                <button className="btn-outline" onClick={() => navigate('/admin/inspections')}>Ouvrir la file</button>
+              </article>
             ))}
+            {tasks.length === 0 && <p className="py-8 text-center text-slate-500">Aucune inspection en attente.</p>}
           </div>
         </div>
-
-        {/* Quick guide */}
-        <div className="card bg-slate-50">
-          <h3 className="font-bold text-slate-900 mb-4">Guide d'inspection rapide</h3>
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
-            {[
-              { Icon: LogIn, iconCls: 'text-emerald-600', label: 'Fiche d\'entrée', points: ["Remplir AVANT remise des clés", "Photo de chaque côté du véhicule", "Niveau carburant et kilométrage", "Vérifier assurance et documents"] },
-              { Icon: LogOut, iconCls: 'text-red-600', label: 'Fiche de sortie', points: ["Remplir APRÈS retour du véhicule", "Comparer avec la fiche d'entrée", "Documenter tout dommage nouveau", "Confirmer le niveau de carburant"] },
-            ].map(({ Icon, iconCls, label, points }) => (
-              <div key={label} className="bg-white rounded-xl p-4 border border-slate-200">
-                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2"><Icon size={16} className={iconCls} /> {label}</h4>
-                <ul className="space-y-1.5">
-                  {points.map(p => (
-                    <li key={p} className="flex items-start gap-2 text-slate-600">
-                      <CheckCircle size={13} className="text-primary-500 shrink-0 mt-0.5" /> {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        <section className="space-y-4">
+          <h3 className="text-lg font-bold">Véhicules à valider · {vehicleCount}</h3>
+          <div className="card">
+            <ListToolbar search={vehicleSearch} onSearchChange={value => { setVehicleSearch(value); setVehiclePage(1); }}
+              sortField={vehicleSort} onSortFieldChange={setVehicleSort}
+              sortOrder={vehicleOrder} onSortOrderChange={setVehicleOrder}
+              sortOptions={[
+                { value: 'created_at', label: 'Date de demande' },
+                { value: 'brand', label: 'Marque' },
+                { value: 'year', label: 'Année' },
+                { value: 'daily_rate', label: 'Tarif journalier' },
+              ]} placeholder="Rechercher véhicule ou propriétaire" />
           </div>
-        </div>
+          {vehicles.map(vehicle => (
+            <article key={vehicle.id} className="card flex flex-wrap items-center justify-between gap-3">
+              <div><p className="font-semibold">{vehicle.brand} {vehicle.model} ({vehicle.plate})</p><p className="text-sm text-slate-500">{vehicle.owner_name} · {vehicle.year} · {Number(vehicle.daily_rate).toLocaleString('fr-FR')} FCFA/jour</p></div>
+              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>Approuver</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>Rejeter</button></div>
+            </article>
+          ))}
+          {vehicles.length === 0 && <div className="card py-8 text-center text-slate-500">Aucun véhicule en attente de validation.</div>}
+          <div className="flex items-center justify-between text-sm"><span>Page {vehiclePage} / {Math.max(1, Math.ceil(vehicleCount / 20))}</span><div className="flex gap-2"><button className="btn-outline" disabled={vehiclePage <= 1} onClick={() => setVehiclePage(value => value - 1)}>Précédent</button><button className="btn-outline" disabled={vehiclePage * 20 >= vehicleCount} onClick={() => setVehiclePage(value => value + 1)}>Suivant</button></div></div>
+        </section>
       </div>
     </DashboardLayout>
   );
