@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Car, AlertTriangle, CheckCircle, Calendar, Shield, Clock, Wrench, Ban, RefreshCw } from 'lucide-react';
+import { PlusCircle, Car, AlertTriangle, CheckCircle, Calendar, Shield, Clock, Wrench, Ban, RefreshCw, Eye, Pencil, Trash2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { vehiclesAPI } from '../../services/api';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 const TIER_LABEL = { basic: 'Économique', standard: 'Intermédiaire', premium: 'Premium', gold: 'Luxe', collection: 'Super Luxe' };
 const TIER_CLS = {
@@ -23,6 +24,7 @@ const STATUS = {
 
 export default function MyVehicles() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [vehicles, setVehicles] = useState([]);
   const [online, setOnline] = useState(true);
   const [search, setSearch] = useState('');
@@ -44,6 +46,26 @@ export default function MyVehicles() {
   }, [search, sortField, sortOrder]);
 
   useEffect(() => { load(); }, [load]);
+
+  const remove = async (vehicle) => {
+    if (!(await confirm({ title: 'Supprimer le véhicule', message: `Supprimer ${vehicle.brand} ${vehicle.model} ?`, confirmLabel: 'Supprimer', danger: true }))) return;
+    try {
+      await vehiclesAPI.delete(vehicle.id);
+      load();
+    } catch (error) {
+      if (error.response?.status !== 400) return;
+      const retire = await confirm({
+        title: 'Véhicule avec réservations',
+        message: 'Ce véhicule possède des réservations et ne peut pas être supprimé. Le retirer du catalogue ?',
+        confirmLabel: 'Retirer du catalogue',
+        danger: true,
+      });
+      if (retire) {
+        await vehiclesAPI.update(vehicle.id, { status: 'suspended' });
+        load();
+      }
+    }
+  };
 
   return (
     <DashboardLayout title="Mes véhicules">
@@ -155,6 +177,11 @@ export default function MyVehicles() {
                       <div className={`text-2xl font-black ${(v.condition_score || 0) >= 85 ? 'text-green-700' : (v.condition_score || 0) >= 70 ? 'text-amber-700' : 'text-red-700'}`}>{v.condition_score || '—'}/100</div>
                       <div className="text-slate-500 text-xs mt-1">Score d'état</div>
                     </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button className="btn-outline flex items-center gap-2" onClick={() => navigate(`/vehicles/${v.id}`)}><Eye size={15} /> Voir le détail</button>
+                    <button className="btn-outline flex items-center gap-2" onClick={() => navigate(`/owner/vehicles/${v.id}/edit`)}><Pencil size={15} /> Modifier</button>
+                    <button className="btn-outline flex items-center gap-2 text-red-600" onClick={() => remove(v)}><Trash2 size={15} /> Supprimer</button>
                   </div>
                 </div>
 

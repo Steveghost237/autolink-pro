@@ -27,7 +27,7 @@ export default function Login() {
     const result = await login(form);
     setLoading(false);
     if (result.success) {
-      navigate(getDashboardPath(result.user.role));
+      navigate(params.get('next') || getDashboardPath(result.user.role));
     } else {
       setError(result.error);
     }
@@ -59,7 +59,7 @@ export default function Login() {
     const result = await otpVerify(otp.email.trim(), otp.code.trim());
     setLoading(false);
     if (result.success) {
-      navigate(getDashboardPath(result.user.role));
+      navigate(params.get('next') || getDashboardPath(result.user.role));
     } else {
       setError(result.error);
     }
@@ -183,7 +183,7 @@ export default function Login() {
 
           <p className="text-center text-sm text-slate-500 mt-6">
             Pas encore de compte ?{' '}
-            <Link to="/register" className="text-primary-600 font-semibold hover:underline">S'inscrire gratuitement</Link>
+            <Link to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-primary-600 font-semibold hover:underline">S'inscrire gratuitement</Link>
           </p>
         </div>
       </div>

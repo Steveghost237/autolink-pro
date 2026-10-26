@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase, MailCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
@@ -13,6 +13,7 @@ const ROLES = [
 
 export default function Register() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { register, otpVerify, getDashboardPath } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '' });
@@ -59,7 +60,7 @@ export default function Register() {
     setLoading(true);
     const result = await otpVerify(form.email.trim(), code.trim());
     setLoading(false);
-    if (result.success) navigate(getDashboardPath(result.user.role));
+    if (result.success) navigate(params.get('next') || getDashboardPath(result.user.role));
     else setError(result.error);
   };
 
@@ -204,7 +205,7 @@ export default function Register() {
 
           <p className="text-center text-sm text-slate-500 mt-5">
             Déjà un compte ?{' '}
-            <Link to="/login" className="text-primary-600 font-semibold hover:underline">Se connecter</Link>
+            <Link to={`/login${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-primary-600 font-semibold hover:underline">Se connecter</Link>
           </p>
         </div>
       </div>

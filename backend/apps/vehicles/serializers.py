@@ -1,11 +1,49 @@
 from rest_framework import serializers
+from pathlib import Path
 from .models import Vehicle, VehiclePhoto, VehicleAvailability
 
 
 class VehiclePhotoSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = VehiclePhoto
-        fields = ['id', 'image', 'caption', 'uploaded_at']
+        fields = ['id', 'image', 'kind', 'position', 'caption', 'uploaded_at']
+        read_only_fields = fields
+
+    def get_image(self, obj):
+        if not obj.image:
+            return ''
+        url = obj.image.url
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
+
+
+class VehicleMediaUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehiclePhoto
+        fields = ['image', 'kind', 'position', 'caption']
+
+    def validate_image(self, file):
+        ext = Path(file.name).suffix.lower()
+        content_type = (getattr(file, 'content_type', '') or '').lower()
+        images = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                  '.webp': 'image/webp', '.gif': 'image/gif'}
+        videos = {'.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime'}
+        if ext in images and content_type == images[ext]:
+            if file.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError('Une image ne peut pas dépasser 10 Mo.')
+            return file
+        if ext in videos and content_type == videos[ext]:
+            if file.size > 50 * 1024 * 1024:
+                raise serializers.ValidationError('Une vidéo ne peut pas dépasser 50 Mo.')
+            return file
+        raise serializers.ValidationError('Format non accepté : images JPG, PNG, WEBP, GIF ou vidéos MP4, WEBM, MOV.')
+
+    def validate(self, attrs):
+        ext = Path(attrs['image'].name).suffix.lower()
+        attrs['kind'] = 'video' if ext in {'.mp4', '.webm', '.mov'} else 'image'
+        return attrs
 
 
 class VehicleSerializer(serializers.ModelSerializer):
@@ -24,6 +62,12 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     def get_owner_name(self, obj):
         return obj.owner.get_full_name()
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if request and request.user.role == 'OWNER' and attrs.get('status') not in (None, 'suspended'):
+            raise serializers.ValidationError({'status': 'Le statut est géré par AutoLink.'})
+        return attrs
 
 
 class VehicleAvailabilitySerializer(serializers.ModelSerializer):

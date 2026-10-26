@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
@@ -19,7 +20,7 @@ const TIER_STYLE = {
 const mapApiVehicle = (v) => {
   const model = (v.model || '').toLowerCase();
   // Photo réelle du modèle (Wikimedia) en priorité, sinon illustration par catégorie
-  let image = v.image_url || getVehicleImage(v.category);
+    let image = v.image_url || v.photos?.find(photo => photo.kind === 'image')?.image || getVehicleImage(v.category);
   if (!v.image_url) {
     if (model.includes('corolla')) image = SPECIFIC_CARS.corolla;
     else if (model.includes('tucson')) image = SPECIFIC_CARS.tucson;
@@ -363,6 +364,8 @@ function BookingModal({ vehicle, onClose }) {
 }
 
 export default function SearchVehicles() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [search, setSearch]           = useState('');
   const [sortField, setSortField]     = useState('name');
   const [sortOrder, setSortOrder]     = useState('asc');
@@ -375,6 +378,22 @@ export default function SearchVehicles() {
   const [vehicles, setVehicles]       = useState([]);
   const [offline, setOffline]         = useState(false);
   const [loadingList, setLoadingList] = useState(true);
+  const [facets, setFacets] = useState({ brands: [], models: {}, categories: [], fuels: [], max_rate: 200000 });
+  const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
+  const [fuel, setFuel] = useState('');
+  const [favoriteIds, setFavoriteIds] = useState([]);
+
+  useEffect(() => {
+    if (isAuthenticated) vehiclesAPI.favorites().then(({ data }) => setFavoriteIds(data.map(item => item.id))).catch(() => {});
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    vehiclesAPI.facets().then(({ data }) => {
+      setFacets(data);
+      setMaxPrice(data.max_rate || 200000);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -384,19 +403,27 @@ export default function SearchVehicles() {
 
   useEffect(() => {
     let mounted = true;
-    vehiclesAPI.getAll()
+    vehiclesAPI.getAll({ ...(onlyAvailable ? { available: 1 } : {}) })
       .then(res => {
         if (!mounted) return;
         const list = (res.data.results || res.data || []).map(mapApiVehicle);
         setVehicles(list);
+        const selectedId = Number(new URLSearchParams(window.location.search).get('vehicle'));
+        if (selectedId) {
+          const vehicle = list.find(item => item.id === selectedId);
+          if (vehicle) setSelected(vehicle);
+        }
         setLoadingList(false);
       })
       .catch(() => { setOffline(true); setLoadingList(false); });
     return () => { mounted = false; };
-  }, []);
+  }, [onlyAvailable]);
 
   const filtered = vehicles.filter(v =>
     (category === 'Tous' || v.category === category) &&
+    (!brand || v.name.toLowerCase().startsWith(brand.toLowerCase())) &&
+    (!model || v.name.toLowerCase().includes(model.toLowerCase())) &&
+    (!fuel || v.fuel === fuel) &&
     (selectedTier === '' || v.tier === selectedTier) &&
     v.price <= maxPrice &&
     (!onlyAvailable || v.available) &&
@@ -411,6 +438,17 @@ export default function SearchVehicles() {
       : Number(left || 0) - Number(right || 0);
     return sortOrder === 'asc' ? comparison : -comparison;
   });
+
+  const toggleFavorite = async (id) => {
+    if (!isAuthenticated) return navigate(`/login?next=${encodeURIComponent(`/vehicles/${id}`)}`);
+    if (favoriteIds.includes(id)) {
+      await vehiclesAPI.removeFavorite(id);
+      setFavoriteIds(ids => ids.filter(item => item !== id));
+    } else {
+      await vehiclesAPI.addFavorite(id);
+      setFavoriteIds(ids => [...ids, id]);
+    }
+  };
 
   return (
     <DashboardLayout title="Catalogue de véhicules">
@@ -465,7 +503,7 @@ export default function SearchVehicles() {
             <div className="flex items-center gap-2">
               <Filter size={15} className="text-slate-400" />
               <span className="text-sm text-slate-600 dark:text-slate-400">Prix max :</span>
-              <input type="range" min={15000} max={200000} step={5000} value={maxPrice}
+              <input type="range" min={15000} max={Math.max(15000, Number(facets.max_rate) || 200000)} step={5000} value={Math.min(maxPrice, Math.max(15000, Number(facets.max_rate) || 200000))}
                 onChange={e => setMaxPrice(Number(e.target.value))} className="w-28 accent-primary-600" />
               <span className="text-sm font-bold text-primary-600 whitespace-nowrap">{maxPrice.toLocaleString()} F</span>
             </div>
@@ -473,6 +511,11 @@ export default function SearchVehicles() {
               <input type="checkbox" checked={onlyAvailable} onChange={e => setOnly(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Disponibles uniquement</span>
             </label>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <select className="input-field max-w-xs" value={brand} onChange={e => { setBrand(e.target.value); setModel(''); }}><option value="">Toutes les marques</option>{facets.brands.map(value => <option key={value}>{value}</option>)}</select>
+            <select className="input-field max-w-xs" value={model} onChange={e => setModel(e.target.value)}><option value="">Tous les modèles</option>{(facets.models[brand] || []).map(value => <option key={value}>{value}</option>)}</select>
+            <select className="input-field max-w-xs" value={fuel} onChange={e => setFuel(e.target.value)}><option value="">Tous les carburants</option>{facets.fuels.map(value => <option key={value}>{value}</option>)}</select>
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
             {CATEGORIES.map(c => (
@@ -494,7 +537,8 @@ export default function SearchVehicles() {
           {filtered.map(v => (
             <div key={v.id} className={`bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm border transition-all group ${v.available ? 'border-slate-100 dark:border-slate-700 hover:shadow-lg hover:-translate-y-1' : 'border-slate-100 dark:border-slate-700 opacity-60'}`}>
               <div className="h-44 relative overflow-hidden bg-slate-100 dark:bg-slate-700">
-                <img src={v.image} alt={v.name}
+                <img src={v.image} alt={v.name} onClick={() => navigate(`/vehicles/${v.id}`)}
+                  role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && navigate(`/vehicles/${v.id}`)}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={e => { e.target.style.display='none'; }} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -512,10 +556,13 @@ export default function SearchVehicles() {
                 <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
                   <Star size={10} className="fill-amber-400 text-amber-400" />{v.rating}
                 </div>
+                <button onClick={() => toggleFavorite(v.id)} className="absolute top-11 right-2 rounded-full bg-white/90 p-2" aria-label="Ajouter aux favoris">
+                  <Heart size={16} className={favoriteIds.includes(v.id) ? 'fill-rose-500 text-rose-500' : 'text-slate-500'} />
+                </button>
                 <div className="absolute bottom-2 left-2 text-white text-xs font-mono">{v.plate}</div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-0.5">{v.name}</h3>
+                <button className="font-bold text-slate-900 dark:text-white text-sm mb-0.5 text-left" onClick={() => navigate(`/vehicles/${v.id}`)}>{v.name}</button>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{v.fuel} · {v.seats} places · Score qualité {v.score}/100</p>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 mb-3 text-xs text-blue-700 dark:text-blue-400">
                   {v.kmIncluded} km inclus · {v.kmRate} F/km supp.

@@ -6,7 +6,7 @@ import { notificationsAPI } from '../services/api';
 import ListToolbar from './ListToolbar';
 import AutoLinkLogo from './AutoLinkLogo';
 import {
-  Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck,
+  Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck, Heart,
   LayoutDashboard, Search, FileText, Settings,
   Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home, Mail,
 } from 'lucide-react';
@@ -16,6 +16,7 @@ const NAV_ITEMS = {
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/client/dashboard' },
     { icon: Search, label: 'Chercher un véhicule', path: '/client/search' },
     { icon: FileText, label: 'Mes réservations', path: '/client/bookings' },
+    { icon: Heart, label: 'Mes favoris', path: '/client/favorites' },
   ],
   OWNER: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },

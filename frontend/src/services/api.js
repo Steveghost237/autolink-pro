@@ -63,6 +63,14 @@ export const vehiclesAPI = {
   detail: (id) => api.get(`/vehicles/${id}/`),
   create: (payload) => api.post('/vehicles/', payload),
   update: (id, payload) => api.patch(`/vehicles/${id}/`, payload),
+  delete: (id) => api.delete(`/vehicles/${id}/`),
+  uploadMedia: (id, payload) => api.post(`/vehicles/${id}/media/`, payload),
+  media: (id) => api.get(`/vehicles/${id}/media/`),
+  deleteMedia: (id, mediaId) => api.delete(`/vehicles/${id}/media/${mediaId}/`),
+  facets: () => api.get('/vehicles/facets/'),
+  favorites: () => api.get('/vehicles/favorites/'),
+  addFavorite: (vehicle) => api.post('/vehicles/favorites/', { vehicle }),
+  removeFavorite: (vehicle) => api.delete(`/vehicles/favorites/${vehicle}/`),
 };
 
 export const bookingsAPI = {

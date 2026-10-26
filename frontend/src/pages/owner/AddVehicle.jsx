@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { vehiclesAPI } from '../../services/api';
+import { useConfirm } from '../../contexts/ConfirmContext';
+
+const EMPTY = {
+  name: '', brand: '', model: '', year: '', plate: '', category: '',
+  fuel: '', seats: '', color: '', dailyRate: '', mode: '', description: '',
+  insurance: '', insuranceExpiry: '', technicalControl: '',
+  mileage: '', marketValue: '', city: 'Douala', driverAvailable: true,
+  conditionChecks: [],
+};
 
 const STEPS = [
   { label: 'Informations', desc: 'Données du véhicule' },
@@ -14,6 +23,8 @@ const STEPS = [
 const FUEL_TYPES = [
   { value: 'essence', label: 'Essence' },
   { value: 'diesel', label: 'Diesel' },
+  { value: 'super', label: 'Super' },
+  { value: 'gasoil', label: 'Gasoil' },
   { value: 'hybrid', label: 'Hybride' },
   { value: 'electric', label: 'Électrique' },
 ];
@@ -38,19 +49,49 @@ const CONDITION_ITEMS = [
 
 export default function AddVehicle() {
   const navigate = useNavigate();
+  const { id: vehicleId } = useParams();
+  const confirm = useConfirm();
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [existingMedia, setExistingMedia] = useState([]);
+  const [vehicleStatus, setVehicleStatus] = useState('');
+  const [initialKeyFields, setInitialKeyFields] = useState({});
+  const [dragging, setDragging] = useState(false);
+  const [loading, setLoading] = useState(Boolean(vehicleId));
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [created, setCreated] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const EMPTY = {
-    name: '', brand: '', model: '', year: '', plate: '', category: '',
-    fuel: '', seats: '', color: '', dailyRate: '', mode: '', description: '',
-    insurance: '', insuranceExpiry: '', technicalControl: '',
-    mileage: '', marketValue: '', city: 'Douala', driverAvailable: true,
-    conditionChecks: [],
-  };
   const [form, setForm] = useState(EMPTY);
+  const previews = useMemo(() => mediaFiles.map(file => URL.createObjectURL(file)), [mediaFiles]);
+  useEffect(() => () => previews.forEach(url => URL.revokeObjectURL(url)), [previews]);
+
+  useEffect(() => {
+    if (!vehicleId) return;
+    Promise.all([vehiclesAPI.detail(vehicleId), vehiclesAPI.media(vehicleId)]).then(([vehicle, media]) => {
+      const data = vehicle.data;
+      setForm({
+        ...EMPTY, brand: data.brand || '', model: data.model || '', year: data.year || '',
+        plate: data.plate || '', category: data.category || '', fuel: data.fuel || '',
+        seats: data.seats || '', color: data.color || '', dailyRate: data.daily_rate || '',
+        mode: data.mode || '', description: data.description || '',
+        insurance: data.insurance_type || '', insuranceExpiry: data.insurance_expiry || '',
+        technicalControl: data.technical_control_date || '', mileage: data.mileage || '',
+        marketValue: data.market_value || '', city: data.city || 'Douala',
+        driverAvailable: data.driver_available,
+      });
+      setExistingMedia(media.data);
+      setVehicleStatus(data.status);
+      setInitialKeyFields({ brand: data.brand, model: data.model, year: String(data.year), plate: data.plate });
+    }).catch(() => setApiError('Impossible de charger le véhicule.')).finally(() => setLoading(false));
+  }, [vehicleId]);
+
+  const addFiles = (files) => setMediaFiles(current => [...current, ...Array.from(files)]);
+  const removeExistingMedia = async (media) => {
+    if (!(await confirm({ title: 'Supprimer ce média', message: 'Retirer ce média du véhicule ?', confirmLabel: 'Supprimer', danger: true }))) return;
+    await vehiclesAPI.deleteMedia(vehicleId, media.id);
+    setExistingMedia(items => items.filter(item => item.id !== media.id));
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleCondition = (item) => {
@@ -60,10 +101,15 @@ export default function AddVehicle() {
   };
 
   const submit = async () => {
+    if (!vehicleId && mediaFiles.filter(file => file.type.startsWith('image/')).length < 4) {
+      setApiError('Ajoutez au moins 4 photos avant de soumettre le véhicule.');
+      setStep(2);
+      return;
+    }
     setBusy(true);
     setApiError(null);
     try {
-      const res = await vehiclesAPI.create({
+      const payload = {
         brand: form.brand,
         model: form.model,
         year: Number(form.year),
@@ -83,18 +129,30 @@ export default function AddVehicle() {
         insurance_expiry: form.insuranceExpiry,
         technical_control_date: form.technicalControl || null,
         condition_score: Math.round((form.conditionChecks.length / CONDITION_ITEMS.length) * 100),
-      });
+      };
+      const res = vehicleId ? await vehiclesAPI.update(vehicleId, payload) : created ? { data: created } : await vehiclesAPI.create(payload);
       setCreated(res.data);
+      if (mediaFiles.length) {
+        const body = new FormData();
+        mediaFiles.forEach(file => body.append('files', file));
+        await vehiclesAPI.uploadMedia(res.data.id, body);
+        setMediaFiles([]);
+      }
+      if (vehicleId) {
+        navigate('/owner/vehicles');
+        return;
+      }
       setSubmitted(true);
     } catch (err) {
       const data = err.response?.data;
       const first = data && typeof data === 'object' ? Object.values(data)[0] : null;
-      setApiError(Array.isArray(first) ? first[0] : first || 'Erreur lors de la soumission — vérifiez les champs.');
+      setApiError(Array.isArray(first) ? first[0] : first || 'Erreur lors de la soumission. Vous pouvez réessayer le téléversement depuis la modification du véhicule.');
       setStep(3);
     }
     setBusy(false);
   };
 
+  if (loading) return <DashboardLayout title="Modifier un véhicule"><p className="text-center py-20">Chargement…</p></DashboardLayout>;
   if (submitted) return (
     <DashboardLayout title="Véhicule ajouté">
       <div className="max-w-md mx-auto text-center py-20">
@@ -122,7 +180,7 @@ export default function AddVehicle() {
   );
 
   return (
-    <DashboardLayout title="Ajouter un véhicule">
+    <DashboardLayout title={vehicleId ? 'Modifier un véhicule' : 'Ajouter un véhicule'}>
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Steps */}
         <div className="flex gap-2">
@@ -288,12 +346,23 @@ export default function AddVehicle() {
                 </div>
               </div>
 
-              <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-primary-400 transition-colors cursor-pointer">
+              <label onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); setMediaFiles(files => [...files, ...Array.from(e.dataTransfer.files)]); }} className={`block border-2 border-dashed rounded-xl p-8 text-center hover:border-primary-400 transition-colors cursor-pointer ${dragging ? 'border-primary-500 bg-primary-50' : 'border-slate-300'}`}>
+                <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e => addFiles(e.target.files)} />
                 <Upload size={32} className="text-slate-400 mx-auto mb-3" />
-                <p className="font-medium text-slate-600">Uploader les photos du véhicule</p>
-                <p className="text-xs text-slate-400 mt-1">Min. 4 photos : avant, arrière, côtés, intérieur</p>
+                <p className="font-medium text-slate-600">Photos et vidéos du véhicule</p>
+                <p className="text-xs text-slate-400 mt-1">Min. 4 photos : avant, arrière, côtés, intérieur. Vidéos facultatives.</p>
                 <p className="text-xs text-primary-600 mt-2">Cliquez ou glissez vos fichiers ici</p>
-              </div>
+                <div className="mt-3 text-xs">{existingMedia.length} média(s) déjà téléversé(s) · {mediaFiles.filter(file => file.type.startsWith('image/')).length} photo(s) sélectionnée(s)</div>
+                {mediaFiles.map((file, index) => <button type="button" key={`${file.name}-${index}`} onClick={e => { e.preventDefault(); setMediaFiles(files => files.filter((_, i) => i !== index)); }} className="inline-flex flex-col m-1 p-1 rounded bg-slate-100 text-xs">
+                  {file.type.startsWith('video/') ? <video src={previews[index]} className="w-20 h-14 object-cover" /> : <img src={previews[index]} alt={file.name} className="w-20 h-14 object-cover" />}
+                  <span className="max-w-20 truncate">{file.name} ×</span>
+                </button>)}
+              </label>
+              {existingMedia.length > 0 && <div className="flex flex-wrap gap-2">{existingMedia.map(item => <div key={item.id} className="relative">
+                {item.kind === 'video' ? <video src={item.image} className="w-20 h-14 object-cover rounded" /> : <img src={item.image} alt={item.caption || ''} className="w-20 h-14 object-cover rounded" />}
+                <button type="button" onClick={() => removeExistingMedia(item)} className="absolute -top-2 -right-2 rounded-full bg-red-600 text-white px-1.5" aria-label="Supprimer le média">×</button>
+              </div>)}</div>}
+              {vehicleId && vehicleStatus === 'approved' && ['brand', 'model', 'year', 'plate'].some(key => String(form[key]) !== String(initialKeyFields[key])) && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">La modification de la marque, du modèle, de l’année ou de l’immatriculation remettra le véhicule en attente de validation.</p>}
             </div>
           )}
 
@@ -351,7 +420,7 @@ export default function AddVehicle() {
             {step > 0 && <button onClick={() => setStep(s => s - 1)} className="btn-outline flex-1 py-3">← Retour</button>}
             {step < 3
               ? <button onClick={() => setStep(s => s + 1)} className="btn-primary flex-1 py-3">Suivant →</button>
-              : <button onClick={submit} disabled={busy} className="btn-accent flex-1 py-3 disabled:opacity-50">{busy ? 'Envoi…' : 'Soumettre le véhicule'}</button>
+              : <button onClick={submit} disabled={busy} className="btn-accent flex-1 py-3 disabled:opacity-50">{busy ? 'Envoi…' : vehicleId ? 'Enregistrer' : created ? 'Réessayer le téléversement' : 'Soumettre le véhicule'}</button>
             }
           </div>
         </div>

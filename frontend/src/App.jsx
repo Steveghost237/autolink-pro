@@ -28,6 +28,8 @@ import LegalPages from './pages/LegalPages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import VehicleDetail from './pages/VehicleDetail';
+import Favorites from './pages/client/Favorites';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -48,14 +50,17 @@ function AppRoutes() {
       <Route path="/privacy" element={<LegalPages />} />
       <Route path="/terms" element={<LegalPages />} />
       <Route path="/cookies" element={<LegalPages />} />
+      <Route path="/vehicles/:id" element={<VehicleDetail />} />
 
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
+      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
+      <Route path="/owner/vehicles/:id/edit" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
 
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
 
