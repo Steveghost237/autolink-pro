@@ -118,6 +118,7 @@ const RENTAL_QUICK = [
   { id: 'urban_8h',  label: '8 heures',    icon: Clock,      desc: 'Demi-journée / Pro',     color: 'bg-teal-600' },
   { id: 'urban_day', label: '24 heures',   icon: Calendar,   desc: 'Journée complète',       color: 'bg-primary-600' },
   { id: 'intercity', label: 'Interurbain', icon: Navigation, desc: 'Douala ↔ Yaoundé',       color: 'bg-orange-500' },
+  { id: 'long_haul', label: 'Longue durée', icon: Calendar, desc: 'Plus de 3 jours · -5% / -10%', color: 'bg-indigo-600' },
 ];
 
 const STATUS_LABELS = { completed: 'Terminé', pending: 'En attente', active: 'En cours', confirmed: 'Confirmé', cancelled: 'Annulé' };
@@ -137,13 +138,19 @@ export default function ClientDashboard() {
   const [showTopUp, setShowTopUp] = useState(false);
   const [recentBookings, setRecentBookings] = useState([]);
   const [featuredVehicles, setFeaturedVehicles] = useState([]);
+  const [clientStats, setClientStats] = useState({ average_rating: 0, distinct_vehicles: 0 });
+  const [walletHistory, setWalletHistory] = useState([]);
   const topupResult = searchParams.get('topup');
   const totalSpent = recentBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
 
   useEffect(() => {
     walletAPI.get()
-      .then(res => setBalance(Number(res.data.balance)))
+      .then(res => {
+        setBalance(Number(res.data.balance));
+        setWalletHistory(res.data.transactions || []);
+      })
       .catch(() => {});
+    bookingsAPI.clientStats().then(({ data }) => setClientStats(data)).catch(() => {});
     // Réservations récentes (vraies données API)
     bookingsAPI.getAll()
       .then(res => {
@@ -178,7 +185,7 @@ export default function ClientDashboard() {
       const t = setTimeout(() => setSearchParams({}, { replace: true }), 8000);
       return () => clearTimeout(t);
     }
-  }, [topupResult]);
+  }, [topupResult, setSearchParams]);
 
   return (
     <DashboardLayout title="Tableau de bord">
@@ -239,11 +246,11 @@ export default function ClientDashboard() {
         {/* Rental type quick access */}
         <div>
           <h3 className="font-bold text-slate-800 dark:text-white mb-3">Choisir un type de location</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {RENTAL_QUICK.map(({ id, label, icon: Icon, desc, color }) => (
               <button
                 key={id}
-                onClick={() => navigate(`/client/search?type=${id}`)}
+                onClick={() => navigate(`/client/search?type=${id}${id === 'long_haul' ? '&days=4' : ''}`)}
                 className="flex flex-col items-start gap-2 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-primary-300 hover:shadow-md transition-all text-left group"
               >
                 <div className={`w-9 h-9 ${color} rounded-lg flex items-center justify-center`}>
@@ -263,8 +270,8 @@ export default function ClientDashboard() {
           {[
             { icon: FileText,  label: 'Réservations totales', value: recentBookings.length,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
             { icon: CreditCard,label: 'Total dépensé',        value: `${totalSpent.toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
-            { icon: Star,      label: 'Note moyenne donnée',  value: '4.7 / 5',                          color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
-            { icon: Car,       label: 'Véhicules essayés',    value: 3,                                   color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
+            { icon: Star,      label: 'Note moyenne donnée',  value: `${Number(clientStats.average_rating || 0).toFixed(1)} / 5`, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
+            { icon: Car,       label: 'Véhicules essayés',    value: clientStats.distinct_vehicles,      color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="card">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
@@ -337,6 +344,15 @@ export default function ClientDashboard() {
             </button>
           </div>
         </div>
+        <section className="card">
+          <h3 className="font-bold mb-3">Historique du portefeuille</h3>
+          {walletHistory.length === 0 ? <p className="text-sm text-slate-500">Aucune transaction pour le moment.</p> : <div className="divide-y">
+            {walletHistory.slice(0, 8).map(tx => <div key={tx.id} className="py-2 flex justify-between text-sm">
+              <span>{tx.note || tx.reference} · {tx.created_at ? new Date(tx.created_at).toLocaleDateString('fr-FR') : ''}</span>
+              <span className="font-semibold">{tx.kind === 'refund' || tx.kind === 'topup' ? '+' : '−'}{Number(tx.amount).toLocaleString()} FCFA</span>
+            </div>)}
+          </div>}
+        </section>
       </div>
       {showTopUp && <TopUpModal onClose={() => setShowTopUp(false)} onDone={(b) => setBalance(Number(b))} />}
     </DashboardLayout>

@@ -4,6 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { bookingsAPI } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS = {
   completed: { label: 'Terminé', style: 'badge-success' },
@@ -149,6 +150,7 @@ function DisputeModal({ booking, onClose, onDone }) {
 }
 
 export default function MyBookings() {
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -276,7 +278,7 @@ export default function MyBookings() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-bold text-slate-900">{b.vehicle}</h3>
+                    <button onClick={() => navigate(`/client/bookings/${b.id}`)} className="font-bold text-slate-900 text-left">{b.vehicle}</button>
                     <span className={STATUS[b.status]?.style || 'badge-info'}>{STATUS[b.status]?.label || b.status}</span>
                   </div>
                   <div className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
@@ -315,7 +317,7 @@ export default function MyBookings() {
 
               {b.status !== 'cancelled' && (
                 <div className="px-5 pb-4 pt-0 flex flex-wrap gap-2 border-t border-slate-50">
-                  <button className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                  <button onClick={() => navigate(`/client/bookings/${b.id}`)} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
                     <Download size={12} /> Reçu
                   </button>
                   {b.driverPhone && (

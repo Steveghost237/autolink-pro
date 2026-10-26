@@ -71,8 +71,10 @@ const DRIVER_OPTIONS = [
 function BookingModal({ vehicle, onClose }) {
   const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
-  const [rentalType, setRentalType] = useState(RENTAL_TYPES[2]);
-  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: 1, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
+  const requestedType = new URLSearchParams(window.location.search).get('type');
+  const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
+  const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find(item => item.id === requestedType) || RENTAL_TYPES[2]);
+  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, agentCode: '', driverType: 'none', paymentMethod: 'wallet', phone: '' });
   const [agentValid, setAgentValid] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);

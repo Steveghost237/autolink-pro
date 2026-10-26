@@ -69,7 +69,7 @@ class Booking(models.Model):
         if self.start_date and self.end_date:
             self.days = (self.end_date - self.start_date).days or 1
         # Tarification dynamique : dégressivité longue durée
-        self.discount_percent = 10 if self.days >= 30 else 5 if self.days >= 7 else 0
+        self.discount_percent = 10 if self.days >= 30 else 5 if self.days > 3 else 0
         gross = self.daily_rate * self.days
         self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
         self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))

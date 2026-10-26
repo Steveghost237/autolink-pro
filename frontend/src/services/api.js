@@ -83,6 +83,9 @@ export const bookingsAPI = {
   dispute: (id, reason) => api.post(`/bookings/${id}/dispute/`, { reason }),
   resolveDispute: (id, decision) => api.post(`/bookings/${id}/resolve-dispute/`, { decision }),
   stats: () => api.get('/bookings/stats/'),
+  clientStats: () => api.get('/bookings/client-stats/'),
+  receipt: (id) => api.get(`/bookings/${id}/receipt/`, { responseType: 'blob' }),
+  emailReceipt: (id) => api.post(`/bookings/${id}/receipt/email/`),
 };
 
 export const notificationsAPI = {

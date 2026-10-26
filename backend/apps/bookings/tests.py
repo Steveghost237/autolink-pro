@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
+from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APITestCase
 from apps.users.models import User
 from apps.vehicles.models import Vehicle
@@ -192,3 +194,96 @@ class BookingFlowTests(APITestCase):
         r = self.client.get('/api/bookings/stats/')
         self.assertEqual(r.status_code, 200)
         self.assertIn('commission_total', r.data)
+
+
+class BookingEditAndReceiptTests(APITestCase):
+    def setUp(self):
+        self.owner = make_user('receipt-owner', 'OWNER')
+        self.client_user = make_user('receipt-client', 'CLIENT')
+        self.stranger = make_user('receipt-stranger', 'CLIENT')
+        self.vehicle = make_vehicle(self.owner, 'LT-911-AA', daily_rate=25000)
+
+    def make_paid_booking(self, days=2):
+        start = date.today() + timedelta(days=40)
+        booking = Booking.objects.create(
+            client=self.client_user, vehicle=self.vehicle, status='confirmed',
+            start_date=start, end_date=start + timedelta(days=days),
+            daily_rate=Decimal('25000'), days=days, subtotal=0,
+            commission_amount=0, owner_amount=0, deposit_amount=0,
+        )
+        Payment.objects.create(
+            booking=booking, payer=self.client_user, method='wallet', status='completed',
+            amount=booking.subtotal, commission=booking.commission_amount,
+            owner_payout=booking.owner_amount,
+        )
+        return booking
+
+    def test_wallet_booking_edit_charges_difference(self):
+        booking = self.make_paid_booking()
+        self.client_user.balance = Decimal('100000')
+        self.client_user.save()
+        self.client.force_authenticate(self.client_user)
+        response = self.client.patch(
+            f'/api/bookings/{booking.pk}/',
+            {'end_date': str(booking.end_date + timedelta(days=1))},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.client_user.refresh_from_db()
+        self.assertEqual(self.client_user.balance, Decimal('75000'))
+        transaction = WalletTransaction.objects.get(reference=f'BK-EDIT-{booking.pk}')
+        self.assertEqual(transaction.kind, 'debit')
+        self.assertEqual(transaction.amount, Decimal('25000'))
+
+    def test_wallet_booking_edit_refunds_difference(self):
+        booking = self.make_paid_booking(days=4)
+        self.client_user.balance = Decimal('100000')
+        self.client_user.save()
+        self.client.force_authenticate(self.client_user)
+        response = self.client.patch(
+            f'/api/bookings/{booking.pk}/',
+            {'end_date': str(booking.start_date + timedelta(days=2))},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.client_user.refresh_from_db()
+        self.assertEqual(self.client_user.balance, Decimal('145000'))
+        transaction = WalletTransaction.objects.get(reference=f'BK-EDIT-{booking.pk}')
+        self.assertEqual(transaction.kind, 'refund')
+        self.assertEqual(transaction.amount, Decimal('45000'))
+
+    def test_wallet_booking_edit_rejects_insufficient_balance(self):
+        booking = self.make_paid_booking()
+        original_end = booking.end_date
+        self.client_user.balance = Decimal('500')
+        self.client_user.save()
+        self.client.force_authenticate(self.client_user)
+        response = self.client.patch(
+            f'/api/bookings/{booking.pk}/',
+            {'end_date': str(original_end + timedelta(days=1))},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        booking.refresh_from_db()
+        self.client_user.refresh_from_db()
+        self.assertEqual(booking.end_date, original_end)
+        self.assertEqual(self.client_user.balance, Decimal('500'))
+
+    def test_receipt_pdf_access_and_stranger_forbidden(self):
+        booking = self.make_paid_booking()
+        self.client.force_authenticate(self.client_user)
+        response = self.client.get(f'/api/bookings/{booking.pk}/receipt/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.client.force_authenticate(self.stranger)
+        response = self.client.get(f'/api/bookings/{booking.pk}/receipt/')
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_receipt_email_has_pdf_attachment(self):
+        booking = self.make_paid_booking()
+        self.client.force_authenticate(self.client_user)
+        response = self.client.post(f'/api/bookings/{booking.pk}/receipt/email/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].attachments[0][2], 'application/pdf')
