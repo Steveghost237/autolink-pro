@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Star, Download, Phone, X, Car, Calendar, CreditCard, ClipboardList, Loader, AlertTriangle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { bookingsAPI } from '../../services/api';
 
 const STATUS = {
@@ -91,10 +93,18 @@ function RatingModal({ booking, onClose }) {
 }
 
 function DisputeModal({ booking, onClose, onDone }) {
+  const confirm = useConfirm();
   const [reason, setReason] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const submit = async () => {
+    const confirmed = await confirm({
+      title: 'Ouvrir un litige ?',
+      message: 'Un administrateur AutoLink examinera le problème et arbitrera la réservation.',
+      confirmLabel: 'Ouvrir le litige',
+      danger: true,
+    });
+    if (!confirmed) return;
     setSending(true);
     setError('');
     try {
@@ -139,7 +149,11 @@ function DisputeModal({ booking, onClose, onDone }) {
 }
 
 export default function MyBookings() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [ratingBooking, setRatingBooking] = useState(null);
   const [disputeBooking, setDisputeBooking] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -159,20 +173,38 @@ export default function MyBookings() {
   }, []);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await bookingsAPI.getAll();
+      const ordering = `${sortOrder === 'desc' ? '-' : ''}${sortField}`;
+      const res = await bookingsAPI.getAll({
+        search: search.trim(),
+        ordering,
+        page_size: 50,
+        ...(tab === 'all' ? {} : { status: tab }),
+      });
       const list = (res.data.results || res.data || []).map(mapApiBooking);
       setBookings(list);
+      setOffline(false);
     } catch {
       setOffline(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, sortField, sortOrder, tab]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = setTimeout(load, 250);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   const cancelBooking = async (id) => {
+    const confirmed = await confirm({
+      title: 'Annuler cette réservation ?',
+      message: 'Cette action annulera la réservation et déclenchera le remboursement applicable.',
+      confirmLabel: 'Annuler la réservation',
+      danger: true,
+    });
+    if (!confirmed) return;
     setCancelling(id);
     try {
       await bookingsAPI.updateStatus(id, 'cancelled');
@@ -183,7 +215,7 @@ export default function MyBookings() {
     setCancelling(null);
   };
 
-  const filtered = tab === 'all' ? bookings : bookings.filter(b => b.status === tab);
+  const filtered = bookings;
 
   return (
     <DashboardLayout title="Mes réservations">
@@ -217,6 +249,23 @@ export default function MyBookings() {
           </div>
           {loading && <Loader size={16} className="animate-spin text-slate-400" />}
         </div>
+
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          sortField={sortField}
+          onSortFieldChange={setSortField}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          sortOptions={[
+            { value: 'created_at', label: 'Date de création' },
+            { value: 'start_date', label: 'Date de début' },
+            { value: 'end_date', label: 'Date de fin' },
+            { value: 'subtotal', label: 'Montant' },
+            { value: 'status', label: 'Statut' },
+          ]}
+          placeholder="Rechercher une réservation ou un véhicule"
+        />
 
         <div className="space-y-4">
           {filtered.map(b => (

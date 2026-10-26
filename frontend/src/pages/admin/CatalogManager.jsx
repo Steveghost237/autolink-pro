@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Trash2, Edit3, Plus, Image, CheckCircle, X, Car, Save } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { CATALOG_VEHICLES, VEHICLE_IMAGES } from '../../utils/carImages';
 
 const CATEGORIES = ['Berline', 'SUV', 'Luxe', 'Van', 'Minibus', 'Pick-up', 'Citadine'];
@@ -162,6 +163,7 @@ function EditModal({ vehicle, onSave, onClose }) {
 }
 
 export default function CatalogManager() {
+  const confirm = useConfirm();
   const [vehicles, setVehicles] = useState(CATALOG_VEHICLES);
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -182,10 +184,14 @@ export default function CatalogManager() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Supprimer ce véhicule du catalogue ?')) {
-      setVehicles(vs => vs.filter(v => v.id !== id));
-    }
+  const handleDelete = async (id) => {
+    const confirmed = await confirm({
+      title: 'Supprimer ce véhicule du catalogue ?',
+      message: 'Cette entrée et ses informations visuelles seront supprimées.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (confirmed) setVehicles(vs => vs.filter(v => v.id !== id));
   };
 
   return (

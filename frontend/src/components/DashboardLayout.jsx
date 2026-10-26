@@ -3,11 +3,12 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { notificationsAPI } from '../services/api';
+import ListToolbar from './ListToolbar';
 import AutoLinkLogo from './AutoLinkLogo';
 import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck,
   LayoutDashboard, Search, FileText, Settings,
-  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home,
+  Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home, Mail,
 } from 'lucide-react';
 
 const NAV_ITEMS = {
@@ -27,6 +28,7 @@ const NAV_ITEMS = {
   ADMIN: [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin/dashboard' },
     { icon: ClipboardList, label: 'Messages de contact', path: '/admin/messages' },
+    { icon: Mail, label: 'Newsletter', path: '/admin/newsletter' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
     { icon: Car, label: 'Véhicules', path: '/admin/inspections' },
     { icon: UserCheck, label: 'Chauffeurs', path: '/admin/drivers' },
@@ -55,16 +57,20 @@ function NotificationsBell() {
   const [notifs, setNotifs] = useState([]);
   const [unread, setUnread] = useState(0);
   const [offline, setOffline] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   const panelRef = useRef(null);
 
   const fetchNotifs = useCallback(async () => {
     try {
-      const { data } = await notificationsAPI.list();
+      const ordering = `${sortOrder === 'desc' ? '-' : ''}${sortField}`;
+      const { data } = await notificationsAPI.list({ search: search.trim(), ordering });
       setNotifs(data.results || []);
       setUnread(data.unread || 0);
       setOffline(false);
     } catch (_) { setOffline(true); }
-  }, []);
+  }, [search, sortField, sortOrder]);
 
   // Chargement initial + rafraîchissement automatique toutes les 30 s
   useEffect(() => {
@@ -124,6 +130,22 @@ function NotificationsBell() {
                 <CheckCheck size={13} /> Tout marquer lu
               </button>
             )}
+          </div>
+          <div className="border-b border-slate-100 p-3 dark:border-slate-700">
+            <ListToolbar
+              search={search}
+              onSearchChange={setSearch}
+              sortField={sortField}
+              onSortFieldChange={setSortField}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+              sortOptions={[
+                { value: 'created_at', label: 'Date' },
+                { value: 'title', label: 'Titre' },
+                { value: 'is_read', label: 'Statut' },
+              ]}
+              placeholder="Rechercher une notification"
+            />
           </div>
           <div className="max-h-80 overflow-y-auto">
             {offline && (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { bookingsAPI, usersAPI, vehiclesAPI } from '../../services/api';
 import {
   Users, Car, DollarSign, TrendingUp, UserCheck, ClipboardList,
@@ -28,6 +30,7 @@ const timeAgo = (iso) => {
 };
 
 export default function AdminDashboard() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -36,14 +39,35 @@ export default function AdminDashboard() {
   const [online, setOnline] = useState(true);
   const [lastSync, setLastSync] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingSortField, setBookingSortField] = useState('created_at');
+  const [bookingSortOrder, setBookingSortOrder] = useState('desc');
+  const [userSearch, setUserSearch] = useState('');
+  const [userSortField, setUserSortField] = useState('created_at');
+  const [userSortOrder, setUserSortOrder] = useState('desc');
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleSortField, setVehicleSortField] = useState('created_at');
+  const [vehicleSortOrder, setVehicleSortOrder] = useState('desc');
 
   const fetchAll = useCallback(async () => {
     try {
       const [s, b, u, v] = await Promise.all([
         bookingsAPI.stats(),
-        bookingsAPI.list({ page_size: 50 }),
-        usersAPI.list({ page_size: 50 }),
-        vehiclesAPI.list({ page_size: 50 }),
+        bookingsAPI.list({
+          page_size: 50,
+          search: bookingSearch.trim(),
+          ordering: `${bookingSortOrder === 'desc' ? '-' : ''}${bookingSortField}`,
+        }),
+        usersAPI.list({
+          page_size: 50,
+          search: userSearch.trim(),
+          ordering: `${userSortOrder === 'desc' ? '-' : ''}${userSortField}`,
+        }),
+        vehiclesAPI.list({
+          page_size: 50,
+          search: vehicleSearch.trim(),
+          ordering: `${vehicleSortOrder === 'desc' ? '-' : ''}${vehicleSortField}`,
+        }),
       ]);
       setStats(s.data);
       setBookings(b.data.results || b.data);
@@ -54,7 +78,11 @@ export default function AdminDashboard() {
     } catch (_) {
       setOnline(false);
     }
-  }, []);
+  }, [
+    bookingSearch, bookingSortField, bookingSortOrder,
+    userSearch, userSortField, userSortOrder,
+    vehicleSearch, vehicleSortField, vehicleSortOrder,
+  ]);
 
   useEffect(() => {
     fetchAll();
@@ -62,16 +90,35 @@ export default function AdminDashboard() {
     return () => clearInterval(t);
   }, [fetchAll]);
 
-  const resolveDispute = async (id, decision) => {
-    setBusy(id);
+  const resolveDispute = async (booking, decision) => {
+    const refund = decision === 'refund';
+    const confirmed = await confirm({
+      title: refund ? 'Rembourser le client ?' : 'Payer le propriétaire ?',
+      message: refund
+        ? 'Le paiement et la caution applicables seront remboursés au client. Cette décision clôturera le litige.'
+        : 'Les fonds bloqués seront versés au propriétaire. Cette décision clôturera le litige.',
+      confirmLabel: refund ? 'Rembourser' : 'Payer le propriétaire',
+      danger: refund,
+    });
+    if (!confirmed) return;
+    setBusy(booking.id);
     try {
-      await bookingsAPI.resolveDispute(id, decision);
+      await bookingsAPI.resolveDispute(booking.id, decision);
       await fetchAll();
     } catch (_) {}
     setBusy(null);
   };
 
   const toggleUserActive = async (u) => {
+    if (u.is_active) {
+      const confirmed = await confirm({
+        title: 'Suspendre ce compte ?',
+        message: `Le compte de ${u.first_name || u.username} ne pourra plus se connecter.`,
+        confirmLabel: 'Suspendre',
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
     try {
       await usersAPI.update(u.id, { is_active: !u.is_active });
       await fetchAll();
@@ -79,6 +126,14 @@ export default function AdminDashboard() {
   };
 
   const setVehicleStatus = async (v, status) => {
+    const approved = status === 'approved';
+    const confirmed = await confirm({
+      title: approved ? 'Approuver ce véhicule ?' : 'Suspendre ce véhicule ?',
+      message: `${v.brand} ${v.model} (${v.plate}) sera ${approved ? 'mis en ligne' : 'refusé et suspendu'}.`,
+      confirmLabel: approved ? 'Approuver' : 'Suspendre',
+      danger: !approved,
+    });
+    if (!confirmed) return;
     try {
       await vehiclesAPI.update(v.id, { status });
       await fetchAll();
@@ -134,6 +189,22 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        <ListToolbar
+          search={bookingSearch}
+          onSearchChange={setBookingSearch}
+          sortField={bookingSortField}
+          onSortFieldChange={setBookingSortField}
+          sortOrder={bookingSortOrder}
+          onSortOrderChange={setBookingSortOrder}
+          sortOptions={[
+            { value: 'created_at', label: 'Date de création' },
+            { value: 'start_date', label: 'Date de début' },
+            { value: 'subtotal', label: 'Montant' },
+            { value: 'status', label: 'Statut' },
+          ]}
+          placeholder="Rechercher une réservation"
+        />
+
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Litiges à arbitrer — seule action admin sur les réservations */}
           {disputedBookings.length > 0 && (
@@ -155,11 +226,11 @@ export default function AdminDashboard() {
                       <p className="text-xs text-red-700 mt-1 italic">« {b.dispute_reason} »</p>
                     )}
                     <div className="flex gap-2 mt-3">
-                      <button disabled={busy === b.id} onClick={() => resolveDispute(b.id, 'refund')}
+                      <button disabled={busy === b.id} onClick={() => resolveDispute(b, 'refund')}
                         className="text-xs font-semibold px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700">
                         Rembourser le client
                       </button>
-                      <button disabled={busy === b.id} onClick={() => resolveDispute(b.id, 'release')}
+                      <button disabled={busy === b.id} onClick={() => resolveDispute(b, 'release')}
                         className="text-xs font-semibold px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                         Payer le propriétaire
                       </button>
@@ -219,6 +290,22 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             <div className="card">
               <h3 className="font-bold text-slate-900 mb-4">Véhicules à valider</h3>
+              <ListToolbar
+                search={vehicleSearch}
+                onSearchChange={setVehicleSearch}
+                sortField={vehicleSortField}
+                onSortFieldChange={setVehicleSortField}
+                sortOrder={vehicleSortOrder}
+                onSortOrderChange={setVehicleSortOrder}
+                sortOptions={[
+                  { value: 'created_at', label: 'Date d’ajout' },
+                  { value: 'year', label: 'Année' },
+                  { value: 'computed_rate', label: 'Tarif indicatif' },
+                  { value: 'rating', label: 'Note' },
+                ]}
+                placeholder="Rechercher un véhicule"
+                className="mb-4"
+              />
               {pendingVehicles.length === 0 && <p className="text-sm text-slate-400">Aucun en attente.</p>}
               <div className="space-y-3">
                 {pendingVehicles.map(v => (
@@ -238,6 +325,22 @@ export default function AdminDashboard() {
 
             <div className="card">
               <h3 className="font-bold text-slate-900 mb-4">Comptes utilisateurs</h3>
+              <ListToolbar
+                search={userSearch}
+                onSearchChange={setUserSearch}
+                sortField={userSortField}
+                onSortFieldChange={setUserSortField}
+                sortOrder={userSortOrder}
+                onSortOrderChange={setUserSortOrder}
+                sortOptions={[
+                  { value: 'created_at', label: 'Date d’inscription' },
+                  { value: 'username', label: 'Nom d’utilisateur' },
+                  { value: 'email', label: 'Email' },
+                  { value: 'role', label: 'Rôle' },
+                ]}
+                placeholder="Rechercher un compte"
+                className="mb-4"
+              />
               <div className="space-y-2 max-h-72 overflow-y-auto">
                 {users.map(u => (
                   <div key={u.id} className="flex items-center justify-between border border-slate-100 rounded-xl p-2.5">

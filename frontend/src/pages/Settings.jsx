@@ -12,7 +12,7 @@ const loadPrefs = () => {
 };
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() => ({
@@ -21,6 +21,8 @@ export default function Settings() {
     sound: loadPrefs().sound ?? true,
   }));
   const [saved, setSaved] = useState(false);
+  const [newsletterSaving, setNewsletterSaving] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState('');
 
   const setPref = (k, v) => {
     const next = { ...prefs, [k]: v };
@@ -30,12 +32,27 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const Toggle = ({ on, onClick }) => (
-    <button onClick={onClick}
+  const Toggle = ({ on, onClick, disabled = false, label }) => (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on}
       className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${on ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
       <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
     </button>
   );
+
+  const toggleNewsletter = async () => {
+    if (newsletterSaving) return;
+    setNewsletterSaving(true);
+    setNewsletterMessage('');
+    const result = await updateUser({ newsletter_opt_in: !(user?.newsletter_opt_in ?? true) });
+    setNewsletterMessage(
+      result.success
+        ? result.offline
+          ? 'Préférence enregistrée localement ; synchronisation nécessaire.'
+          : 'Préférence enregistrée.'
+        : result.error || 'Impossible de mettre à jour cette préférence.'
+    );
+    setNewsletterSaving(false);
+  };
 
   return (
     <DashboardLayout title="Paramètres">
@@ -51,7 +68,7 @@ export default function Settings() {
               <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">Mode sombre</div>
               <div className="text-xs text-slate-400">Interface sombre pour un confort nocturne</div>
             </div>
-            <Toggle on={isDark} onClick={toggleTheme} />
+            <Toggle on={isDark} onClick={toggleTheme} label="Mode sombre" />
           </div>
         </div>
 
@@ -72,10 +89,23 @@ export default function Settings() {
                   <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{label}</div>
                   <div className="text-xs text-slate-400">{desc}</div>
                 </div>
-                <Toggle on={prefs[key]} onClick={() => setPref(key, !prefs[key])} />
+                <Toggle on={prefs[key]} onClick={() => setPref(key, !prefs[key])} label={label} />
               </div>
             ))}
           </div>
+          <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <div>
+              <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">Recevoir la newsletter AutoLink</div>
+              <div className="text-xs text-slate-400">Actualités et offres par email. Vous pourrez vous désinscrire à tout moment.</div>
+            </div>
+            <Toggle
+              on={user?.newsletter_opt_in ?? true}
+              onClick={toggleNewsletter}
+              disabled={newsletterSaving}
+              label="Recevoir la newsletter AutoLink"
+            />
+          </div>
+          {newsletterMessage && <p role="status" className="mt-2 text-xs text-slate-500">{newsletterMessage}</p>}
         </div>
 
         {/* Langue */}

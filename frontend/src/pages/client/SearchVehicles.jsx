@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
+import { Star, Users, Fuel, CheckCircle, X, Car, Filter, Tag, ChevronDown, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
 import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
 import { vehiclesAPI, bookingsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -363,6 +364,8 @@ function BookingModal({ vehicle, onClose }) {
 
 export default function SearchVehicles() {
   const [search, setSearch]           = useState('');
+  const [sortField, setSortField]     = useState('name');
+  const [sortOrder, setSortOrder]     = useState('asc');
   const [category, setCategory]       = useState('Tous');
   const [maxPrice, setMaxPrice]       = useState(200000);
   const [onlyAvailable, setOnly]      = useState(true);
@@ -397,8 +400,17 @@ export default function SearchVehicles() {
     (selectedTier === '' || v.tier === selectedTier) &&
     v.price <= maxPrice &&
     (!onlyAvailable || v.available) &&
-    (v.name.toLowerCase().includes(search.toLowerCase()) || v.category.toLowerCase().includes(search.toLowerCase()))
-  );
+    (v.name.toLowerCase().includes(search.toLowerCase()) ||
+      v.category.toLowerCase().includes(search.toLowerCase()) ||
+      v.city.toLowerCase().includes(search.toLowerCase()))
+  ).sort((a, b) => {
+    const left = a[sortField];
+    const right = b[sortField];
+    const comparison = typeof left === 'string'
+      ? left.localeCompare(right || '', 'fr')
+      : Number(left || 0) - Number(right || 0);
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
 
   return (
     <DashboardLayout title="Catalogue de véhicules">
@@ -434,11 +446,22 @@ export default function SearchVehicles() {
         {/* Search & filters */}
         <div className="card">
           <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-52 relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" className="input-field pl-10" placeholder="Rechercher un véhicule, une marque..."
-                value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
+            <ListToolbar
+              className="min-w-64 flex-1"
+              search={search}
+              onSearchChange={setSearch}
+              sortField={sortField}
+              onSortFieldChange={setSortField}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+              sortOptions={[
+                { value: 'name', label: 'Nom' },
+                { value: 'price', label: 'Prix' },
+                { value: 'year', label: 'Année' },
+                { value: 'rating', label: 'Note' },
+              ]}
+              placeholder="Rechercher un véhicule, une marque…"
+            />
             <div className="flex items-center gap-2">
               <Filter size={15} className="text-slate-400" />
               <span className="text-sm text-slate-600 dark:text-slate-400">Prix max :</span>

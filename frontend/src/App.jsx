@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
@@ -22,6 +23,7 @@ import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
 import ContactMessages from './pages/admin/ContactMessages';
+import Newsletter from './pages/admin/Newsletter';
 import LegalPages from './pages/LegalPages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
@@ -65,6 +67,7 @@ function AppRoutes() {
       <Route path="/admin/catalog" element={<Guard roles={['ADMIN']}><CatalogManager /></Guard>} />
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
       <Route path="/admin/messages" element={<Guard roles={['ADMIN']}><ContactMessages /></Guard>} />
+      <Route path="/admin/newsletter" element={<Guard roles={['ADMIN']}><Newsletter /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
@@ -82,7 +85,9 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <AppRoutes />
+          <ConfirmProvider>
+            <AppRoutes />
+          </ConfirmProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>

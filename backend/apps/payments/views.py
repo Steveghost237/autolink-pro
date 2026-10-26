@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import transaction as db_transaction
 from django.utils import timezone
 from django.http import HttpResponseRedirect
-from rest_framework import viewsets, permissions, status
+from rest_framework import filters, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +17,12 @@ from . import providers
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['status', 'method', 'escrow_status']
+    search_fields = [
+        'transaction_ref', 'payer__username', 'payer__email',
+        'booking__vehicle__plate', 'booking__vehicle__brand', 'booking__vehicle__model',
+    ]
+    ordering_fields = ['created_at', 'amount', 'status', 'paid_at', 'escrow_status']
 
     def get_queryset(self):
         user = self.request.user
@@ -31,6 +37,12 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PayoutSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['status', 'method']
+    search_fields = [
+        'transaction_ref', 'recipient__username', 'recipient__email',
+        'payment__booking__vehicle__plate', 'payment__booking__vehicle__brand',
+    ]
+    ordering_fields = ['created_at', 'processed_at', 'amount', 'status']
 
     def get_queryset(self):
         user = self.request.user
@@ -42,12 +54,18 @@ class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
 class WalletViewSet(viewsets.ViewSet):
     """Solde AutoLink — rechargement et historique."""
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['reference', 'note', 'method', 'kind', 'status']
+    ordering_fields = ['created_at', 'amount', 'kind', 'status']
 
     def list(self, request):
+        transactions = request.user.wallet_transactions.all()
+        for backend in self.filter_backends:
+            transactions = backend().filter_queryset(request, transactions, self)
         return Response({
             'balance': request.user.balance,
             'transactions': WalletTransactionSerializer(
-                request.user.wallet_transactions.all()[:50], many=True
+                transactions[:50], many=True
             ).data,
         })
 

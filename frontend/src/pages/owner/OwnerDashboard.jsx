@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
 import { Car, TrendingUp, DollarSign, Clock, PlusCircle, ArrowRight, CheckCircle, AlertTriangle, MapPin, RefreshCw, Wifi, WifiOff, Bell, ShieldCheck } from 'lucide-react';
 import { bookingsAPI, vehiclesAPI, notificationsAPI, walletAPI } from '../../services/api';
 
@@ -25,11 +27,15 @@ const B_STATUS = {
 };
 
 export default function OwnerDashboard() {
+  const confirm = useConfirm();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [notifs, setNotifs] = useState([]);
+  const [notificationSearch, setNotificationSearch] = useState('');
+  const [notificationSortField, setNotificationSortField] = useState('created_at');
+  const [notificationSortOrder, setNotificationSortOrder] = useState('desc');
   const [balance, setBalance] = useState(0);
   const [online, setOnline] = useState(true);
   const [busy, setBusy] = useState(null);
@@ -39,7 +45,10 @@ export default function OwnerDashboard() {
       const [v, b, n, w] = await Promise.all([
         vehiclesAPI.list({ mine: 1, page_size: 100 }),
         bookingsAPI.list({ page_size: 50 }),
-        notificationsAPI.list(),
+        notificationsAPI.list({
+          search: notificationSearch.trim(),
+          ordering: `${notificationSortOrder === 'desc' ? '-' : ''}${notificationSortField}`,
+        }),
         walletAPI.get(),
       ]);
       // Le backend renvoie déjà uniquement les véhicules du propriétaire connecté
@@ -51,7 +60,7 @@ export default function OwnerDashboard() {
     } catch (_) {
       setOnline(false);
     }
-  }, [user?.id]);
+  }, [user?.id, notificationSearch, notificationSortField, notificationSortOrder]);
 
   useEffect(() => {
     load();
@@ -60,6 +69,12 @@ export default function OwnerDashboard() {
   }, [load]);
 
   const markVehicleBack = async (bookingId) => {
+    const confirmed = await confirm({
+      title: 'Clôturer cette location ?',
+      message: 'La fin de location clôturera la réservation et déclenchera le versement du propriétaire.',
+      confirmLabel: 'Confirmer la fin',
+    });
+    if (!confirmed) return;
     setBusy(bookingId);
     try {
       await bookingsAPI.updateStatus(bookingId, 'completed');
@@ -104,9 +119,24 @@ export default function OwnerDashboard() {
         </div>
 
         {/* Notifications — nouvelles réservations */}
-        {notifs.length > 0 && (
-          <div className="card">
-            <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2"><Bell size={17} className="text-primary-600" /> Notifications</h3>
+        <div className="card">
+          <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2"><Bell size={17} className="text-primary-600" /> Notifications</h3>
+          <ListToolbar
+            search={notificationSearch}
+            onSearchChange={setNotificationSearch}
+            sortField={notificationSortField}
+            onSortFieldChange={setNotificationSortField}
+            sortOrder={notificationSortOrder}
+            onSortOrderChange={setNotificationSortOrder}
+            sortOptions={[
+              { value: 'created_at', label: 'Date' },
+              { value: 'title', label: 'Titre' },
+              { value: 'is_read', label: 'Statut' },
+            ]}
+            placeholder="Rechercher une notification"
+            className="mb-3"
+          />
+          {notifs.length > 0 ? (
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {notifs.slice(0, 8).map(n => (
                 <div key={n.id} className={`p-3 rounded-xl text-sm ${n.is_read ? 'bg-slate-50 text-slate-500' : 'bg-blue-50 border border-blue-100 text-slate-800'}`}>
@@ -114,8 +144,10 @@ export default function OwnerDashboard() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="py-4 text-center text-sm text-slate-400">Aucune notification trouvée.</p>
+          )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

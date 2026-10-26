@@ -11,6 +11,13 @@ class IsControllerOrAdmin(permissions.BasePermission):
 class VehicleInspectionViewSet(viewsets.ModelViewSet):
     serializer_class = VehicleInspectionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['inspection_type', 'booking', 'vehicle']
+    search_fields = [
+        'vehicle__brand', 'vehicle__model', 'vehicle__plate',
+        'booking__client__first_name', 'booking__client__last_name',
+        'controller__username', 'notes',
+    ]
+    ordering_fields = ['inspection_date', 'condition_score', 'mileage_at_inspection', 'fuel_level']
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

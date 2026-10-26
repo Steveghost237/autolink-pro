@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
 import { bookingsAPI, notificationsAPI } from '../../services/api';
 import { Car, Star, DollarSign, Clock, MapPin, Phone, CheckCircle, Navigation, Award, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 
@@ -14,22 +16,32 @@ const STATUS_LABEL = {
 };
 
 export default function DriverDashboard() {
+  const confirm = useConfirm();
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [notifs, setNotifs] = useState([]);
+  const [notificationSearch, setNotificationSearch] = useState('');
+  const [notificationSortField, setNotificationSortField] = useState('created_at');
+  const [notificationSortOrder, setNotificationSortOrder] = useState('desc');
   const [online, setOnline] = useState(true);
   const [busy, setBusy] = useState(null);
 
   const load = useCallback(async () => {
     try {
-      const [b, n] = await Promise.all([bookingsAPI.list({ page_size: 50 }), notificationsAPI.list()]);
+      const [b, n] = await Promise.all([
+        bookingsAPI.list({ page_size: 50 }),
+        notificationsAPI.list({
+          search: notificationSearch.trim(),
+          ordering: `${notificationSortOrder === 'desc' ? '-' : ''}${notificationSortField}`,
+        }),
+      ]);
       setBookings(b.data.results || b.data || []);
       setNotifs(n.data.results || []);
       setOnline(true);
     } catch (_) {
       setOnline(false);
     }
-  }, []);
+  }, [notificationSearch, notificationSortField, notificationSortOrder]);
 
   useEffect(() => {
     load();
@@ -38,6 +50,14 @@ export default function DriverDashboard() {
   }, [load]);
 
   const setStatus = async (id, status) => {
+    if (status === 'completed') {
+      const confirmed = await confirm({
+        title: 'Terminer cette course ?',
+        message: 'La course sera clôturée et le véhicule sera libéré.',
+        confirmLabel: 'Terminer la course',
+      });
+      if (!confirmed) return;
+    }
     setBusy(id);
     try {
       await bookingsAPI.updateStatus(id, status);
@@ -72,9 +92,24 @@ export default function DriverDashboard() {
         </div>
 
         {/* Notifications */}
-        {notifs.length > 0 && (
-          <div className="card">
-            <h3 className="font-bold text-slate-900 mb-3">Notifications</h3>
+        <div className="card">
+          <h3 className="font-bold text-slate-900 mb-3">Notifications</h3>
+          <ListToolbar
+            search={notificationSearch}
+            onSearchChange={setNotificationSearch}
+            sortField={notificationSortField}
+            onSortFieldChange={setNotificationSortField}
+            sortOrder={notificationSortOrder}
+            onSortOrderChange={setNotificationSortOrder}
+            sortOptions={[
+              { value: 'created_at', label: 'Date' },
+              { value: 'title', label: 'Titre' },
+              { value: 'is_read', label: 'Statut' },
+            ]}
+            placeholder="Rechercher une notification"
+            className="mb-3"
+          />
+          {notifs.length > 0 ? (
             <div className="space-y-2">
               {notifs.slice(0, 5).map(n => (
                 <div key={n.id} className={`p-3 rounded-xl text-sm ${n.is_read ? 'bg-slate-50 text-slate-500' : 'bg-blue-50 text-slate-800 font-medium'}`}>
@@ -82,8 +117,10 @@ export default function DriverDashboard() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="py-4 text-center text-sm text-slate-400">Aucune notification trouvée.</p>
+          )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

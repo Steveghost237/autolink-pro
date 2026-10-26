@@ -1,8 +1,12 @@
 import random
 import logging
+from urllib.parse import urlencode
+from django.core import signing
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape, strip_tags
 from datetime import timedelta
 from rest_framework import filters, generics, permissions, status
 from rest_framework.throttling import ScopedRateThrottle
@@ -10,8 +14,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import ContactMessage, User, Notification, LoginCode
-from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
+from .email_utils import send_login_notification, send_welcome_email
+from .models import ContactMessage, NewsletterCampaign, User, Notification, LoginCode
+from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, GoogleAuthSerializer, NotificationSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -94,6 +99,101 @@ class ContactMessageViewSet(ModelViewSet):
     ordering_fields = ['created_at', 'last_name', 'first_name', 'is_handled']
 
 
+NEWSLETTER_UNSUBSCRIBE_SALT = 'autolink-newsletter-unsubscribe'
+
+
+class NewsletterUnsubscribeView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        token = request.query_params.get('token', '')
+        try:
+            payload = signing.loads(token, salt=NEWSLETTER_UNSUBSCRIBE_SALT)
+            user = User.objects.get(pk=payload['user_id'], email=payload['email'])
+        except (signing.BadSignature, KeyError, TypeError, ValueError, User.DoesNotExist):
+            return Response(
+                {'detail': 'Lien de désinscription invalide ou expiré.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.newsletter_opt_in:
+            user.newsletter_opt_in = False
+            user.save(update_fields=['newsletter_opt_in'])
+        return Response({'detail': 'Votre désinscription est prise en compte.'})
+
+
+class NewsletterCampaignListView(generics.ListAPIView):
+    queryset = NewsletterCampaign.objects.select_related('sent_by')
+    serializer_class = NewsletterCampaignSerializer
+    permission_classes = [IsAdminRole]
+    search_fields = ['subject', 'body']
+    ordering_fields = ['subject', 'sent_at', 'recipients_count']
+
+
+class NewsletterSendView(APIView):
+    permission_classes = [IsAdminRole]
+    batch_size = 100
+
+    def post(self, request):
+        serializer = NewsletterSendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subject = serializer.validated_data['subject']
+        html_body = serializer.validated_data['html_body'].strip()
+        text_body = serializer.validated_data['text_body'].strip()
+        recorded_body = html_body or text_body
+        unsubscribe_base = request.build_absolute_uri(reverse('newsletter-unsubscribe'))
+        connection = get_connection(fail_silently=True)
+        messages = []
+        sent_count = 0
+
+        for user in (User.objects
+                     .filter(is_active=True, newsletter_opt_in=True)
+                     .exclude(email='')
+                     .order_by('pk')
+                     .iterator(chunk_size=self.batch_size)):
+            token = signing.dumps(
+                {'user_id': user.pk, 'email': user.email},
+                salt=NEWSLETTER_UNSUBSCRIBE_SALT,
+            )
+            unsubscribe_url = f'{unsubscribe_base}?{urlencode({"token": token})}'
+            plain_content = text_body or strip_tags(html_body)
+            plain_content = f'{plain_content}\n\nSe désinscrire : {unsubscribe_url}'
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=plain_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[user.email],
+                connection=connection,
+            )
+            if html_body:
+                html_content = (
+                    f'{html_body}\n<p><a href="{escape(unsubscribe_url)}">'
+                    'Se désinscrire</a></p>'
+                )
+                email.attach_alternative(html_content, 'text/html')
+            messages.append(email)
+
+            if len(messages) >= self.batch_size:
+                sent_count += connection.send_messages(messages)
+                messages = []
+
+        if messages:
+            sent_count += connection.send_messages(messages)
+
+        campaign = NewsletterCampaign.objects.create(
+            subject=subject,
+            body=recorded_body,
+            sent_at=timezone.now(),
+            recipients_count=sent_count,
+            sent_by=request.user,
+        )
+        return Response({
+            'campaign': NewsletterCampaignSerializer(campaign).data,
+            'recipients_count': sent_count,
+        }, status=status.HTTP_201_CREATED)
+
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -122,6 +222,7 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        send_welcome_email(user)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -199,7 +300,7 @@ class OTPRequestView(APIView):
             from_email=None,  # DEFAULT_FROM_EMAIL
             recipient_list=[email],
             html_message=_otp_email_html(code, first_name),
-            fail_silently=False,
+            fail_silently=True,
         )
         return Response({'detail': 'Code envoyé.', 'email': email})
 
@@ -223,6 +324,7 @@ class OTPVerifyView(APIView):
             return Response({'detail': 'Code incorrect.'}, status=400)
 
         user = User.objects.filter(email__iexact=email).first()
+        created = user is None
         if user is None:
             base = email.split('@')[0]
             username = base
@@ -238,6 +340,9 @@ class OTPVerifyView(APIView):
             user.save()
         if not user.is_active:
             return Response({'detail': 'Ce compte a été suspendu.'}, status=403)
+        if created:
+            send_welcome_email(user)
+        send_login_notification(user)
         otp.delete()
 
         refresh = RefreshToken.for_user(user)
@@ -254,6 +359,7 @@ class UserListView(generics.ListAPIView):
     permission_classes = [IsAdminRole]
     filterset_fields = ['role', 'is_verified', 'is_active']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
+    ordering_fields = ['created_at', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_verified']
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -267,14 +373,19 @@ class NotificationListView(generics.ListAPIView):
     """Notifications de l'utilisateur connecté — les plus récentes d'abord."""
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    search_fields = ['title', 'message']
+    ordering_fields = ['created_at', 'title', 'is_read']
 
     def get_queryset(self):
-        return self.request.user.notifications.all()[:100]
+        return self.request.user.notifications.all()
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
+        qs = self.filter_queryset(self.get_queryset())
         unread = request.user.notifications.filter(is_read=False).count()
-        return Response({'unread': unread, 'results': self.get_serializer(qs, many=True).data})
+        return Response({
+            'unread': unread,
+            'results': self.get_serializer(qs[:100], many=True).data,
+        })
 
 
 class NotificationReadView(APIView):

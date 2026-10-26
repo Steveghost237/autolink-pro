@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Car, AlertTriangle, CheckCircle, Calendar, Shield, Clock, Wrench, Ban, RefreshCw } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
 import { vehiclesAPI } from '../../services/api';
 
 const TIER_LABEL = { basic: 'Économique', standard: 'Intermédiaire', premium: 'Premium', gold: 'Luxe', collection: 'Super Luxe' };
@@ -24,14 +25,23 @@ export default function MyVehicles() {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [online, setOnline] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const load = useCallback(async () => {
     try {
-      const { data } = await vehiclesAPI.list({ mine: 1, page_size: 100 });
+      const ordering = `${sortOrder === 'desc' ? '-' : ''}${sortField}`;
+      const { data } = await vehiclesAPI.list({
+        mine: 1,
+        page_size: 100,
+        search: search.trim(),
+        ordering,
+      });
       setVehicles(data.results || data);
       setOnline(true);
     } catch (_) { setOnline(false); }
-  }, []);
+  }, [search, sortField, sortOrder]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -47,6 +57,22 @@ export default function MyVehicles() {
             <PlusCircle size={16} /> Ajouter un véhicule
           </button>
         </div>
+
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          sortField={sortField}
+          onSortFieldChange={setSortField}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          sortOptions={[
+            { value: 'created_at', label: 'Date d’ajout' },
+            { value: 'year', label: 'Année' },
+            { value: 'computed_rate', label: 'Tarif indicatif' },
+            { value: 'rating', label: 'Note' },
+          ]}
+          placeholder="Rechercher un véhicule"
+        />
 
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800">
           <strong>Rémunération :</strong> vous percevez 50% de chaque location. Votre part est bloquée

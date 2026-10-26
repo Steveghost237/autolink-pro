@@ -97,6 +97,11 @@ export const contactMessagesAPI = {
   delete: (id) => api.delete(`/contact/messages/${id}/`),
 };
 
+export const newsletterAPI = {
+  campaigns: (params) => api.get('/users/newsletter/campaigns/', { params }),
+  send: (payload) => api.post('/users/newsletter/send/', payload),
+};
+
 export const usersAPI = {
   list: (params) => api.get('/users/', { params }),
   getAll: (params) => api.get('/users/', { params }),

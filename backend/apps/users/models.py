@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -14,6 +16,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_verified = models.BooleanField(default=False)
+    newsletter_opt_in = models.BooleanField(default=True)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     id_document = models.ImageField(upload_to='kyc/', null=True, blank=True)
     id_document_verified = models.BooleanField(default=False)
@@ -47,6 +50,28 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return f'{self.first_name} {self.last_name} — {self.created_at:%Y-%m-%d}'
+
+
+class NewsletterCampaign(models.Model):
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    sent_at = models.DateTimeField(default=timezone.now)
+    recipients_count = models.PositiveIntegerField(default=0)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='newsletter_campaigns',
+    )
+
+    class Meta:
+        ordering = ['-sent_at']
+        verbose_name = 'Campagne newsletter'
+        verbose_name_plural = 'Campagnes newsletter'
+
+    def __str__(self):
+        return self.subject
 
 
 class Notification(models.Model):

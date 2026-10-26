@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Mail, Phone, Search, Trash2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { contactMessagesAPI } from '../../services/api';
 
 export default function ContactMessages() {
+  const confirm = useConfirm();
   const [messages, setMessages] = useState([]);
   const [search, setSearch] = useState('');
   const [ordering, setOrdering] = useState('-created_at');
@@ -40,7 +42,13 @@ export default function ContactMessages() {
   };
 
   const deleteMessage = async (message) => {
-    if (!window.confirm(`Supprimer le message de ${message.first_name} ${message.last_name} ?`)) return;
+    const confirmed = await confirm({
+      title: 'Supprimer ce message ?',
+      message: `Le message de ${message.first_name} ${message.last_name} sera supprimé définitivement.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await contactMessagesAPI.delete(message.id);
       setMessages(current => current.filter(item => item.id !== message.id));

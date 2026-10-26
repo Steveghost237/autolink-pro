@@ -1,10 +1,11 @@
-from django.core import mail
+from django.core import mail, signing
 from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APITestCase
-from apps.users.models import ContactMessage, User, LoginCode
+from apps.users.models import ContactMessage, LoginCode, NewsletterCampaign, User
+from apps.users.views import NEWSLETTER_UNSUBSCRIBE_SALT
 
 
 class AuthTests(APITestCase):
@@ -192,3 +193,110 @@ class ContactEndpointTests(APITestCase):
         self.assertEqual(response.data['contact_email'], 'wibchallenge@gmail.com')
         self.assertEqual(len(response.data['phones']), 2)
         self.assertIn('weekdays', response.data['hours'])
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class AuthenticationEmailTests(APITestCase):
+    def setUp(self):
+        mail.outbox = []
+
+    def test_registration_sends_welcome_email(self):
+        response = self.client.post('/api/users/register/', {
+            'username': 'welcome-user',
+            'email': 'welcome@example.com',
+            'first_name': 'Awa',
+            'last_name': 'Nana',
+            'password': 'SecurePass2026!',
+            'password2': 'SecurePass2026!',
+            'role': 'CLIENT',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Bienvenue', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['welcome@example.com'])
+
+    def test_password_login_sends_notification_email(self):
+        User.objects.create_user(
+            username='member',
+            email='member@example.com',
+            password='SecurePass2026!',
+            first_name='Awa',
+        )
+
+        response = self.client.post('/api/users/login/', {
+            'email': 'member@example.com',
+            'password': 'SecurePass2026!',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('connexion', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['member@example.com'])
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class NewsletterTests(APITestCase):
+    def setUp(self):
+        mail.outbox = []
+        self.admin = User.objects.create_user(
+            username='newsletter-admin',
+            email='admin@example.com',
+            password='SecurePass2026!',
+            role='ADMIN',
+            newsletter_opt_in=False,
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_signed_unsubscribe_turns_off_opt_in(self):
+        user = User.objects.create_user(
+            username='subscriber',
+            email='subscriber@example.com',
+            password='SecurePass2026!',
+        )
+        token = signing.dumps(
+            {'user_id': user.pk, 'email': user.email},
+            salt=NEWSLETTER_UNSUBSCRIBE_SALT,
+        )
+
+        response = self.client.get('/api/users/newsletter/unsubscribe/', {'token': token})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user.refresh_from_db()
+        self.assertFalse(user.newsletter_opt_in)
+
+    def test_campaign_sends_only_to_opted_in_active_users(self):
+        subscriber = User.objects.create_user(
+            username='subscriber',
+            email='subscriber@example.com',
+            password='SecurePass2026!',
+        )
+        opted_out = User.objects.create_user(
+            username='opted-out',
+            email='opted-out@example.com',
+            password='SecurePass2026!',
+            newsletter_opt_in=False,
+        )
+        inactive = User.objects.create_user(
+            username='inactive',
+            email='inactive@example.com',
+            password='SecurePass2026!',
+            is_active=False,
+        )
+
+        response = self.client.post('/api/users/newsletter/send/', {
+            'subject': 'Actualités AutoLink',
+            'html_body': '<p>Bonjour !</p>',
+            'text_body': 'Bonjour !',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['recipients_count'], 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [subscriber.email])
+        self.assertIn('Se désinscrire', mail.outbox[0].body)
+        campaign = NewsletterCampaign.objects.get()
+        self.assertEqual(campaign.recipients_count, 1)
+        self.assertEqual(campaign.sent_by, self.admin)
+        self.assertTrue(opted_out.is_active)
+        self.assertFalse(inactive.is_active)

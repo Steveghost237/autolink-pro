@@ -14,6 +14,12 @@ class IsAdminOrSelf(permissions.BasePermission):
 class DriverApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = DriverApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['status']
+    search_fields = [
+        'applicant__username', 'applicant__email', 'applicant__first_name',
+        'applicant__last_name', 'license_number', 'reviewer_notes',
+    ]
+    ordering_fields = ['applied_at', 'reviewed_at', 'status', 'experience_years']
 
     def get_queryset(self):
         if self.request.user.role == 'ADMIN':
@@ -33,6 +39,14 @@ class DriverApplicationViewSet(viewsets.ModelViewSet):
 class DriverProfileViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DriverProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['is_online', 'assigned_vehicle']
+    search_fields = [
+        'driver__username', 'driver__email', 'driver__first_name', 'driver__last_name',
+    ]
+    ordering_fields = [
+        'certified_at', 'rating', 'rating_count', 'total_trips', 'total_earned',
+        'acceptance_rate', 'on_time_rate',
+    ]
 
     def get_queryset(self):
         if self.request.user.role == 'ADMIN':

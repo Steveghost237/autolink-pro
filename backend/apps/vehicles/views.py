@@ -47,6 +47,9 @@ class VehicleViewSet(ModelViewSet):
 class VehicleAvailabilityView(generics.ListCreateAPIView):
     serializer_class = VehicleAvailabilitySerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['start_date', 'end_date']
+    search_fields = ['vehicle__brand', 'vehicle__model', 'vehicle__plate', 'reason']
+    ordering_fields = ['start_date', 'end_date', 'vehicle__brand']
 
     def get_queryset(self):
         return VehicleAvailability.objects.filter(vehicle_id=self.kwargs['vehicle_id'])

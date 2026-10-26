@@ -1,13 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import ContactMessage, User, Notification
+from .email_utils import send_login_notification, send_welcome_email
+from .models import ContactMessage, NewsletterCampaign, User, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'balance', 'created_at']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'balance', 'created_at']
         read_only_fields = ['id', 'is_verified', 'balance', 'created_at']
 
 
@@ -29,6 +30,24 @@ class ContactMessageSerializer(serializers.ModelSerializer):
 class ContactMessageAdminSerializer(ContactMessageSerializer):
     class Meta(ContactMessageSerializer.Meta):
         read_only_fields = ['id', 'created_at']
+
+
+class NewsletterCampaignSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NewsletterCampaign
+        fields = ['id', 'subject', 'body', 'sent_at', 'recipients_count', 'sent_by']
+        read_only_fields = fields
+
+
+class NewsletterSendSerializer(serializers.Serializer):
+    subject = serializers.CharField(max_length=200)
+    html_body = serializers.CharField(required=False, allow_blank=True, default='')
+    text_body = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, attrs):
+        if not attrs['html_body'].strip() and not attrs['text_body'].strip():
+            raise serializers.ValidationError('Le contenu HTML ou texte est obligatoire.')
+        return attrs
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -80,6 +99,7 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Email ou mot de passe incorrect.')
         if not user.check_password(attrs['password']) or not user.is_active:
             raise serializers.ValidationError('Email ou mot de passe incorrect.')
+        send_login_notification(user)
         refresh = RefreshToken.for_user(user)
         return {
             'access': str(refresh.access_token),
@@ -99,6 +119,7 @@ class GoogleAuthSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs['email'].strip().lower()
         user = User.objects.filter(email__iexact=email).first()
+        created = user is None
         if user is None:
             base = email.split('@')[0]
             username = base
@@ -118,6 +139,9 @@ class GoogleAuthSerializer(serializers.Serializer):
             user.save()
         if not user.is_active:
             raise serializers.ValidationError('Ce compte a été suspendu.')
+        if created:
+            send_welcome_email(user)
+        send_login_notification(user)
         refresh = RefreshToken.for_user(user)
         return {
             'access': str(refresh.access_token),

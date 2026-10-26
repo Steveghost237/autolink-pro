@@ -49,7 +49,11 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['status', 'vehicle']
-    ordering_fields = ['created_at', 'start_date', 'subtotal']
+    search_fields = [
+        'client__username', 'client__first_name', 'client__last_name',
+        'vehicle__brand', 'vehicle__model', 'vehicle__plate', 'status',
+    ]
+    ordering_fields = ['created_at', 'start_date', 'end_date', 'subtotal', 'status']
 
     def get_queryset(self):
         Booking.auto_complete_expired()
