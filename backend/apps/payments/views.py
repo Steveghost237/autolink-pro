@@ -164,6 +164,8 @@ class WalletViewSet(viewsets.ViewSet):
             return Response({'detail': 'Transaction introuvable.'}, status=404)
         if tx.status != 'pending':
             return Response(WalletTransactionSerializer(tx).data)
+        if tx.method not in ('mtn', 'orange'):
+            return Response(WalletTransactionSerializer(tx).data)
         try:
             raw = providers.mtn_status(tx.provider_ref) if tx.method == 'mtn' else providers.orange_status(
                 tx.provider_ref, tx.amount, tx.provider_pay_token)
@@ -262,9 +264,9 @@ class PaymentMethodsView(APIView):
             methods.append('mtn')
         if providers.orange_configured():
             methods.append('orange')
-        if getattr(settings, 'STRIPE_SECRET_KEY', ''):
+        if providers.stripe_configured():
             methods.append('stripe')
-        if getattr(settings, 'PAYPAL_CLIENT_ID', '') and getattr(settings, 'PAYPAL_CLIENT_SECRET', ''):
+        if providers.paypal_configured():
             methods.append('paypal')
         return Response({'methods': methods, 'booking_methods': ['wallet', *methods]})
 
@@ -300,7 +302,7 @@ class BookingPaymentStatusView(APIView):
             payment = booking.payment
         except (Booking.DoesNotExist, Payment.DoesNotExist):
             return Response({'detail': 'Paiement introuvable.'}, status=404)
-        if payment.status == 'pending':
+        if payment.status == 'pending' and payment.method in ('mtn', 'orange'):
             try:
                 raw = providers.mtn_status(payment.provider_ref) if payment.method == 'mtn' else providers.orange_status(
                     payment.provider_ref, payment.amount, payment.provider_pay_token)

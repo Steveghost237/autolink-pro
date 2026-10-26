@@ -56,9 +56,13 @@ def _get(url, headers=None, timeout=20):
 STRIPE_API = 'https://api.stripe.com/v1'
 
 
+def stripe_configured():
+    return bool(getattr(settings, 'STRIPE_API_KEY', ''))
+
+
 def _stripe_headers():
     key = getattr(settings, 'STRIPE_API_KEY', '')
-    if not key:
+    if not stripe_configured():
         raise ProviderError('STRIPE_API_KEY non configurée.')
     return {'Authorization': f'Bearer {key}'}
 
@@ -105,6 +109,13 @@ def stripe_verify_webhook(payload_bytes, sig_header, secret):
 
 # ─── PAYPAL ───────────────────────────────────────────────────────────────────
 
+def paypal_configured():
+    return bool(
+        getattr(settings, 'PAYPAL_CLIENT_ID', '')
+        and getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
+    )
+
+
 def _paypal_base():
     return 'https://api-m.paypal.com' if getattr(settings, 'PAYPAL_MODE', 'sandbox') == 'live' \
         else 'https://api-m.sandbox.paypal.com'
@@ -113,7 +124,7 @@ def _paypal_base():
 def _paypal_token():
     cid = getattr(settings, 'PAYPAL_CLIENT_ID', '')
     sec = getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
-    if not cid or not sec:
+    if not paypal_configured():
         raise ProviderError('Identifiants PayPal non configurés.')
     auth = base64.b64encode(f'{cid}:{sec}'.encode()).decode()
     r = _post(f'{_paypal_base()}/v1/oauth2/token',

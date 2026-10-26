@@ -102,6 +102,66 @@ class WalletTopupTests(APITestCase):
         self.assertIn(r.status_code, (401, 403))
 
 
+class PaymentMethodConfigurationTests(APITestCase):
+    @override_settings(
+        STRIPE_API_KEY='sk_test',
+        PAYPAL_CLIENT_ID='paypal-client',
+        PAYPAL_CLIENT_SECRET='paypal-secret',
+    )
+    def test_methods_use_provider_configuration(self):
+        response = self.client.get('/api/payments/methods/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['methods'], ['stripe', 'paypal'])
+        self.assertEqual(response.data['booking_methods'], ['wallet', 'stripe', 'paypal'])
+
+
+class ProviderStatusPollingTests(APITestCase):
+    def setUp(self):
+        self.user = make_user('payment-client', 'CLIENT')
+        self.client.force_authenticate(self.user)
+
+    @patch('apps.payments.views.providers.orange_status')
+    @patch('apps.payments.views.providers.mtn_status')
+    def test_wallet_status_does_not_poll_non_mobile_methods(self, mtn_status, orange_status):
+        tx = WalletTransaction.objects.create(
+            user=self.user, kind='topup', method='stripe', amount=10000,
+            balance_after=0, reference='TOP-STRIPE-PENDING', status='pending',
+            provider_ref='cs_pending',
+        )
+
+        response = self.client.get(f'/api/payments/wallet/transactions/{tx.reference}/status/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], 'pending')
+        mtn_status.assert_not_called()
+        orange_status.assert_not_called()
+
+    @patch('apps.payments.views.providers.orange_status')
+    @patch('apps.payments.views.providers.mtn_status')
+    def test_booking_status_does_not_poll_non_mobile_methods(self, mtn_status, orange_status):
+        owner = make_user('payment-owner', 'OWNER')
+        vehicle = make_vehicle(owner, 'LT-955-PP')
+        booking = Booking.objects.create(
+            client=self.user, vehicle=vehicle,
+            start_date=date.today() + timedelta(days=30),
+            end_date=date.today() + timedelta(days=31),
+            daily_rate=Decimal('25000'), days=1, subtotal=Decimal('25000'),
+            commission_amount=Decimal('12500'), owner_amount=Decimal('12500'),
+        )
+        Payment.objects.create(
+            booking=booking, payer=self.user, method='paypal', status='pending',
+            amount=Decimal('25000'), commission=Decimal('12500'),
+            owner_payout=Decimal('12500'), provider_ref='paypal-pending',
+        )
+
+        response = self.client.get(f'/api/payments/bookings/{booking.pk}/status/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], 'pending')
+        mtn_status.assert_not_called()
+        orange_status.assert_not_called()
+
+
 class ExternalReturnTests(APITestCase):
     """Retours Stripe/PayPal : crédit uniquement après vérification provider."""
 
