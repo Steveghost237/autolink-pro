@@ -110,40 +110,40 @@ export default function Catalog() {
   return (
     <PublicLayout>
       <section className="bg-surface-container-low dark:bg-slate-900 border-b border-outline-variant/30 dark:border-slate-800">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.3fr_1fr_minmax(0,150px)] gap-3">
+          <label className="min-w-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
             <Icon name="location_on" className="text-primary" />
-            <span className="flex flex-col flex-1"><span className="overline">{t('Ville')}</span>
-              <select value={filters.city || ''} onChange={(e) => setFilter('city', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+            <span className="flex flex-col flex-1 min-w-0"><span className="overline">{t('Ville')}</span>
+              <select value={filters.city || ''} onChange={(e) => setFilter('city', e.target.value)} className="w-full min-w-0 bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
                 <option value="">{t('Toutes les villes')}</option>{(facets.cities || []).map((city) => <option key={city}>{city}</option>)}
               </select></span>
           </label>
-          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+          <label className="min-w-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
             <Icon name="schedule" className="text-primary" />
-            <span className="flex flex-col flex-1"><span className="overline">{t('Formule')}</span>
-              <select value={filters.type || ''} onChange={(e) => setFilter('type', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+            <span className="flex flex-col flex-1 min-w-0"><span className="overline">{t('Formule')}</span>
+              <select value={filters.type || ''} onChange={(e) => setFilter('type', e.target.value)} className="w-full min-w-0 bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
                 <option value="">{t('Toutes les formules')}</option>{RENTAL_TYPES.map((type) => <option key={type.id} value={type.id}>{t(type.label)}</option>)}
               </select></span>
           </label>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+          <div className="min-w-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
             <Icon name="date_range" className="text-primary" />
-            <span className="flex flex-col flex-1"><span className="overline">{t('Période de réservation')}</span>
+            <span className="flex flex-col flex-1 min-w-0"><span className="overline">{t('Période de réservation')}</span>
               <span className="flex items-center gap-2">
-                <input type="date" min={today()} value={filters.start || ''} onChange={(e) => setFilter('start', e.target.value)} className="bg-transparent font-label-md text-label-md focus:outline-none dark:text-white w-full" />
+                <input type="date" min={today()} value={filters.start || ''} onChange={(e) => setFilter('start', e.target.value)} className="min-w-0 w-full bg-transparent font-label-md text-label-md focus:outline-none dark:text-white" />
                 <Icon name="arrow_forward" size={16} className="text-on-surface-variant" />
-                <input type="date" min={filters.start || today()} value={filters.end || ''} onChange={(e) => setFilter('end', e.target.value)} className="bg-transparent font-label-md text-label-md focus:outline-none dark:text-white w-full" />
+                <input type="date" min={filters.start || today()} value={filters.end || ''} onChange={(e) => setFilter('end', e.target.value)} className="min-w-0 w-full bg-transparent font-label-md text-label-md focus:outline-none dark:text-white" />
               </span></span>
           </div>
-          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+          <label className="min-w-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
             <Icon name="badge" className="text-primary" />
-            <span className="flex flex-col flex-1"><span className="overline">{t('Service')}</span>
-              <select value={filters.driver ? '1' : ''} onChange={(e) => setFilter('driver', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+            <span className="flex flex-col flex-1 min-w-0"><span className="overline">{t('Service')}</span>
+              <select value={filters.driver ? '1' : ''} onChange={(e) => setFilter('driver', e.target.value)} className="w-full min-w-0 bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
                 <option value="">{t('Avec ou sans chauffeur')}</option><option value="1">{t('Chauffeur du propriétaire disponible')}</option>
               </select></span>
           </label>
-          <label className="flex items-center gap-2 px-4 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+          <label className="min-w-0 flex items-center gap-2 px-4 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
             <Icon name="search" className="text-outline" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Marque, modèle…')} className="w-full xl:w-40 bg-transparent py-3 font-body-md text-body-md focus:outline-none dark:text-white" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Marque, modèle…')} className="min-w-0 w-full bg-transparent py-3 font-body-md text-body-md focus:outline-none dark:text-white" />
           </label>
         </div>
       </section>

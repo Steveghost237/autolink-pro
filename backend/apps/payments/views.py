@@ -513,7 +513,7 @@ class PaymentMethodsView(APIView):
             'methods': configured_methods,
             'configured_methods': configured_methods,
             'all_methods': all_methods,
-            'booking_methods': ['wallet', *all_methods]
+            'booking_methods': ['wallet', *configured_methods]
         })
 
 

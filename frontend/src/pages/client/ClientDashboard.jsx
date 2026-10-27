@@ -163,7 +163,7 @@ export default function ClientDashboard() {
             <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <span className="font-label-md text-label-md text-surface-variant">{t('Solde disponible')}</span>
-                <div className="font-display-lg text-display-lg text-surface-bright tracking-tight leading-none mt-1">{wallet ? formatNumber(balance) : '—'} <span className="font-label-lg text-label-lg text-primary-fixed-dim">FCFA</span></div>
+                <div className={`${String(Math.round(balance)).length > 8 ? 'font-headline-xl text-headline-xl-mobile' : 'font-display-lg text-display-lg'} text-surface-bright tracking-tight leading-none mt-1 break-words`}>{wallet ? formatNumber(balance) : '—'} <span className="font-label-lg text-label-lg text-primary-fixed-dim">FCFA</span></div>
                 <span className="font-body-sm text-body-sm text-surface-variant/80">{t('Immédiatement utilisable pour vos trajets')}</span>
               </div>
               <div className="sm:pl-4 sm:border-l sm:border-surface-variant/20">

@@ -24,7 +24,12 @@ import './Landing.css';
 
 const t = (text, options) => uiText('pages.Landing', text, options);
 
-const HERO_IMAGE = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=85';
+const HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=85',
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1920&q=85',
+  'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?auto=format&fit=crop&w=1920&q=85',
+  'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1920&q=85',
+];
 const OWNER_IMAGE = 'https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=80';
 
 const TIER_COPY = {
@@ -164,8 +169,10 @@ export default function Landing() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('');
   const [facets, setFacets] = useState({ categories: [], cities: [] });
+  const [hero, setHero] = useState(0);
 
   useEffect(() => { vehiclesAPI.facets().then(({ data }) => setFacets(data)).catch(() => {}); }, []);
+  useEffect(() => { const timer = setInterval(() => setHero((h) => (h + 1) % HERO_IMAGES.length), 5000); return () => clearInterval(timer); }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -190,8 +197,13 @@ export default function Landing() {
     <PublicLayout>
       <section className="relative">
         <div className="absolute inset-0">
-          <img src={HERO_IMAGE} alt="" className="w-full h-full object-cover" />
+          {HERO_IMAGES.map((src, index) => (
+            <img key={src} src={src} alt="" className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${index === hero ? 'opacity-100' : 'opacity-0'}`} />
+          ))}
           <div className="absolute inset-0 bg-gradient-to-r from-inverse-surface/95 via-inverse-surface/75 to-inverse-surface/30" />
+          <div className="absolute bottom-4 right-6 flex gap-1.5">
+            {HERO_IMAGES.map((_, index) => <span key={index} className={`w-2 h-2 rounded-full ${index === hero ? 'bg-surface-container-lowest' : 'bg-surface-container-lowest/40'}`} />)}
+          </div>
         </div>
         <div className="relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 lg:pt-24 flex flex-col gap-8">
           <div className="max-w-3xl flex flex-col gap-4">

@@ -61,9 +61,15 @@ def send_welcome_email(user):
 
     html_message = render_email_template('welcome', context)
 
+    message = (
+        f"Hello {context['first_name']},\n\nWelcome to AutoLink Pro. Your account is ready."
+        if language == 'en'
+        else f"Bonjour {context['first_name']},\n\nBienvenue chez AutoLink Pro."
+    )
+
     send_mail(
         subject=subject,
-        message=f"Hello {context['first_name']},\n\nWelcome to AutoLink Pro.",
+        message=message,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
         html_message=html_message,
