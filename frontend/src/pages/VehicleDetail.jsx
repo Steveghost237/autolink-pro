@@ -14,13 +14,11 @@ const t = (text, options) => uiText('pages.VehicleDetail', text, options);
 
 const POSITIONS = [['', 'Tout'], ['exterior', 'Extérieur'], ['interior', 'Intérieur'], ['other', 'Autre']];
 
-// Estimation identique au tunnel de réservation (SearchVehicles).
+// Montant réellement débité par le serveur : tarif × jours, remise -5 % dès 4 j, -10 % dès 30 j.
 const estimate = (rate, type, days) => {
-  if (type.id === 'urban_3h') return Math.max(rate * 0.15, type.minPrice);
-  if (type.id === 'urban_8h') return Math.max(rate * 0.30, type.minPrice);
-  if (type.id === 'intercity') return Math.max(rate * 1.5, type.minPrice);
-  if (type.id === 'long_haul') return rate * days;
-  return rate;
+  const d = type.id === 'long_haul' ? days : 1;
+  const discount = d >= 30 ? 10 : d > 3 ? 5 : 0;
+  return rate * d * (100 - discount) / 100;
 };
 
 export default function VehicleDetail() {

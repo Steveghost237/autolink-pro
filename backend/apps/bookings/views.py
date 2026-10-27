@@ -107,6 +107,34 @@ class BookingViewSet(viewsets.ModelViewSet):
         if booking.owner_response != 'pending' or booking.status not in ('pending', 'confirmed'):
             raise ValidationError({'detail': 'Cette demande a déjà été traitée.'})
 
+    @action(detail=True, methods=['post'])
+    def rate(self, request, pk=None):
+        """Avis client sur une location terminée : met à jour la note moyenne du véhicule."""
+        booking = self.get_object()
+        if booking.client_id != request.user.id:
+            raise PermissionDenied('Cette réservation ne vous appartient pas.')
+        if booking.status != 'completed':
+            raise ValidationError({'detail': 'Seule une location terminée peut être évaluée.'})
+        if booking.client_rating:
+            raise ValidationError({'detail': 'Vous avez déjà évalué cette location.'})
+        try:
+            rating = int(request.data.get('rating'))
+        except (TypeError, ValueError):
+            rating = 0
+        if not 1 <= rating <= 5:
+            raise ValidationError({'rating': 'La note doit être comprise entre 1 et 5.'})
+        booking.client_rating = rating
+        booking.client_review = (request.data.get('review') or '').strip()[:2000]
+        booking.save(update_fields=['client_rating', 'client_review', 'updated_at'])
+        vehicle = booking.vehicle
+        ratings = Booking.objects.filter(vehicle=vehicle, client_rating__isnull=False)
+        vehicle.rating = Decimal(str(round(ratings.aggregate(v=Avg('client_rating'))['v'] or 0, 2)))
+        vehicle.rating_count = ratings.count()
+        vehicle.save(update_fields=['rating', 'rating_count', 'updated_at'])
+        _notify(vehicle.owner, 'Nouvel avis client',
+                f'{booking.client.get_full_name()} a noté votre {vehicle} {rating}/5.')
+        return Response(self.get_serializer(booking).data)
+
     @action(detail=False, methods=['get'], url_path='owner-requests')
     def owner_requests(self, request):
         """Demandes de location en attente de réponse du propriétaire."""

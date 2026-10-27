@@ -510,8 +510,9 @@ class PaymentMethodsView(APIView):
             elif method == 'paypal' and providers.paypal_configured():
                 configured_methods.append(method)
         return Response({
-            'methods': all_methods,
+            'methods': configured_methods,
             'configured_methods': configured_methods,
+            'all_methods': all_methods,
             'booking_methods': ['wallet', *all_methods]
         })
 

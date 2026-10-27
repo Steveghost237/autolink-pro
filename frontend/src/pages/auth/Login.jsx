@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, KeyRound, MailCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
+import PublicLayout from '../../components/PublicLayout';
+import Icon from '../../components/Icon';
+import OtpInput from '../../components/OtpInput';
 import { uiText } from '../../i18n';
+
+const t = (text, options) => uiText('pages.auth.Login', text, options);
+
+const RESEND_DELAY = 60;
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,170 +21,134 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Connexion par code email (OTP) — ?otp=1 ou bouton "code par email"
+  // Connexion par code email (OTP) — ?otp=1 ou onglet « Code par email »
   const [otpMode, setOtpMode] = useState(params.get('otp') === '1');
-  const [otpStep, setOtpStep] = useState(1); // 1 = identité+email, 2 = code
+  const [otpStep, setOtpStep] = useState(1); // 1 = identité + email, 2 = code
   const [otp, setOtp] = useState({ firstName: '', lastName: '', email: '', code: '' });
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!cooldown) return undefined;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const next = params.get('next');
+  const done = (user) => navigate(next || getDashboardPath(user.role));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     const result = await login(form);
     setLoading(false);
-    if (result.success) {
-      navigate(params.get('next') || getDashboardPath(result.user.role));
-    } else {
-      setError(result.error);
-    }
+    if (result.success) done(result.user); else setError(result.error);
   };
 
   const sendCode = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e?.preventDefault();
+    setError(''); setLoading(true);
     try {
-      await authAPI.otpRequest({
-        email: otp.email.trim(),
-        first_name: otp.firstName.trim(),
-        last_name: otp.lastName.trim(),
-      });
+      await authAPI.otpRequest({ email: otp.email.trim(), first_name: otp.firstName.trim(), last_name: otp.lastName.trim() });
       setOtpStep(2);
+      setCooldown(RESEND_DELAY);
     } catch (err) {
       const d = err.response?.data;
-      setError(d ? (Object.values(d)[0]) : uiText("pages.auth.Login", "Envoi impossible — vérifiez votre connexion."));
+      setError(d ? String(Object.values(d)[0]) : t('Envoi impossible — vérifiez votre connexion.'));
     }
     setLoading(false);
   };
 
   const verifyCode = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     const result = await otpVerify(otp.email.trim(), otp.code.trim());
     setLoading(false);
-    if (result.success) {
-      navigate(params.get('next') || getDashboardPath(result.user.role));
-    } else {
-      setError(result.error);
-    }
+    if (result.success) done(result.user); else setError(result.error);
   };
 
+  const switchMode = (value) => { setOtpMode(value); setError(''); };
+  const spinner = <span className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-950 via-primary-900 to-slate-900 flex items-center justify-center px-4">
-      <div className="absolute right-4 top-4 z-10"><LanguageSwitcher /></div>
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <Car size={22} className="text-white" />
-            </div>
-            <span className="text-2xl font-black text-white">{uiText("pages.auth.Login", "Auto")}<span className="text-primary-400">{uiText("pages.auth.Login", "Link")}</span> <span className="text-accent-400 text-sm">{uiText("pages.auth.Login", "PRO")}</span></span>
-          </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">{uiText("pages.auth.Login", "Bon retour")}</h1>
-          <p className="text-primary-300">{uiText("pages.auth.Login", "Connectez-vous à votre compte")}</p>
+    <PublicLayout>
+      <div className="max-w-md mx-auto px-4 py-12 flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-surface-container-low dark:bg-slate-900 border border-outline-variant/30 font-label-sm text-label-sm">
+          <span className="flex items-center gap-1.5 text-primary"><Icon name="lock" size={16} />{t('Connexion sécurisée AutoLink Pro')}</span>
+          <span className="text-on-surface-variant">{t('Vos choix sont sauvegardés')}</span>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 mb-5 text-sm">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-
-          {otpMode ? (
-            <form onSubmit={otpStep === 1 ? sendCode : verifyCode} className="space-y-5">
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary-700 bg-primary-50 rounded-xl p-3">
-                <KeyRound size={16} />{" " + uiText("pages.auth.Login", "Connexion par code email — sans mot de passe") + " "}</div>
-              {otpStep === 1 ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="text" className="input-field" placeholder={uiText("pages.auth.Login", "Prénom")}
-                      value={otp.firstName} onChange={e => setOtp(o => ({ ...o, firstName: e.target.value }))} />
-                    <input type="text" className="input-field" placeholder={uiText("pages.auth.Login", "Nom")}
-                      value={otp.lastName} onChange={e => setOtp(o => ({ ...o, lastName: e.target.value }))} />
-                  </div>
-                  <input type="email" required autoComplete="email" className="input-field"
-                    placeholder={uiText("pages.auth.Login", "votre@gmail.com")}
-                    value={otp.email} onChange={e => setOtp(o => ({ ...o, email: e.target.value }))} />
-                  <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-                    {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><MailCheck size={16} />{" " + uiText("pages.auth.Login", "Recevoir mon code")}</>}
-                  </button>
-                  <p className="text-xs text-slate-400 text-center">{uiText("pages.auth.Login", "Un code à 6 chiffres sera envoyé sur votre email.")}</p>
-                </>
-              ) : (
-                <>
-                  <div className="text-center text-sm text-slate-600">{uiText("pages.auth.Login", "Code envoyé à") + " "}<strong>{otp.email}</strong>{' '}
-                    <button type="button" onClick={() => { setOtpStep(1); setError(''); }} className="text-primary-600 font-semibold">{uiText("pages.auth.Login", "modifier")}</button>
-                  </div>
-                  <input type="text" required inputMode="numeric" maxLength={6} autoFocus
-                    className="input-field text-center text-2xl font-black tracking-[0.5em]"
-                    placeholder={uiText("pages.auth.Login", "••••••")}
-                    value={otp.code} onChange={e => setOtp(o => ({ ...o, code: e.target.value.replace(/\D/g, '') }))} />
-                  <button type="submit" disabled={loading || otp.code.length !== 6} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
-                    {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : uiText("pages.auth.Login", "Valider et me connecter")}
-                  </button>
-                  <button type="button" onClick={sendCode} disabled={loading} className="w-full text-xs text-primary-600 font-semibold">{uiText("pages.auth.Login", "Renvoyer le code") + " "}</button>
-                </>
-              )}
-              <button type="button" onClick={() => { setOtpMode(false); setError(''); }}
-                className="w-full text-center text-xs text-slate-500 hover:text-slate-700">{uiText("pages.auth.Login", "← Retour à la connexion classique") + " "}</button>
+        <div className="card p-8 flex flex-col gap-5">
+          {otpMode && otpStep === 2 ? (
+            <form onSubmit={verifyCode} className="flex flex-col gap-5 text-center">
+              <span className="w-14 h-14 mx-auto rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center"><Icon name="mark_email_read" size={30} /></span>
+              <div>
+                <h1 className="font-headline-xl text-headline-xl-mobile text-on-surface dark:text-white">{t('Vérifiez votre email')}</h1>
+                <p className="font-body-md text-body-md text-on-surface-variant mt-1">{t('Code à 6 chiffres envoyé à')} <strong className="text-on-surface dark:text-white">{otp.email}</strong>{' '}
+                  <button type="button" onClick={() => { setOtpStep(1); setError(''); }} className="text-primary font-label-md text-label-md underline">{t('modifier')}</button>
+                </p>
+              </div>
+              <OtpInput value={otp.code} onChange={(code) => setOtp((o) => ({ ...o, code }))} />
+              {error && <p role="alert" className="rounded-xl px-4 py-3 bg-error-container text-on-error-container font-body-md text-body-md flex items-center gap-2"><Icon name="error" size={18} />{error}</p>}
+              <button type="submit" disabled={loading || otp.code.length !== 6} className="btn-primary w-full">{loading ? spinner : <>{t('Valider et me connecter')}<Icon name="arrow_forward" size={18} /></>}</button>
+              <button type="button" onClick={sendCode} disabled={loading || cooldown > 0} className="font-label-md text-label-md text-primary disabled:text-on-surface-variant">
+                {cooldown > 0 ? t('Renvoyer le code dans {{s}} s', { s: cooldown }) : t('Renvoyer le code')}
+              </button>
+              <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center justify-center gap-1"><Icon name="timer" size={16} />{t('Le code expire dans 10 minutes.')}</p>
             </form>
           ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="label">{uiText("pages.auth.Login", "Adresse email")}</label>
-              <input
-                type="email" required autoComplete="email"
-                className="input-field"
-                placeholder={uiText("pages.auth.Login", "Votre adresse électronique")}
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <label className="label mb-0">{uiText("pages.auth.Login", "Mot de passe")}</label>
-                <button type="button" className="text-xs text-primary-600 hover:underline">{uiText("pages.auth.Login", "Mot de passe oublié ?")}</button>
+            <>
+              <div className="text-center flex flex-col items-center gap-2">
+                <span className="w-12 h-12 rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center"><Icon name="lock_open" /></span>
+                <h1 className="font-headline-xl text-headline-xl-mobile md:text-headline-xl text-on-surface dark:text-white">{t('Bon retour')}</h1>
+                <p className="font-body-md text-body-md text-on-surface-variant">{t('Connectez-vous à votre espace personnel AutoLink Pro')}</p>
               </div>
-              <div className="relative">
-                <input
-                  type={showPw ? uiText("pages.auth.Login", "text") : uiText("pages.auth.Login", "password")} required autoComplete="current-password"
-                  className="input-field pr-12"
-                  placeholder={uiText("pages.auth.Login", "••••••••")}
-                  value={form.password}
-                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-container-low dark:bg-slate-900">
+                <button type="button" onClick={() => switchMode(false)} className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-label-md text-label-md ${!otpMode ? 'bg-surface-container-lowest text-primary shadow-sm dark:bg-slate-800' : 'text-on-surface-variant'}`}><Icon name="key" size={18} />{t('Mot de passe')}</button>
+                <button type="button" onClick={() => switchMode(true)} className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-label-md text-label-md ${otpMode ? 'bg-surface-container-lowest text-primary shadow-sm dark:bg-slate-800' : 'text-on-surface-variant'}`}><Icon name="sms" size={18} />{t('Code par email')}</button>
               </div>
-            </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
-              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : uiText("pages.auth.Login", "Se connecter")}
-            </button>
-          </form>
-          )}
+              <GoogleAuthButton />
+              <div className="flex items-center gap-3"><span className="flex-1 h-px bg-outline-variant/50" /><span className="font-body-sm text-body-sm text-on-surface-variant">{t('ou par identifiant')}</span><span className="flex-1 h-px bg-outline-variant/50" /></div>
 
-          {!otpMode && (
-          <>
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs text-slate-400 font-medium">{uiText("pages.auth.Login", "OU")}</span>
-              <div className="flex-1 h-px bg-slate-200" />
-            </div>
-            <GoogleAuthButton />
-            <button type="button" onClick={() => { setOtpMode(true); setError(''); }}
-              className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-primary-200 hover:border-primary-400 text-primary-700 rounded-xl py-3 font-semibold text-sm transition">
-              <KeyRound size={16} />{" " + uiText("pages.auth.Login", "Recevoir un code par email") + " "}</button>
-          </>
-          )}
+              {error && <p role="alert" className="rounded-xl px-4 py-3 bg-error-container text-on-error-container font-body-md text-body-md flex items-center gap-2"><Icon name="error" size={18} />{error}</p>}
 
-          <p className="text-center text-sm text-slate-500 mt-6">{uiText("pages.auth.Login", "Pas encore de compte ?")}{' '}
-            <Link to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-primary-600 font-semibold hover:underline">{uiText("pages.auth.Login", "S'inscrire gratuitement")}</Link>
+              {otpMode ? (
+                <form onSubmit={sendCode} className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <label><span className="label">{t('Prénom')}</span><input className="input-field" value={otp.firstName} onChange={(e) => setOtp((o) => ({ ...o, firstName: e.target.value }))} /></label>
+                    <label><span className="label">{t('Nom')}</span><input className="input-field" value={otp.lastName} onChange={(e) => setOtp((o) => ({ ...o, lastName: e.target.value }))} /></label>
+                  </div>
+                  <label><span className="label">{t('Adresse email')}</span>
+                    <span className="relative block"><Icon name="alternate_email" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                      <input type="email" required autoComplete="email" className="input-field pl-10" placeholder={t('votre@email.com')} value={otp.email} onChange={(e) => setOtp((o) => ({ ...o, email: e.target.value }))} /></span>
+                  </label>
+                  <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? spinner : <><Icon name="mark_email_unread" size={18} />{t('Recevoir mon code')}</>}</button>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant text-center">{t('Un code à 6 chiffres sera envoyé sur votre email. Aucun mot de passe nécessaire.')}</p>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <label><span className="label">{t('Adresse email')}</span>
+                    <span className="relative block"><Icon name="alternate_email" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                      <input type="email" required autoComplete="email" className="input-field pl-10" placeholder={t('Votre adresse électronique')} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></span>
+                  </label>
+                  <label>
+                    <span className="flex justify-between items-center"><span className="label">{t('Mot de passe')}</span>
+                      <button type="button" onClick={() => { setOtp((o) => ({ ...o, email: form.email })); switchMode(true); }} className="font-label-md text-label-md text-primary mb-1.5">{t('Mot de passe oublié ?')}</button></span>
+                    <span className="relative block"><Icon name="lock" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                      <input type={showPw ? 'text' : 'password'} required autoComplete="current-password" className="input-field pl-10 pr-12" placeholder="••••••••" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+                      <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant" aria-label={showPw ? t('Masquer le mot de passe') : t('Afficher le mot de passe')}><Icon name={showPw ? 'visibility_off' : 'visibility'} size={20} /></button>
+                    </span>
+                  </label>
+                  <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? spinner : <>{t('Se connecter')}<Icon name="arrow_forward" size={18} /></>}</button>
+                </form>
+              )}
+            </>
+          )}
+          <p className="text-center font-body-md text-body-md text-on-surface-variant pt-4 border-t border-outline-variant/30">{t('Pas encore de compte ?')}{' '}
+            <Link to={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-label-lg text-label-lg text-primary">{t("S'inscrire gratuitement")}</Link>
           </p>
         </div>
+        <p className="flex items-center justify-center gap-1 font-body-sm text-body-sm text-on-surface-variant"><Icon name="verified_user" size={16} />{t('Connexion chiffrée · Données protégées')}</p>
       </div>
-    </div>
+    </PublicLayout>
   );
 }

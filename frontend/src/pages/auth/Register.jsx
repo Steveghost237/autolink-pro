@@ -1,216 +1,192 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase, MailCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
-import LanguageSwitcher from '../../components/LanguageSwitcher';
+import PublicLayout from '../../components/PublicLayout';
+import Icon from '../../components/Icon';
+import OtpInput from '../../components/OtpInput';
 import { uiText } from '../../i18n';
 
+const t = (text, options) => uiText('pages.auth.Register', text, options);
+
 const ROLES = [
-  { value: 'CLIENT', label: uiText("pages.auth.Register", "Client"), desc: uiText("pages.auth.Register", "Je veux louer un véhicule"), icon: User },
-  { value: 'OWNER', label: uiText("pages.auth.Register", "Propriétaire"), desc: uiText("pages.auth.Register", "Je veux proposer mon véhicule"), icon: KeyRound },
-  { value: 'DRIVER', label: uiText("pages.auth.Register", "Chauffeur"), desc: uiText("pages.auth.Register", "Je veux conduire pour AutoLink"), icon: Briefcase },
+  { value: 'CLIENT', label: 'Je veux louer', icon: 'directions_car' },
+  { value: 'OWNER', label: 'Je veux proposer', icon: 'key' },
+  { value: 'DRIVER', label: 'Je veux conduire', icon: 'badge' },
 ];
+
+const strengthOf = (password) => {
+  let score = 0;
+  if (password.length >= 8) score += 1;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+  return score;
+};
+const STRENGTH = ['Trop faible', 'Faible', 'Moyen', 'Bon', 'Excellent'];
+const STRENGTH_COLORS = ['bg-error', 'bg-error', 'bg-tertiary-container', 'bg-primary-container', 'bg-primary'];
 
 export default function Register() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { register, otpVerify, getDashboardPath } = useAuth();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '' });
+  const initialRole = ROLES.some((r) => r.value === params.get('role')) ? params.get('role') : 'CLIENT';
+  const [step, setStep] = useState(1); // 1 = formulaire, 2 = vérification email
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: initialRole, agentCode: params.get('ref') || '' });
+  const [showReferral, setShowReferral] = useState(Boolean(params.get('ref')));
   const [code, setCode] = useState('');
   const [emailSent, setEmailSent] = useState(true);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  useEffect(() => {
+    if (!cooldown) return undefined;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
-  const handleStep1 = (e) => {
-    e.preventDefault();
-    if (!form.role) { setError(uiText("pages.auth.Register", "Veuillez choisir un rôle.")); return; }
-    setError('');
-    setStep(2);
-  };
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const next = params.get('next');
+  const strength = strengthOf(form.password);
 
   const sendCode = async () => {
     try {
       await authAPI.otpRequest({ email: form.email.trim(), first_name: form.firstName, last_name: form.lastName });
+      setCooldown(60);
       return true;
     } catch (_) { return false; }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirmPassword) { setError(uiText("pages.auth.Register", "Les mots de passe ne correspondent pas.")); return; }
-    if (form.password.length < 6) { setError(uiText("pages.auth.Register", "Le mot de passe doit contenir au moins 6 caractères.")); return; }
-    setError('');
-    setLoading(true);
-    const result = await register({ ...form, agentCode: params.get('ref') || '' });
+    if (form.password !== form.confirmPassword) { setError(t('Les mots de passe ne correspondent pas.')); return; }
+    if (form.password.length < 6) { setError(t('Le mot de passe doit contenir au moins 6 caractères.')); return; }
+    setError(''); setLoading(true);
+    const result = await register({ ...form, agentCode: form.agentCode.trim() });
     if (!result.success) { setLoading(false); setError(result.error); return; }
-    // Compte créé → on envoie le code de validation par email (étape 3)
+    // Compte créé → envoi du code de validation par email
     setEmailSent(await sendCode());
     setLoading(false);
-    setStep(3);
+    setStep(2);
   };
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    if (code.trim().length !== 6) { setError(uiText("pages.auth.Register", "Entrez le code à 6 chiffres reçu par email.")); return; }
-    setError('');
-    setLoading(true);
+    if (code.trim().length !== 6) { setError(t('Entrez le code à 6 chiffres reçu par email.')); return; }
+    setError(''); setLoading(true);
     const result = await otpVerify(form.email.trim(), code.trim());
     setLoading(false);
-    if (result.success) navigate(params.get('next') || getDashboardPath(result.user.role));
-    else setError(result.error);
+    if (result.success) navigate(next || getDashboardPath(result.user.role)); else setError(result.error);
   };
 
   const handleResend = async () => {
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     const ok = await sendCode();
     setLoading(false);
     setEmailSent(ok);
-    if (!ok) setError(uiText("pages.auth.Register", "Le code n'a pas pu être renvoyé — réessayez dans une minute."));
+    if (!ok) setError(t("Le code n'a pas pu être renvoyé — réessayez dans une minute."));
   };
 
+  const spinner = <span className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />;
+  const errorBox = error && <p role="alert" className="rounded-xl px-4 py-3 bg-error-container text-on-error-container font-body-md text-body-md flex items-center gap-2"><Icon name="error" size={18} />{error}</p>;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-950 via-primary-900 to-slate-900 flex items-center justify-center px-4 py-8">
-      <div className="absolute right-4 top-4 z-10"><LanguageSwitcher /></div>
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <Car size={22} className="text-white" />
-            </div>
-            <span className="text-2xl font-black text-white">{uiText("pages.auth.Register", "Auto")}<span className="text-primary-400">{uiText("pages.auth.Register", "Link")}</span> <span className="text-accent-400 text-sm">{uiText("pages.auth.Register", "PRO")}</span></span>
-          </Link>
-          <h1 className="text-2xl font-bold text-white mb-1">{uiText("pages.auth.Register", "Créer votre compte")}</h1>
-          <p className="text-primary-300 text-sm">{uiText("pages.auth.Register", "Étape") + " "}{step}{uiText("pages.auth.Register", "/3 —") + " "}{step === 1 ? uiText("pages.auth.Register", "Choisissez votre rôle") : step === 2 ? uiText("pages.auth.Register", "Vos informations") : uiText("pages.auth.Register", "Vérification email")}</p>
+    <PublicLayout>
+      <div className="max-w-xl mx-auto px-4 py-12 flex flex-col gap-6">
+        <div className="text-center flex flex-col items-center gap-2">
+          <span className="badge-info"><Icon name="verified" size={14} />{t('Cameroun · Douala & Yaoundé')}</span>
+          <h1 className="font-headline-xl text-headline-xl-mobile md:text-headline-xl text-on-surface dark:text-white">{step === 1 ? t('Créer un compte') : t('Vérifiez votre email')}</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant">{step === 1 ? t('Rejoignez AutoLink Pro en quelques instants') : t('Dernière étape avant d’accéder à votre espace')}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="flex gap-2 mb-6">
-            {[1, 2, 3].map(n => (
-              <div key={n} className={`flex-1 h-1.5 rounded-full transition-colors ${n <= step ? 'bg-primary-600' : 'bg-slate-200'}`} />
-            ))}
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 mb-5 text-sm">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-          {params.get('ref') && step < 3 && (
-            <p className="mb-4 rounded-lg bg-primary-50 p-3 text-sm text-primary-700">{uiText("pages.auth.Register", "Code de parrainage appliqué :") + " "}<strong>{params.get('ref')}</strong>
-            </p>
-          )}
-
-          {step === 1 ? (
-            <form onSubmit={handleStep1}>
-              <p className="text-slate-600 font-medium mb-4">{uiText("pages.auth.Register", "Je suis :")}</p>
-              <div className="space-y-3 mb-6">
-                {ROLES.map(({ value, label, desc, icon: RoleIcon }) => (
-                  <label key={value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.role === value ? 'border-primary-500 bg-primary-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <input type="radio" name="role" value={value} className="sr-only" onChange={() => set('role', value)} />
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${form.role === value ? 'bg-primary-600' : 'bg-slate-100'}`}>
-                      <RoleIcon size={18} className={form.role === value ? uiText("pages.auth.Register", "text-white") : uiText("pages.auth.Register", "text-slate-500")} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900">{label}</div>
-                      <div className="text-sm text-slate-500">{desc}</div>
-                    </div>
-                    {form.role === value && <CheckCircle size={20} className="text-primary-600" />}
-                  </label>
-                ))}
-              </div>
-              {form.role === 'DRIVER' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800">
-                  <strong>{uiText("pages.auth.Register", "Note :")}</strong>{" " + uiText("pages.auth.Register", "Les chauffeurs doivent passer par notre processus de recrutement strict. Votre demande sera examinée par notre équipe.") + " "}</div>
-              )}
-              <button type="submit" className="btn-primary w-full">{uiText("pages.auth.Register", "Continuer →")}</button>
-              <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium">{uiText("pages.auth.Register", "OU")}</span>
-                <div className="flex-1 h-px bg-slate-200" />
-              </div>
-              <GoogleAuthButton label={uiText("pages.auth.Register", "S'inscrire avec Google")} />
-            </form>
-          ) : step === 3 ? (
-            <form onSubmit={handleVerify} className="text-center">
-              <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MailCheck size={26} className="text-primary-600" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 mb-1">{uiText("pages.auth.Register", "Vérifiez votre email")}</h2>
-              <p className="text-sm text-slate-500 mb-5">
-                {emailSent
-                  ? <>{uiText("pages.auth.Register", "Un code à 6 chiffres a été envoyé à") + " "}<span className="font-semibold text-slate-700">{form.email}</span>{uiText("pages.auth.Register", ". Copiez-le ici pour activer votre compte.")}</>
-                  : <>{uiText("pages.auth.Register", "Votre compte est créé, mais l'email de validation n'a pas pu être envoyé. Vous pouvez réessayer ou vous connecter plus tard.")}</>}
-              </p>
-              <input
-                type="text" inputMode="numeric" maxLength={6} required autoFocus
-                className="input-field text-center text-2xl font-black tracking-[0.5em] mb-4"
-                placeholder={uiText("pages.auth.Register", "••••••")} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-              />
-              <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : uiText("pages.auth.Register", "Valider mon compte")}
-              </button>
-              <button type="button" onClick={handleResend} disabled={loading} className="text-sm text-primary-600 font-semibold hover:underline mt-4">{uiText("pages.auth.Register", "Renvoyer le code") + " "}</button>
-              <p className="text-xs text-slate-400 mt-3">{uiText("pages.auth.Register", "Le code expire dans 10 minutes.")}</p>
-            </form>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">{uiText("pages.auth.Register", "Prénom")}</label>
-                  <input type="text" required className="input-field" placeholder={uiText("pages.auth.Register", "Marie")} value={form.firstName} onChange={e => set('firstName', e.target.value)} />
-                </div>
-                <div>
-                  <label className="label">{uiText("pages.auth.Register", "Nom")}</label>
-                  <input type="text" required className="input-field" placeholder={uiText("pages.auth.Register", "Konan")} value={form.lastName} onChange={e => set('lastName', e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <label className="label">{uiText("pages.auth.Register", "Email")}</label>
-                <input type="email" required className="input-field" placeholder={uiText("pages.auth.Register", "Votre adresse électronique")} value={form.email} onChange={e => set('email', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">{uiText("pages.auth.Register", "Téléphone")}</label>
-                <input type="tel" required className="input-field" placeholder={uiText("pages.auth.Register", "+237 6XX XX XX XX")} value={form.phone} onChange={e => set('phone', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">{uiText("pages.auth.Register", "Mot de passe")}</label>
-                <div className="relative">
-                  <input type={showPw ? uiText("pages.auth.Register", "text") : uiText("pages.auth.Register", "password")} required className="input-field pr-12" placeholder={uiText("pages.auth.Register", "Minimum 6 caractères")} value={form.password} onChange={e => set('password', e.target.value)} />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="label">{uiText("pages.auth.Register", "Confirmer le mot de passe")}</label>
-                <input type="password" required className="input-field" placeholder={uiText("pages.auth.Register", "••••••••")} value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} />
-              </div>
-              <div className="flex items-start gap-2">
-                <input type="checkbox" required id="terms" className="mt-1 w-4 h-4 accent-primary-600" />
-                <label htmlFor="terms" className="text-sm text-slate-600">{uiText("pages.auth.Register", "J'accepte les") + " "}<a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">{uiText("pages.auth.Register", "conditions d'utilisation")}</a>{" " + uiText("pages.auth.Register", "et la") + " "}<a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">{uiText("pages.auth.Register", "politique de confidentialité")}</a>
-                </label>
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(1)} className="btn-outline flex-1 py-3">{uiText("pages.auth.Register", "← Retour")}</button>
-                <button type="submit" disabled={loading} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
-                  {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : uiText("pages.auth.Register", "Créer mon compte")}
+        {step === 1 ? (
+          <>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-container-low dark:bg-slate-900 border border-outline-variant/30">
+              {ROLES.map((role) => (
+                <button key={role.value} type="button" onClick={() => set('role', role.value)}
+                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-label-md text-label-md ${form.role === role.value ? 'bg-surface-container-lowest text-primary shadow-sm dark:bg-slate-800' : 'text-on-surface-variant'}`}>
+                  <Icon name={role.icon} size={18} />{t(role.label)}
                 </button>
+              ))}
+            </div>
+            <form onSubmit={handleSubmit} className="card p-8 flex flex-col gap-4">
+              <GoogleAuthButton label={t("S'inscrire avec Google")} />
+              <div className="flex items-center gap-3"><span className="flex-1 h-px bg-outline-variant/50" /><span className="font-body-sm text-body-sm text-on-surface-variant">{t('ou par e-mail et téléphone')}</span><span className="flex-1 h-px bg-outline-variant/50" /></div>
+              {form.role === 'DRIVER' && (
+                <p className="rounded-xl p-3 bg-tertiary-fixed text-on-tertiary-fixed-variant font-body-sm text-body-sm"><strong>{t('Note :')}</strong> {t('Les chauffeurs passent par notre processus de recrutement. Votre candidature sera examinée par notre équipe.')}</p>
+              )}
+              {form.role === 'OWNER' && (
+                <p className="rounded-xl p-3 bg-primary-fixed/30 text-on-primary-fixed-variant font-body-sm text-body-sm">{t('Après inscription, ajoutez votre véhicule depuis votre espace propriétaire : il sera inspecté avant sa mise en ligne.')}</p>
+              )}
+              {errorBox}
+              <div className="grid grid-cols-2 gap-3">
+                <label><span className="label">{t('Prénom')} *</span><input required className="input-field" placeholder={t('Emmanuel')} value={form.firstName} onChange={(e) => set('firstName', e.target.value)} /></label>
+                <label><span className="label">{t('Nom')} *</span><input required className="input-field" placeholder={t('Ndedi')} value={form.lastName} onChange={(e) => set('lastName', e.target.value)} /></label>
               </div>
+              <label><span className="label">{t('Adresse e-mail')} *</span>
+                <span className="relative block"><Icon name="mail" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                  <input type="email" required autoComplete="email" className="input-field pl-10" placeholder={t('vous@exemple.com')} value={form.email} onChange={(e) => set('email', e.target.value)} /></span>
+              </label>
+              <label>
+                <span className="flex items-center justify-between"><span className="label">{t('Numéro de téléphone')} *</span>
+                  <span className="flex gap-1 mb-1.5"><span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-900 text-[10px] font-bold">MTN MOMO</span><span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-900 text-[10px] font-bold">ORANGE MONEY</span></span>
+                </span>
+                <span className="flex gap-2"><span className="px-3 flex items-center rounded-xl bg-surface-container-low dark:bg-slate-900 font-label-md text-label-md">CM +237</span>
+                  <input type="tel" required className="input-field" placeholder="6XX XX XX XX" value={form.phone} onChange={(e) => set('phone', e.target.value)} /></span>
+              </label>
+              <label><span className="label">{t('Mot de passe')} *</span>
+                <span className="relative block"><Icon name="lock" size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                  <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" className="input-field pl-10 pr-12" placeholder={t('Au moins 8 caractères')} value={form.password} onChange={(e) => set('password', e.target.value)} />
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant" aria-label={t('Afficher le mot de passe')}><Icon name={showPw ? 'visibility_off' : 'visibility'} size={20} /></button>
+                </span>
+              </label>
+              <div>
+                <div className="grid grid-cols-4 gap-1">{[0, 1, 2, 3].map((i) => <span key={i} className={`h-1 rounded-full ${form.password && i < Math.max(1, strength) ? STRENGTH_COLORS[strength] : 'bg-surface-container-high'}`} />)}</div>
+                <div className="flex justify-between font-body-sm text-body-sm text-on-surface-variant mt-1"><span>{t('Force du mot de passe')}</span><span>{form.password ? t(STRENGTH[strength]) : '—'}</span></div>
+              </div>
+              <label><span className="label">{t('Confirmer le mot de passe')} *</span><input type="password" required autoComplete="new-password" className="input-field" placeholder="••••••••" value={form.confirmPassword} onChange={(e) => set('confirmPassword', e.target.value)} /></label>
+              <div>
+                <button type="button" onClick={() => setShowReferral(!showReferral)} className="w-full flex items-center justify-between font-label-lg text-label-lg text-primary">
+                  <span className="flex items-center gap-2"><Icon name="redeem" size={20} />{t('Vous avez un code de parrainage ?')}</span><Icon name="expand_more" className={showReferral ? 'rotate-180' : ''} />
+                </button>
+                {showReferral && <input className="input-field mt-2" placeholder={t('Ex. AGT-DOUALA-001')} value={form.agentCode} onChange={(e) => set('agentCode', e.target.value)} />}
+              </div>
+              <label className="flex items-start gap-2 font-body-sm text-body-sm text-on-surface-variant">
+                <input type="checkbox" required className="mt-0.5 w-4 h-4 accent-primary" />
+                <span>{t("J'accepte les")} <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline">{t('Conditions générales')}</a> {t('et la')} <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline">{t('Politique de confidentialité')}</a>.</span>
+              </label>
+              <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? spinner : <>{t('Créer mon compte')}<Icon name="arrow_forward" size={18} /></>}</button>
+              <p className="text-center font-body-md text-body-md text-on-surface-variant">{t('Déjà inscrit ?')}{' '}
+                <Link to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="font-label-lg text-label-lg text-primary">{t('Se connecter')}</Link>
+              </p>
             </form>
-          )}
-
-          <p className="text-center text-sm text-slate-500 mt-5">{uiText("pages.auth.Register", "Déjà un compte ?")}{' '}
-            <Link to={`/login${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`} className="text-primary-600 font-semibold hover:underline">{uiText("pages.auth.Register", "Se connecter")}</Link>
-          </p>
+          </>
+        ) : (
+          <form onSubmit={handleVerify} className="card p-8 flex flex-col gap-5 text-center">
+            <span className="w-14 h-14 mx-auto rounded-xl bg-primary-fixed/40 text-primary flex items-center justify-center"><Icon name="mark_email_read" size={30} /></span>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              {emailSent
+                ? <>{t('Un code à 6 chiffres a été envoyé à')} <strong className="text-on-surface dark:text-white">{form.email}</strong>. {t('Saisissez-le pour activer votre compte.')}</>
+                : t("Votre compte est créé, mais l'email de validation n'a pas pu être envoyé. Vous pouvez réessayer ou vous connecter plus tard.")}
+            </p>
+            <OtpInput value={code} onChange={setCode} />
+            {errorBox}
+            <button type="submit" disabled={loading || code.length !== 6} className="btn-primary w-full">{loading ? spinner : t('Valider mon compte')}</button>
+            <button type="button" onClick={handleResend} disabled={loading || cooldown > 0} className="font-label-md text-label-md text-primary disabled:text-on-surface-variant">
+              {cooldown > 0 ? t('Renvoyer le code dans {{s}} s', { s: cooldown }) : t('Renvoyer le code')}
+            </button>
+            <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center justify-center gap-1"><Icon name="timer" size={16} />{t('Le code expire dans 10 minutes.')}</p>
+            <Link to="/login" className="font-label-md text-label-md text-on-surface-variant underline">{t('Me connecter plus tard')}</Link>
+          </form>
+        )}
+        <div className="flex justify-center gap-6 font-body-sm text-body-sm text-on-surface-variant">
+          <span className="flex items-center gap-1"><Icon name="lock" size={16} />{t('Données sécurisées')}</span>
+          <span className="flex items-center gap-1"><Icon name="verified_user" size={16} />{t('Paiements certifiés')}</span>
         </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 }

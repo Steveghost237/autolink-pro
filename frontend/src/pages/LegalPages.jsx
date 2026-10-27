@@ -165,23 +165,23 @@ export default function LegalPages() {
   const page = pages[pathname] || pages['/privacy'];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-12 sm:px-6">
+    <main className="min-h-screen bg-surface-container-low dark:bg-slate-900 px-4 py-12 sm:px-6">
       <article className="mx-auto max-w-4xl rounded-2xl bg-white p-6 shadow-sm sm:p-10">
-        <Link to="/" className="text-sm font-semibold text-teal-700 hover:text-teal-800">
+        <Link to="/" className="text-sm font-semibold text-primary hover:text-primary">
           {i18n.language === 'en' ? uiText("pages.LegalPages", "← Back to home") : uiText("pages.LegalPages", "← Retour à l’accueil")}
         </Link>
-        <p className="mt-8 text-xs font-bold uppercase tracking-widest text-teal-600">{uiText("pages.LegalPages", "AutoLink Pro · Cameroun")}</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-900 sm:text-4xl">{page.title}</h1>
-        <p className="mt-5 text-slate-600 leading-relaxed">{page.intro}</p>
+        <p className="mt-8 text-xs font-bold uppercase tracking-widest text-primary">{uiText("pages.LegalPages", "AutoLink Pro · Cameroun")}</p>
+        <h1 className="mt-2 text-3xl font-black text-on-surface dark:text-white sm:text-4xl">{page.title}</h1>
+        <p className="mt-5 text-on-surface-variant leading-relaxed">{page.intro}</p>
         <div className="mt-8 space-y-7">
           {page.sections.map(section => (
             <section key={section.title}>
-              <h2 className="text-lg font-bold text-slate-900">{section.title}</h2>
-              <p className="mt-2 leading-relaxed text-slate-600">{section.text}</p>
+              <h2 className="text-lg font-bold text-on-surface dark:text-white">{section.title}</h2>
+              <p className="mt-2 leading-relaxed text-on-surface-variant">{section.text}</p>
             </section>
           ))}
         </div>
-        <p className="mt-10 border-t border-slate-100 pt-5 text-sm text-slate-400">
+        <p className="mt-10 border-t border-outline-variant/30 pt-5 text-sm text-on-surface-variant">
           {i18n.language === 'en'
             ? uiText("pages.LegalPages", "The version currently in force is the one published on this page.")
             : uiText("pages.LegalPages", "La version en vigueur est celle publiée sur cette page.")}

@@ -78,11 +78,11 @@ export default function DriverApplicationForm() {
         <form onSubmit={submit} className="card space-y-5">
           <div>
             <h2 className="text-xl font-bold">{uiText("pages.driver.DriverApplicationForm", "Candidature chauffeur")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{uiText("pages.driver.DriverApplicationForm", "Renseignez votre expérience, les vérifications effectuées et les documents à examiner.")}</p>
+            <p className="mt-1 text-sm text-on-surface-variant">{uiText("pages.driver.DriverApplicationForm", "Renseignez votre expérience, les vérifications effectuées et les documents à examiner.")}</p>
           </div>
-          {loading ? <p className="py-8 text-center text-slate-500">{uiText("pages.driver.DriverApplicationForm", "Chargement…")}</p> : (
+          {loading ? <p className="py-8 text-center text-on-surface-variant">{uiText("pages.driver.DriverApplicationForm", "Chargement…")}</p> : (
             <>
-              {application && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">{uiText("pages.driver.DriverApplicationForm", "Statut :") + " "}<strong>{application.status}</strong>{application.reviewer_notes && ` — ${application.reviewer_notes}`}</p>}
+              {application && <p className="rounded-xl bg-secondary-fixed/50 p-3 text-sm text-blue-800">{uiText("pages.driver.DriverApplicationForm", "Statut :") + " "}<strong>{application.status}</strong>{application.reviewer_notes && ` — ${application.reviewer_notes}`}</p>}
               <label className="block text-sm">{uiText("pages.driver.DriverApplicationForm", "Années d’expérience") + " "}<input className="input-field mt-1" type="number" min="0" required value={form.experience_years}
                   onChange={event => setForm(value => ({ ...value, experience_years: event.target.value }))} />
               </label>
@@ -95,7 +95,7 @@ export default function DriverApplicationForm() {
               <div className="space-y-2">
                 <h3 className="font-semibold">{uiText("pages.driver.DriverApplicationForm", "Éléments de candidature")}</h3>
                 {CHECKS.map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+                  <label key={key} className="flex items-center gap-3 rounded-lg bg-surface-container-low dark:bg-slate-900 p-3 text-sm">
                     <input type="checkbox" checked={Boolean(form[key])}
                       onChange={event => setForm(value => ({ ...value, [key]: event.target.checked }))} />
                     {label}
@@ -111,8 +111,8 @@ export default function DriverApplicationForm() {
                   </label>
                 ))}
               </div>
-              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-              {success && <p className="text-sm text-emerald-700">{success}</p>}
+              {error && <p role="alert" className="text-sm text-error">{error}</p>}
+              {success && <p className="text-sm text-primary">{success}</p>}
               <button className="btn-primary w-full" disabled={saving}>{saving ? uiText("pages.driver.DriverApplicationForm", "Enregistrement…") : uiText("pages.driver.DriverApplicationForm", "Enregistrer ma candidature")}</button>
             </>
           )}

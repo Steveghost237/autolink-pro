@@ -12,12 +12,12 @@ import { formatDate, formatTime, formatNumber,  uiText } from '../../i18n';
 const POLL_INTERVAL = 8000; // rafraîchissement toutes les 8s
 
 const STATUS_STYLE = {
-  pending:   { label: uiText("pages.admin.AdminDashboard", "Attente paiement"), cls: 'bg-amber-100 text-amber-700' },
-  confirmed: { label: uiText("pages.admin.AdminDashboard", "Confirmée"),  cls: 'bg-blue-100 text-blue-700' },
-  active:    { label: uiText("pages.admin.AdminDashboard", "En cours"),   cls: 'bg-purple-100 text-purple-700' },
-  completed: { label: uiText("pages.admin.AdminDashboard", "Terminée"),   cls: 'bg-emerald-100 text-emerald-700' },
-  cancelled: { label: uiText("pages.admin.AdminDashboard", "Annulée"),    cls: 'bg-red-100 text-red-700' },
-  disputed:  { label: uiText("pages.admin.AdminDashboard", "Litige"),     cls: 'bg-red-100 text-red-700' },
+  pending:   { label: uiText("pages.admin.AdminDashboard", "Attente paiement"), cls: 'bg-tertiary-fixed-dim/60 text-tertiary' },
+  confirmed: { label: uiText("pages.admin.AdminDashboard", "Confirmée"),  cls: 'bg-secondary-fixed text-secondary' },
+  active:    { label: uiText("pages.admin.AdminDashboard", "En cours"),   cls: 'bg-secondary-fixed text-secondary' },
+  completed: { label: uiText("pages.admin.AdminDashboard", "Terminée"),   cls: 'bg-primary-fixed/40 text-primary' },
+  cancelled: { label: uiText("pages.admin.AdminDashboard", "Annulée"),    cls: 'bg-error-container text-error' },
+  disputed:  { label: uiText("pages.admin.AdminDashboard", "Litige"),     cls: 'bg-error-container text-error' },
 };
 
 const timeAgo = (iso) => {
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Bandeau connexion temps réel */}
-        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium ${online ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+        <div className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium ${online ? 'bg-primary-fixed/30 border border-primary/40 text-primary' : 'bg-error-container/50 border border-error/30 text-error'}`}>
           <div className="flex items-center gap-2">
             {online ? <Wifi size={16} /> : <WifiOff size={16} />}
             {online
@@ -159,9 +159,9 @@ export default function AdminDashboard() {
 
         {/* Alertes — cas exceptionnels uniquement */}
         {(disputedBookings.length > 0 || pendingVehicles.length > 0) && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
-            <AlertTriangle size={20} className="text-amber-600 shrink-0" />
-            <div className="flex-1 text-sm text-amber-800">
+          <div className="bg-tertiary-fixed/50 border border-tertiary-container/40 rounded-2xl p-4 flex items-center gap-3">
+            <AlertTriangle size={20} className="text-tertiary shrink-0" />
+            <div className="flex-1 text-sm text-tertiary">
               {disputedBookings.length > 0 && <><strong>{disputedBookings.length}{" " + uiText("pages.admin.AdminDashboard", "litige(s)")}</strong>{" " + uiText("pages.admin.AdminDashboard", "à arbitrer.") + " "}</>}
               {pendingVehicles.length > 0 && <><strong>{pendingVehicles.length}{" " + uiText("pages.admin.AdminDashboard", "véhicule(s)")}</strong>{" " + uiText("pages.admin.AdminDashboard", "à vérifier avant mise en ligne.")}</>}
             </div>
@@ -171,17 +171,17 @@ export default function AdminDashboard() {
         {/* KPIs temps réel */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: Users, label: uiText("pages.admin.AdminDashboard", "Utilisateurs"), value: stats?.users ?? '—', color: 'text-blue-600 bg-blue-50' },
+            { icon: Users, label: uiText("pages.admin.AdminDashboard", "Utilisateurs"), value: stats?.users ?? '—', color: 'text-secondary bg-secondary-fixed/50' },
             { icon: Car, label: uiText("pages.admin.AdminDashboard", "Véhicules"), value: stats?.vehicles ?? '—', color: 'text-primary-600 bg-primary-50' },
-            { icon: TrendingUp, label: uiText("pages.admin.AdminDashboard", "Réservations"), value: stats?.bookings_total ?? '—', color: 'text-purple-600 bg-purple-50' },
-            { icon: DollarSign, label: uiText("pages.admin.AdminDashboard", "Commission totale"), value: stats ? `${Math.round(stats.commission_total / 1000)}K F` : '—', color: 'text-emerald-600 bg-emerald-50' },
+            { icon: TrendingUp, label: uiText("pages.admin.AdminDashboard", "Réservations"), value: stats?.bookings_total ?? '—', color: 'text-secondary bg-secondary-fixed/50' },
+            { icon: DollarSign, label: uiText("pages.admin.AdminDashboard", "Commission totale"), value: stats ? `${Math.round(stats.commission_total / 1000)}K F` : '—', color: 'text-primary bg-primary-fixed/30' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="card">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
                 <Icon size={20} />
               </div>
-              <div className="text-xl font-bold text-slate-900">{value}</div>
-              <div className="text-sm text-slate-500">{label}</div>
+              <div className="text-xl font-bold text-on-surface dark:text-white">{value}</div>
+              <div className="text-sm text-on-surface-variant">{label}</div>
             </div>
           ))}
         </div>
@@ -205,25 +205,25 @@ export default function AdminDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Litiges à arbitrer — seule action admin sur les réservations */}
           {disputedBookings.length > 0 && (
-            <div className="lg:col-span-2 card border-2 border-red-200">
-              <h3 className="font-bold text-red-700 mb-1 flex items-center gap-2">
+            <div className="lg:col-span-2 card border-2 border-error/30">
+              <h3 className="font-bold text-error mb-1 flex items-center gap-2">
                 <AlertTriangle size={18} />{" " + uiText("pages.admin.AdminDashboard", "Litiges à arbitrer") + " "}</h3>
-              <p className="text-xs text-slate-400 mb-4">{uiText("pages.admin.AdminDashboard", "La caution est gelée jusqu'à votre décision.")}</p>
+              <p className="text-xs text-on-surface-variant mb-4">{uiText("pages.admin.AdminDashboard", "La caution est gelée jusqu'à votre décision.")}</p>
               <div className="space-y-3">
                 {disputedBookings.map(b => (
-                  <div key={b.id} className="border border-red-100 bg-red-50/50 rounded-xl p-3">
-                    <p className="text-sm font-semibold text-slate-800">{uiText("pages.admin.AdminDashboard", "BK-")}{String(b.id).padStart(4, '0')}{" " + uiText("pages.admin.AdminDashboard", "—") + " "}{b.client_name}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{b.vehicle_name}
+                  <div key={b.id} className="border border-error/30 bg-error-container/50 rounded-xl p-3">
+                    <p className="text-sm font-semibold text-on-surface dark:text-white">{uiText("pages.admin.AdminDashboard", "BK-")}{String(b.id).padStart(4, '0')}{" " + uiText("pages.admin.AdminDashboard", "—") + " "}{b.client_name}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{b.vehicle_name}
                     </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-on-surface-variant mt-0.5">
                       {formatDate(b.start_date)}{" " + uiText("pages.admin.AdminDashboard", "→") + " "}{formatDate(b.end_date)}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{formatNumber(Number(b.subtotal))}{" " + uiText("pages.admin.AdminDashboard", "F bloqués") + " "}</p>
                     {b.dispute_reason && (
-                      <p className="text-xs text-red-700 mt-1 italic">{uiText("pages.admin.AdminDashboard", "«") + " "}{b.dispute_reason}{" " + uiText("pages.admin.AdminDashboard", "»")}</p>
+                      <p className="text-xs text-error mt-1 italic">{uiText("pages.admin.AdminDashboard", "«") + " "}{b.dispute_reason}{" " + uiText("pages.admin.AdminDashboard", "»")}</p>
                     )}
                     <div className="flex gap-2 mt-3">
                       <button disabled={busy === b.id} onClick={() => resolveDispute(b, 'refund')}
-                        className="text-xs font-semibold px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700">{uiText("pages.admin.AdminDashboard", "Rembourser le client") + " "}</button>
+                        className="text-xs font-semibold px-3 py-1.5 bg-error text-white rounded-lg hover:bg-error">{uiText("pages.admin.AdminDashboard", "Rembourser le client") + " "}</button>
                       <button disabled={busy === b.id} onClick={() => resolveDispute(b, 'release')}
-                        className="text-xs font-semibold px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">{uiText("pages.admin.AdminDashboard", "Payer le propriétaire") + " "}</button>
+                        className="text-xs font-semibold px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary">{uiText("pages.admin.AdminDashboard", "Payer le propriétaire") + " "}</button>
                     </div>
                   </div>
                 ))}
@@ -234,12 +234,12 @@ export default function AdminDashboard() {
           {/* Réservations en direct — supervision (lecture seule) */}
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="font-bold text-slate-900">{uiText("pages.admin.AdminDashboard", "Réservations en direct")}</h3>
-              <span className="text-xs text-slate-400">{uiText("pages.admin.AdminDashboard", "synchro auto") + " "}{POLL_INTERVAL / 1000}{uiText("pages.admin.AdminDashboard", "s")}</span>
+              <h3 className="font-bold text-on-surface dark:text-white">{uiText("pages.admin.AdminDashboard", "Réservations en direct")}</h3>
+              <span className="text-xs text-on-surface-variant">{uiText("pages.admin.AdminDashboard", "synchro auto") + " "}{POLL_INTERVAL / 1000}{uiText("pages.admin.AdminDashboard", "s")}</span>
             </div>
-            <p className="text-xs text-slate-400 mb-4">{uiText("pages.admin.AdminDashboard", "Confirmées automatiquement après paiement — supervision uniquement.")}</p>
+            <p className="text-xs text-on-surface-variant mb-4">{uiText("pages.admin.AdminDashboard", "Confirmées automatiquement après paiement — supervision uniquement.")}</p>
             {bookings.length === 0 && (
-              <p className="text-sm text-slate-400 py-8 text-center">
+              <p className="text-sm text-on-surface-variant py-8 text-center">
                 {online ? uiText("pages.admin.AdminDashboard", "Aucune réservation pour le moment.") : uiText("pages.admin.AdminDashboard", "API injoignable.")}
               </p>
             )}
@@ -247,21 +247,21 @@ export default function AdminDashboard() {
               {bookings.map(b => {
                 const st = STATUS_STYLE[b.status] || STATUS_STYLE.pending;
                 return (
-                  <div key={b.id} className="flex items-start gap-3 border border-slate-100 rounded-xl p-3">
+                  <div key={b.id} className="flex items-start gap-3 border border-outline-variant/30 rounded-xl p-3">
                     <div className="w-8 h-8 bg-primary-50 text-primary-600 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                       <Car size={14} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{uiText("pages.admin.AdminDashboard", "BK-")}{String(b.id).padStart(4, '0')}{" " + uiText("pages.admin.AdminDashboard", "—") + " "}{b.client_name || uiText("pages.admin.AdminDashboard", "Client")}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{b.vehicle_name}
+                      <p className="text-sm font-semibold text-on-surface dark:text-white truncate">{uiText("pages.admin.AdminDashboard", "BK-")}{String(b.id).padStart(4, '0')}{" " + uiText("pages.admin.AdminDashboard", "—") + " "}{b.client_name || uiText("pages.admin.AdminDashboard", "Client")}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{b.vehicle_name}
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-on-surface-variant mt-0.5">
                         {formatDate(b.start_date)}{" " + uiText("pages.admin.AdminDashboard", "→") + " "}{formatDate(b.end_date)}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{formatNumber(Number(b.subtotal))}{" " + uiText("pages.admin.AdminDashboard", "F") + " "}{b.driver_name ? ` · ${uiText("pages.admin.AdminDashboard", "Chauffeur :")} ${b.driver_name}` : ''}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{timeAgo(b.created_at)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>{st.label}</span>
                       {b.escrow_status && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-on-surface-variant">
                           {b.escrow_status === 'held' ? uiText("pages.admin.AdminDashboard", "Caution bloquée") :
                            b.escrow_status === 'released' ? uiText("pages.admin.AdminDashboard", "Propriétaire payé") :
                            b.escrow_status === 'refunded' ? uiText("pages.admin.AdminDashboard", "Client remboursé") : uiText("pages.admin.AdminDashboard", "Caution gelée")}
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
           {/* Colonne droite : validation véhicules + gestion utilisateurs */}
           <div className="space-y-4">
             <div className="card">
-              <h3 className="font-bold text-slate-900 mb-4">{uiText("pages.admin.AdminDashboard", "Véhicules à valider")}</h3>
+              <h3 className="font-bold text-on-surface dark:text-white mb-4">{uiText("pages.admin.AdminDashboard", "Véhicules à valider")}</h3>
               <ListToolbar
                 search={vehicleSearch}
                 onSearchChange={setVehicleSearch}
@@ -294,17 +294,17 @@ export default function AdminDashboard() {
                 placeholder={uiText("pages.admin.AdminDashboard", "Rechercher un véhicule")}
                 className="mb-4"
               />
-              {pendingVehicles.length === 0 && <p className="text-sm text-slate-400">{uiText("pages.admin.AdminDashboard", "Aucun en attente.")}</p>}
+              {pendingVehicles.length === 0 && <p className="text-sm text-on-surface-variant">{uiText("pages.admin.AdminDashboard", "Aucun en attente.")}</p>}
               <div className="space-y-3">
                 {pendingVehicles.map(v => (
-                  <div key={v.id} className="flex items-center justify-between border border-slate-100 rounded-xl p-3">
+                  <div key={v.id} className="flex items-center justify-between border border-outline-variant/30 rounded-xl p-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate">{v.brand} {v.model}</p>
-                      <p className="text-xs text-slate-400">{v.plate}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{v.owner_name}</p>
+                      <p className="text-xs text-on-surface-variant">{v.plate}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{v.owner_name}</p>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button onClick={() => setVehicleStatus(v, 'approved')} className="p-1.5 bg-emerald-500 text-white rounded-lg" title={uiText("pages.admin.AdminDashboard", "Approuver")}><CheckCircle2 size={14} /></button>
-                      <button onClick={() => setVehicleStatus(v, 'suspended')} className="p-1.5 bg-red-500 text-white rounded-lg" title={uiText("pages.admin.AdminDashboard", "Suspendre")}><XCircle size={14} /></button>
+                      <button onClick={() => setVehicleStatus(v, 'approved')} className="p-1.5 bg-primary text-white rounded-lg" title={uiText("pages.admin.AdminDashboard", "Approuver")}><CheckCircle2 size={14} /></button>
+                      <button onClick={() => setVehicleStatus(v, 'suspended')} className="p-1.5 bg-error text-white rounded-lg" title={uiText("pages.admin.AdminDashboard", "Suspendre")}><XCircle size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="card">
-              <h3 className="font-bold text-slate-900 mb-4">{uiText("pages.admin.AdminDashboard", "Comptes utilisateurs")}</h3>
+              <h3 className="font-bold text-on-surface dark:text-white mb-4">{uiText("pages.admin.AdminDashboard", "Comptes utilisateurs")}</h3>
               <ListToolbar
                 search={userSearch}
                 onSearchChange={setUserSearch}
@@ -331,13 +331,13 @@ export default function AdminDashboard() {
               />
               <div className="space-y-2 max-h-72 overflow-y-auto">
                 {users.map(u => (
-                  <div key={u.id} className="flex items-center justify-between border border-slate-100 rounded-xl p-2.5">
+                  <div key={u.id} className="flex items-center justify-between border border-outline-variant/30 rounded-xl p-2.5">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate">{u.first_name} {u.last_name}</p>
-                      <p className="text-xs text-slate-400 truncate">{u.email}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{u.role}</p>
+                      <p className="text-xs text-on-surface-variant truncate">{u.email}{" " + uiText("pages.admin.AdminDashboard", "·") + " "}{u.role}</p>
                     </div>
                     <button onClick={() => toggleUserActive(u)}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${u.is_active ? 'bg-primary-fixed/40 text-primary' : 'bg-error-container text-error'}`}>
                       {u.is_active ? uiText("pages.admin.AdminDashboard", "Actif") : uiText("pages.admin.AdminDashboard", "Suspendu")}
                     </button>
                   </div>

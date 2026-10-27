@@ -83,13 +83,13 @@ function ReviewApplication({ application, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
       <div className="card my-auto max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto">
         <div className="flex items-start justify-between">
-          <div><h2 className="text-xl font-bold">{application.applicant_name || application.applicant_email}</h2><p className="text-sm text-slate-500">{application.applicant_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.applicant_phone || uiText("pages.admin.DriverRecruitment", "Téléphone non renseigné")}</p></div>
+          <div><h2 className="text-xl font-bold">{application.applicant_name || application.applicant_email}</h2><p className="text-sm text-on-surface-variant">{application.applicant_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.applicant_phone || uiText("pages.admin.DriverRecruitment", "Téléphone non renseigné")}</p></div>
           <button onClick={onClose} aria-label={uiText("pages.admin.DriverRecruitment", "Fermer")}>{uiText("pages.admin.DriverRecruitment", "×")}</button>
         </div>
-        <p className="text-sm text-slate-600">{uiText("pages.admin.DriverRecruitment", "Expérience :") + " "}{form.experience_years}{" " + uiText("pages.admin.DriverRecruitment", "an(s) · Candidature du") + " "}{formatDate(new Date(application.applied_at))}{" " + uiText("pages.admin.DriverRecruitment", "· conformité") + " "}{application.compliance_score}{uiText("pages.admin.DriverRecruitment", "%")}</p>
+        <p className="text-sm text-on-surface-variant">{uiText("pages.admin.DriverRecruitment", "Expérience :") + " "}{form.experience_years}{" " + uiText("pages.admin.DriverRecruitment", "an(s) · Candidature du") + " "}{formatDate(new Date(application.applied_at))}{" " + uiText("pages.admin.DriverRecruitment", "· conformité") + " "}{application.compliance_score}{uiText("pages.admin.DriverRecruitment", "%")}</p>
         <div className="space-y-2">
           {CHECKLIST.map(([key, label]) => (
-            <label key={key} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+            <label key={key} className="flex items-center gap-3 rounded-lg bg-surface-container-low dark:bg-slate-900 p-3 text-sm">
               <input type="checkbox" checked={Boolean(form[key])} onChange={event => setForm(value => ({ ...value, [key]: event.target.checked }))} />
               {label}
             </label>
@@ -106,17 +106,17 @@ function ReviewApplication({ application, onClose, onSaved }) {
           {DOCUMENTS.map(([key, label]) => (
             <div key={key} className="flex items-center justify-between rounded-lg border p-3 text-sm">
               <span>{label}</span>
-              {application[key] ? <a className="text-primary-600 underline" href={application[key]} target="_blank" rel="noreferrer">{uiText("pages.admin.DriverRecruitment", "Consulter")}</a> : <span className="text-slate-400">{uiText("pages.admin.DriverRecruitment", "Non fourni")}</span>}
+              {application[key] ? <a className="text-primary-600 underline" href={application[key]} target="_blank" rel="noreferrer">{uiText("pages.admin.DriverRecruitment", "Consulter")}</a> : <span className="text-on-surface-variant">{uiText("pages.admin.DriverRecruitment", "Non fourni")}</span>}
             </div>
           ))}
         </div>
         <label className="block text-sm">{uiText("pages.admin.DriverRecruitment", "Notes du réviseur") + " "}<textarea rows={3} className="input-field mt-1" value={form.reviewer_notes || ''}
             onChange={event => setForm(value => ({ ...value, reviewer_notes: event.target.value }))} />
         </label>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-error">{error}</p>}
         <div className="flex flex-wrap gap-2">
           <button disabled={saving} className="btn-outline flex-1" onClick={() => save('review')}>{uiText("pages.admin.DriverRecruitment", "Enregistrer l’examen")}</button>
-          <button disabled={saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-100 px-4 py-2 font-semibold text-red-700" onClick={() => save('rejected')}><XCircle size={16} />{" " + uiText("pages.admin.DriverRecruitment", "Refuser")}</button>
+          <button disabled={saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-error-container px-4 py-2 font-semibold text-error" onClick={() => save('rejected')}><XCircle size={16} />{" " + uiText("pages.admin.DriverRecruitment", "Refuser")}</button>
           <button disabled={saving} className="btn-primary flex-1" onClick={() => save('approved')}><CheckCircle size={16} className="mr-1 inline" />{" " + uiText("pages.admin.DriverRecruitment", "Approuver")}</button>
         </div>
       </div>
@@ -176,10 +176,10 @@ export default function DriverRecruitment() {
           <button className={view === 'drivers' ? uiText("pages.admin.DriverRecruitment", "btn-primary") : uiText("pages.admin.DriverRecruitment", "btn-outline")} onClick={() => setView('drivers')}>{uiText("pages.admin.DriverRecruitment", "Chauffeurs actifs")}</button>
           <a className="btn-outline" href="/driver/application">{uiText("pages.admin.DriverRecruitment", "Formulaire candidat")}</a>
         </div>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         {view === 'applications' ? (
         <>
-        <p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.DriverRecruitment", "candidature(s)")}</p>
+        <p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.DriverRecruitment", "candidature(s)")}</p>
         <div className="card flex flex-wrap items-center gap-3">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
@@ -198,16 +198,16 @@ export default function DriverRecruitment() {
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="font-semibold">{application.applicant_name || uiText("pages.admin.DriverRecruitment", "Candidat")}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{STATUS[application.status] || application.status}</h2>
-                <p className="text-sm text-slate-500">{application.applicant_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.experience_years}{" " + uiText("pages.admin.DriverRecruitment", "an(s) d’expérience · conformité") + " "}{application.compliance_score}{uiText("pages.admin.DriverRecruitment", "%")}</p>
-                <p className="text-xs text-slate-400">{formatDate(new Date(application.applied_at))}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.applicant_phone || uiText("pages.admin.DriverRecruitment", "Téléphone non renseigné")}</p>
+                <p className="text-sm text-on-surface-variant">{application.applicant_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.experience_years}{" " + uiText("pages.admin.DriverRecruitment", "an(s) d’expérience · conformité") + " "}{application.compliance_score}{uiText("pages.admin.DriverRecruitment", "%")}</p>
+                <p className="text-xs text-on-surface-variant">{formatDate(new Date(application.applied_at))}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{application.applicant_phone || uiText("pages.admin.DriverRecruitment", "Téléphone non renseigné")}</p>
               </div>
               <div className="flex gap-2">
-                {DOCUMENTS.some(([key]) => application[key]) && <FileText size={18} className="text-slate-500" aria-label={uiText("pages.admin.DriverRecruitment", "Documents joints")} />}
+                {DOCUMENTS.some(([key]) => application[key]) && <FileText size={18} className="text-on-surface-variant" aria-label={uiText("pages.admin.DriverRecruitment", "Documents joints")} />}
                 <button className="btn-primary flex items-center gap-2" onClick={() => setSelected(application)}><UserCheck size={16} />{" " + uiText("pages.admin.DriverRecruitment", "Examiner")}</button>
               </div>
             </article>
           ))}
-          {applications.length === 0 && <div className="card py-14 text-center text-slate-500">{uiText("pages.admin.DriverRecruitment", "Aucune candidature à afficher.")}</div>}
+          {applications.length === 0 && <div className="card py-14 text-center text-on-surface-variant">{uiText("pages.admin.DriverRecruitment", "Aucune candidature à afficher.")}</div>}
         </div>
         <div className="flex items-center justify-between text-sm">
           <span>{uiText("pages.admin.DriverRecruitment", "Page") + " "}{page}{" " + uiText("pages.admin.DriverRecruitment", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
@@ -219,7 +219,7 @@ export default function DriverRecruitment() {
         </>
         ) : (
         <section className="space-y-4">
-          <p className="text-sm text-slate-500">{driverCount}{" " + uiText("pages.admin.DriverRecruitment", "chauffeur(s)")}</p>
+          <p className="text-sm text-on-surface-variant">{driverCount}{" " + uiText("pages.admin.DriverRecruitment", "chauffeur(s)")}</p>
           <div className="card">
             <ListToolbar search={driverSearch} onSearchChange={value => { setDriverSearch(value); setDriverPage(1); }}
               sortField={driverSortField} onSortFieldChange={value => { setDriverSortField(value); setDriverPage(1); }}
@@ -237,13 +237,13 @@ export default function DriverRecruitment() {
               <article key={profile.id} className="card flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="font-semibold">{profile.driver_name || profile.driver_email}</h2>
-                  <p className="text-sm text-slate-500">{profile.driver_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{profile.total_trips}{" " + uiText("pages.admin.DriverRecruitment", "course(s) ·") + " "}{Number(profile.rating).toFixed(1)}{" " + uiText("pages.admin.DriverRecruitment", "/ 5")}</p>
-                  <p className="text-xs text-slate-500">{profile.assigned_vehicle ? uiText("pages.admin.DriverRecruitment", "Véhicule #{{id}}", { id: profile.assigned_vehicle }) : uiText("pages.admin.DriverRecruitment", "Aucun véhicule attribué")}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{profile.is_online ? uiText("pages.admin.DriverRecruitment", "En ligne") : uiText("pages.admin.DriverRecruitment", "Hors ligne")}</p>
+                  <p className="text-sm text-on-surface-variant">{profile.driver_email}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{profile.total_trips}{" " + uiText("pages.admin.DriverRecruitment", "course(s) ·") + " "}{Number(profile.rating).toFixed(1)}{" " + uiText("pages.admin.DriverRecruitment", "/ 5")}</p>
+                  <p className="text-xs text-on-surface-variant">{profile.assigned_vehicle ? uiText("pages.admin.DriverRecruitment", "Véhicule #{{id}}", { id: profile.assigned_vehicle }) : uiText("pages.admin.DriverRecruitment", "Aucun véhicule attribué")}{" " + uiText("pages.admin.DriverRecruitment", "·") + " "}{profile.is_online ? uiText("pages.admin.DriverRecruitment", "En ligne") : uiText("pages.admin.DriverRecruitment", "Hors ligne")}</p>
                 </div>
-                <div className="text-right"><div className="font-semibold">{formatNumber(Number(profile.total_earned))}{" " + uiText("pages.admin.DriverRecruitment", "FCFA")}</div><div className="text-xs text-slate-500">{uiText("pages.admin.DriverRecruitment", "Gains enregistrés")}</div></div>
+                <div className="text-right"><div className="font-semibold">{formatNumber(Number(profile.total_earned))}{" " + uiText("pages.admin.DriverRecruitment", "FCFA")}</div><div className="text-xs text-on-surface-variant">{uiText("pages.admin.DriverRecruitment", "Gains enregistrés")}</div></div>
               </article>
             ))}
-            {drivers.length === 0 && <div className="card py-14 text-center text-slate-500">{uiText("pages.admin.DriverRecruitment", "Aucun profil chauffeur à afficher.")}</div>}
+            {drivers.length === 0 && <div className="card py-14 text-center text-on-surface-variant">{uiText("pages.admin.DriverRecruitment", "Aucun profil chauffeur à afficher.")}</div>}
           </div>
           <div className="flex items-center justify-between text-sm">
             <span>{uiText("pages.admin.DriverRecruitment", "Page") + " "}{driverPage}{" " + uiText("pages.admin.DriverRecruitment", "/") + " "}{Math.max(1, Math.ceil(driverCount / 20))}</span>

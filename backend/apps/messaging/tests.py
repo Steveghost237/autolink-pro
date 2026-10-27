@@ -105,6 +105,18 @@ class OwnerRequestTests(APITestCase):
         r = self.client.post(f'/api/bookings/{self.booking.pk}/owner-accept/')
         self.assertEqual(r.status_code, 404)
 
+    def test_client_rates_completed_booking_once(self):
+        self.client.post(f'/api/bookings/{self.booking.pk}/rate/', {'rating': 5})
+        self.booking.refresh_from_db()
+        self.assertIsNone(self.booking.client_rating)
+        Booking.objects.filter(pk=self.booking.pk).update(status='completed')
+        r = self.client.post(f'/api/bookings/{self.booking.pk}/rate/', {'rating': 4, 'review': 'Très bien'})
+        self.assertEqual(r.status_code, 200, r.data)
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.rating, Decimal('4.00'))
+        self.assertEqual(self.vehicle.rating_count, 1)
+        self.assertEqual(self.client.post(f'/api/bookings/{self.booking.pk}/rate/', {'rating': 5}).status_code, 400)
+
     def test_owner_stats(self):
         self.client.force_authenticate(self.owner)
         r = self.client.get('/api/bookings/owner-stats/')

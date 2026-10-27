@@ -29,6 +29,7 @@ class VehicleFilter(django_filters.FilterSet):
     max_rate = django_filters.NumberFilter(field_name='daily_rate', lookup_expr='lte')
     brand = django_filters.CharFilter(field_name='brand', lookup_expr='iexact')
     model = django_filters.CharFilter(field_name='model', lookup_expr='iexact')
+    city = django_filters.CharFilter(field_name='city', lookup_expr='iexact')
 
     class Meta:
         model = Vehicle

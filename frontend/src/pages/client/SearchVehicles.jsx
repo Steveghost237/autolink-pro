@@ -1,99 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Star, CheckCircle, X, Car, Filter, ChevronRight, AlertCircle, Timer, Navigation, Calendar, Clock, Loader, Heart } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
-import { RENTAL_TYPES, SPECIFIC_CARS, getVehicleImage } from '../../utils/carImages';
-import { vehiclesAPI, bookingsAPI, paymentsAPI } from '../../services/api';
+import Icon from '../../components/Icon';
+import VehicleCard from '../../components/VehicleCard';
+import TopUpModal from '../../components/TopUpModal';
+import { RENTAL_TYPES, TIERS } from '../../utils/carImages';
+import { vehicleImage, vehicleName, vehicleRate, TIER_BADGES } from '../../utils/vehicles';
+import { vehiclesAPI, bookingsAPI, paymentsAPI, walletAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { TIERS } from '../../utils/carImages';
-import { formatNumber, uiText, vehicleLabel } from '../../i18n';
+import useFavorites from '../../utils/useFavorites';
+import { formatDate, formatNumber, uiText, vehicleLabel } from '../../i18n';
 
-const TIER_STYLE = {
-  basic:      { cls: 'bg-slate-600' },
-  standard:   { cls: 'bg-blue-600' },
-  premium:    { cls: 'bg-purple-600' },
-  gold:       { cls: 'bg-amber-500' },
-  collection: { cls: 'bg-rose-700' },
-};
+const t = (text, options) => uiText('pages.client.SearchVehicles', text, options);
 
-// Mappe un véhicule API vers le format affiché par les cartes
-const mapApiVehicle = (v) => {
-  const model = (v.model || '').toLowerCase();
-  // Photo réelle du modèle (Wikimedia) en priorité, sinon illustration par catégorie
-    let image = v.image_url || v.photos?.find(photo => photo.kind === 'image')?.image || getVehicleImage(v.category);
-  if (!v.image_url) {
-    if (model.includes('corolla')) image = SPECIFIC_CARS.corolla;
-    else if (model.includes('tucson')) image = SPECIFIC_CARS.tucson;
-    else if (model.includes('serie') || model.includes('série')) image = SPECIFIC_CARS.bmw5;
-    else if (model.includes('gle')) image = SPECIFIC_CARS.mercedesGLE;
-    else if (model.includes('sportage')) image = SPECIFIC_CARS.sportage;
-    else if (model.includes('evoque')) image = SPECIFIC_CARS.rangeRover;
-    else if (model.includes('sprinter')) image = SPECIFIC_CARS.sprinter;
-    else if (model.includes('hiace')) image = SPECIFIC_CARS.hiace;
-  }
-  return {
-    id: v.id,
-    name: `${v.brand} ${v.model} ${v.year}`,
-    category: v.category,
-    tier: v.tier || 'standard',
-    image,
-    price: Number(v.daily_rate || v.computed_rate),
-    kmIncluded: v.km_included_per_day || 200, kmRate: v.extra_km_rate || 150,
-    deposit: Number(v.deposit_amount) || 0,
-    city: v.city || 'Douala',
-    rating: Number(v.rating) || 0,
-    reviews: v.rating_count || 0,
-    available: v.status === 'approved',
-    plate: v.plate, seats: v.seats, fuel: v.fuel, year: v.year,
-    gestionnaire: v.owner_name || 'AutoLink',
-    score: v.condition_score,
-    fromApi: true,
-  };
-};
-
-const CATEGORIES = ['Tous', 'Berline', 'SUV', 'Van', 'Minibus', 'Luxe'];
+// Véhicule API → données utilisées par le tunnel de réservation
+const mapApiVehicle = (v) => ({
+  ...v,
+  name: vehicleName(v),
+  image: vehicleImage(v),
+  price: vehicleRate(v),
+  tier: v.tier || 'standard',
+  kmIncluded: v.km_included_per_day || 200,
+  kmRate: v.extra_km_rate || 150,
+  deposit: Number(v.deposit_amount) || 0,
+  city: v.city || 'Douala',
+  rating: Number(v.rating) || 0,
+  available: v.status === 'approved',
+});
 
 const PAYMENT_METHODS = [
-  { value: 'wallet', label: uiText("pages.client.SearchVehicles", "Solde AutoLink"),  color: 'bg-emerald-500', border: 'border-emerald-500' },
-  { value: 'mtn',    label: uiText("pages.client.SearchVehicles", "MTN MoMo"),        color: 'bg-yellow-400', border: 'border-yellow-400' },
-  { value: 'orange', label: uiText("pages.client.SearchVehicles", "Orange Money"),    color: 'bg-orange-500', border: 'border-orange-500' },
-  { value: 'paypal', label: uiText("pages.client.SearchVehicles", "PayPal"),          color: 'bg-blue-700', border: 'border-blue-700' },
-  { value: 'stripe', label: uiText("pages.client.SearchVehicles", "Carte (Stripe)"),  color: 'bg-purple-500', border: 'border-purple-500' },
+  { value: 'wallet', label: 'Portefeuille AutoLink', detail: 'Débit immédiat de votre solde', tile: 'bg-primary text-on-primary', icon: 'account_balance_wallet' },
+  { value: 'mtn', label: 'MTN Mobile Money', detail: 'Validation par push USSD', tile: 'bg-yellow-400 text-yellow-950', short: 'MoMo' },
+  { value: 'orange', label: 'Orange Money', detail: 'Paiement Web Orange', tile: 'bg-orange-500 text-white', short: 'OM' },
+  { value: 'stripe', label: 'Carte bancaire (Stripe)', detail: 'Visa / Mastercard 3-D Secure', tile: 'bg-secondary text-on-secondary', icon: 'credit_card' },
+  { value: 'paypal', label: 'PayPal', detail: 'Compte PayPal', tile: 'bg-blue-700 text-white', short: 'PP' },
 ];
 
 const DRIVER_OPTIONS = [
-  { value: 'none',     label: uiText("pages.client.SearchVehicles", "Sans chauffeur"),        sub: 'Vous conduisez' },
-  { value: 'internal', label: uiText("pages.client.SearchVehicles", "Chauffeur AutoLink"),    sub: uiText("pages.client.SearchVehicles", "Assigné automatiquement") },
-  { value: 'owner',    label: uiText("pages.client.SearchVehicles", "Chauffeur du proprio"),  sub: 'Fourni avec la voiture' },
+  { value: 'none', label: 'Sans chauffeur', sub: 'Vous conduisez vous-même', icon: 'person' },
+  { value: 'internal', label: 'Chauffeur AutoLink', sub: 'Assigné automatiquement', icon: 'badge' },
+  { value: 'owner', label: 'Chauffeur du propriétaire', sub: 'Fourni avec le véhicule', icon: 'key' },
 ];
 
-function BookingModal({ vehicle, onClose }) {
+const chargeDiscount = (days) => (days >= 30 ? 10 : days > 3 ? 5 : 0);
+const chargedAmount = (rate, days) => Math.round(rate * days * (100 - chargeDiscount(days)) / 100);
+
+const STEP_LABELS = ['Documents & options', 'Paiement', 'Confirmation'];
+
+function BookingFunnel({ vehicle, onClose }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const query = new URLSearchParams(window.location.search);
+  const requestedType = query.get('type');
+  const requestedDays = Number(query.get('days')) || 4;
   const [step, setStep] = useState(1);
-  const requestedType = new URLSearchParams(window.location.search).get('type');
-  const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
-  const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find(item => item.id === requestedType) || RENTAL_TYPES[2]);
-  const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, driverType: 'none', paymentMethod: 'wallet', phone: '' });
+  const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find((item) => item.id === requestedType) || RENTAL_TYPES[2]);
+  const [form, setForm] = useState({
+    date: query.get('start') || '', time: '08:00', pickup: '', destination: '', days: Math.max(2, requestedDays),
+    driverType: 'none', paymentMethod: 'wallet', phone: user?.phone || '',
+  });
   const [configuredMethods, setConfiguredMethods] = useState(['wallet']);
-  const [allMethods, setAllMethods] = useState(['wallet']);
-  useEffect(() => { paymentsAPI.methods().then(({ data }) => {
-    setConfiguredMethods(data.booking_methods || ['wallet']);
-    setAllMethods(data.booking_methods || ['wallet']);
-  }).catch(() => {}); }, []);
+  const [balance, setBalance] = useState(null);
+  const [showTopUp, setShowTopUp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [booking, setBooking] = useState(null);
+
+  const loadBalance = () => walletAPI.get().then(({ data }) => setBalance(Number(data.balance))).catch(() => {});
+  useEffect(() => {
+    paymentsAPI.methods().then(({ data }) => {
+      // booking_methods liste tous les moyens ; seuls le portefeuille et les moyens configurés sont activables
+      setConfiguredMethods(['wallet', ...(data.configured_methods || [])]);
+    }).catch(() => {});
+    loadBalance();
+  }, []);
+
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  // Montant réellement débité par le serveur (Booking.save) : tarif × jours, remise -5 % dès 4 j, -10 % dès 30 j.
+  const days = rentalType.id === 'long_haul' ? form.days : 1;
+  const discount = chargeDiscount(days);
+  const basePrice = chargedAmount(vehicle.price, days);
+  const deposit = vehicle.deposit || 0;
+  const total = basePrice + deposit;
+  const isWallet = form.paymentMethod === 'wallet';
+  const missing = isWallet && balance !== null ? Math.max(0, total - balance) : 0;
+  const needsPhone = form.paymentMethod === 'mtn' || form.paymentMethod === 'orange';
+  const endDate = () => {
+    const end = new Date(form.date);
+    end.setDate(end.getDate() + (rentalType.id === 'long_haul' ? form.days : 1));
+    return end.toISOString().split('T')[0];
+  };
 
   const submitBooking = async () => {
     setSubmitting(true);
     setApiError(null);
     try {
-      const end = new Date(form.date);
-      end.setDate(end.getDate() + (rentalType.id === 'long_haul' ? form.days : 1));
       const res = await bookingsAPI.create({
         vehicle: vehicle.id,
         start_date: form.date,
-        end_date: end.toISOString().split('T')[0],
+        end_date: endDate(),
         pickup_address: form.pickup,
         dropoff_address: form.destination,
         driver_type: form.driverType,
@@ -101,524 +109,404 @@ function BookingModal({ vehicle, onClose }) {
         phone: form.phone,
         notes: `Type: ${rentalType.label} | Heure: ${form.time} | Tel: ${form.phone}`,
       });
-      // Stripe / PayPal : la réservation reste en attente — on redirige vers
-      // la page de paiement sécurisée ; confirmation au retour vérifié.
+      setBooking(res.data);
+      // Stripe / PayPal / Orange : redirection vers la page de paiement sécurisée ; confirmation au retour vérifié.
       if (res.data?.payment_url) {
         window.location.href = res.data.payment_url;
         return;
       }
       if (form.paymentMethod === 'mtn' && res.data?.payment_reference) {
-        setApiError(uiText("pages.client.SearchVehicles", "Validez le paiement sur votre téléphone"));
+        setApiError(t('Validez le paiement sur votre téléphone'));
         for (let attempt = 0; attempt < 36; attempt += 1) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
           const { data } = await paymentsAPI.bookingStatus(res.data.payment_reference);
           if (data.status === 'completed') {
-            setSaved(true);
-            setStep(3);
-            setApiError(null);
-            setSubmitting(false);
+            setSaved(true); setStep(3); setApiError(null); setSubmitting(false);
             return;
           }
           if (data.status === 'failed') {
-            setApiError(uiText("pages.client.SearchVehicles", "Le paiement a échoué."));
+            setApiError(t('Le paiement a échoué.'));
             setSubmitting(false);
             return;
           }
         }
-        setApiError(uiText("pages.client.SearchVehicles", "Le paiement est toujours en attente. Vérifiez votre téléphone."));
+        setApiError(t('Le paiement est toujours en attente. Vérifiez votre téléphone.'));
         setSubmitting(false);
         return;
       }
       setSaved(res.data?.status === 'confirmed');
       setStep(3);
     } catch (err) {
-      if (err.response?.status === 401) {
-        setApiError(uiText("pages.client.SearchVehicles", "Session expirée — reconnectez-vous."));
-      } else if (!err.response) {
-        setApiError(uiText("pages.client.SearchVehicles", "Serveur injoignable — vérifiez votre connexion puis réessayez."));
-      } else {
+      if (err.response?.status === 401) setApiError(t('Session expirée — reconnectez-vous.'));
+      else if (!err.response) setApiError(t('Serveur injoignable — vérifiez votre connexion puis réessayez.'));
+      else {
         const data = err.response?.data;
-        setApiError(uiText("pages.client.SearchVehicles", data?.payment || data?.vehicle || data?.driver_type || 'Erreur lors de la réservation — réessayez.'));
+        const message = data?.payment || data?.vehicle || data?.driver_type || data?.detail || data?.phone || data?.start_date;
+        setApiError(Array.isArray(message) ? message[0] : (message || t('Erreur lors de la réservation — réessayez.')));
       }
     }
     setSubmitting(false);
   };
 
-  const computePrice = () => {
-    let base = 0;
-    if (rentalType.id === 'urban_3h')  base = Math.max(vehicle.price * 0.15, rentalType.minPrice);
-    else if (rentalType.id === 'urban_8h')  base = Math.max(vehicle.price * 0.30, rentalType.minPrice);
-    else if (rentalType.id === 'urban_day') base = vehicle.price;
-    else if (rentalType.id === 'intercity') base = Math.max(vehicle.price * 1.5, rentalType.minPrice);
-    else base = vehicle.price * form.days;
-    return Math.round(base);
-  };
-
-  const basePrice   = computePrice();
-  const kmIncluded  = vehicle.kmIncluded || rentalType.kmIncluded;
-  const deposit     = vehicle.deposit || 0;
-
-  if (step === 3) return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
-        <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
-          <CheckCircle size={40} className="text-emerald-500" />
+  const summary = (
+    <aside className="card flex flex-col gap-4 lg:sticky lg:top-6">
+      <div className="flex items-center justify-between"><h3 className="font-headline-md text-headline-md text-on-surface dark:text-white">{t('Récapitulatif financier')}</h3><span className="badge-info">{t('Tarif vérifié')}</span></div>
+      <div className="flex gap-3 p-3 rounded-xl bg-surface-container-low dark:bg-slate-900">
+        <img src={vehicle.image} alt="" className="w-24 h-20 rounded-lg object-cover" />
+        <div className="min-w-0">
+          <span className={`px-2 py-0.5 rounded font-label-sm text-label-sm ${TIER_BADGES[vehicle.tier]}`}>{vehicleLabel(vehicle.tier_label || vehicle.tier, 'tier')}</span>
+          <div className="font-headline-sm text-headline-sm text-on-surface dark:text-white truncate mt-1">{vehicle.name}</div>
+          <div className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1"><Icon name="schedule" size={14} />{t(rentalType.label)}{form.date && ` · ${formatDate(form.date)} ${form.time}`}</div>
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-          {saved ? uiText("pages.client.SearchVehicles", "Réservation confirmée") : uiText("pages.client.SearchVehicles", "Réservation enregistrée")}
-        </h3>
-        <p className="text-slate-500 dark:text-slate-400 mb-1">{vehicle.name}{" " + uiText("pages.client.SearchVehicles", "—") + " "}{rentalType.label}</p>
-        <p className="text-slate-500 dark:text-slate-400 mb-1 text-sm">{uiText("pages.client.SearchVehicles", "Prise en charge :") + " "}{form.pickup || uiText("pages.client.SearchVehicles", "Non précisé")}</p>
-        {form.driverType === 'internal' && <p className="text-xs text-blue-600 font-medium">{uiText("pages.client.SearchVehicles", "Un chauffeur AutoLink vous sera assigné automatiquement.")}</p>}
-        {form.driverType === 'owner' && <p className="text-xs text-blue-600 font-medium">{uiText("pages.client.SearchVehicles", "Le propriétaire se présentera avec son chauffeur.")}</p>}
-        <p className="text-xl font-black text-primary-600 my-3">{formatNumber(basePrice)}{" " + uiText("pages.client.SearchVehicles", "FCFA")}</p>
-        {saved ? (
-          <p className="text-xs text-emerald-600 font-medium mb-6">{uiText("pages.client.SearchVehicles", "Paiement reçu — réservation confirmée automatiquement. Le propriétaire a été notifié. Retrouvez-la dans « Mes réservations ».") + " "}</p>
-        ) : (
-          <p className="text-xs text-slate-400 mb-6">{uiText("pages.client.SearchVehicles", "Enregistrée — en attente de confirmation du paiement.")}</p>
-        )}
-        <button onClick={onClose} className="btn-primary w-full">{uiText("pages.client.SearchVehicles", "Retour au catalogue")}</button>
       </div>
-    </div>
+      <dl className="flex flex-col gap-2 font-body-md text-body-md">
+        <div className="flex justify-between"><dt>{t('Location ({{rate}} F × {{days}} j)', { rate: formatNumber(vehicle.price), days })}</dt><dd className="font-label-lg text-label-lg">{formatNumber(vehicle.price * days)} FCFA</dd></div>
+        {discount > 0 && <div className="flex justify-between text-primary"><dt>{t('Remise longue durée ({{p}} %)', { p: discount })}</dt><dd>−{formatNumber(vehicle.price * days - basePrice)} FCFA</dd></div>}
+        <div className="flex justify-between text-on-surface-variant"><dt>{t(DRIVER_OPTIONS.find((d) => d.value === form.driverType).label)}</dt><dd>{t('Inclus')}</dd></div>
+        <div className="flex justify-between text-on-surface-variant"><dt>{t('Km inclus')}</dt><dd>{rentalType.kmIncluded} km · {formatNumber(vehicle.kmRate)} F/km sup.</dd></div>
+      </dl>
+      <div className="rounded-xl bg-surface-container-low dark:bg-slate-900 p-4 flex flex-col gap-2">
+        <div className="flex justify-between items-center"><span className="font-label-lg text-label-lg uppercase">{t('Sous-total location')}</span><span className="font-headline-lg text-headline-lg text-on-surface dark:text-white">{formatNumber(basePrice)} FCFA</span></div>
+        {deposit > 0 && <div className="flex justify-between font-body-sm text-body-sm text-on-surface-variant"><span className="flex items-center gap-1"><Icon name="shield" size={16} />{t('Caution sous séquestre (restituée)')}</span><span>{formatNumber(deposit)} FCFA</span></div>}
+        <div className="flex justify-between pt-2 border-t border-outline-variant/40"><span className="font-label-lg text-label-lg">{t('Total débité')}</span><span className="font-headline-md text-headline-md text-primary">{formatNumber(total)} FCFA</span></div>
+      </div>
+      {isWallet && balance !== null && (
+        <div className={`rounded-xl p-4 flex flex-col gap-1 font-body-sm text-body-sm ${missing ? 'bg-error-container/60' : 'bg-primary-fixed/30'}`}>
+          <div className="flex justify-between"><span>{t('Solde actuel de votre portefeuille')}</span><strong>{formatNumber(balance)} FCFA</strong></div>
+          <div className="flex justify-between"><span>{t('Montant à débiter')}</span><strong>{formatNumber(total)} FCFA</strong></div>
+          <div className={`flex justify-between font-headline-sm text-headline-sm mt-1 ${missing ? 'text-error' : 'text-primary'}`}>
+            <span className="flex items-center gap-1"><Icon name={missing ? 'error' : 'check_circle'} size={20} />{missing ? t('Déficit à combler') : t('Solde suffisant')}</span>
+            <span>{missing ? `−${formatNumber(missing)}` : formatNumber(balance - total)} FCFA</span>
+          </div>
+        </div>
+      )}
+      <p className="flex items-start gap-2 font-body-sm text-body-sm text-on-surface-variant"><Icon name="event_busy" size={18} />{t('Annulation gratuite avant le début : location et caution intégralement recréditées.')}</p>
+    </aside>
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl my-auto">
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-700">
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white">{vehicle.name}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{vehicleLabel(vehicle.category, 'category')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicleLabel(vehicle.fuel, 'fuel')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{vehicle.seats}{" " + uiText("pages.client.SearchVehicles", "places")}</p>
+    <div className="fixed inset-0 z-50 bg-surface dark:bg-slate-950 overflow-y-auto" role="dialog" aria-modal="true">
+      <header className="sticky top-0 z-10 bg-surface-container-lowest/95 dark:bg-slate-900/95 backdrop-blur shadow-sm">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <button onClick={onClose} className="flex items-center gap-1 font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface"><Icon name="arrow_back" />{t('Retour au véhicule')}</button>
+          <span className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low dark:bg-slate-800 font-label-md text-label-md"><Icon name="verified_user" size={18} className="text-primary" />{t('Tunnel de réservation 100 % sécurisé')}</span>
+          {balance !== null && <span className="flex items-center gap-2 pl-3 pr-1 py-1 rounded-full bg-surface-container-low dark:bg-slate-800 font-label-lg text-label-lg"><Icon name="account_balance_wallet" size={18} className="text-primary" />{formatNumber(balance)} FCFA
+            <button onClick={() => setShowTopUp(true)} className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center" title={t('Recharger')}><Icon name="add" size={16} /></button></span>}
+        </div>
+        <div className="bg-surface-container-low dark:bg-slate-900">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 overflow-x-auto">
+            {STEP_LABELS.map((label, index) => {
+              const number = index + 1;
+              const done = step > number;
+              const current = step === number;
+              const warn = current && number === 2 && missing > 0;
+              return (
+                <React.Fragment key={label}>
+                  {index > 0 && <Icon name="chevron_right" size={18} className="text-outline shrink-0" />}
+                  <span className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full font-label-md text-label-md ${warn ? 'bg-error-container text-error' : current ? 'bg-primary-fixed/40 text-primary' : done ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] ${done ? 'bg-primary text-on-primary' : warn ? 'bg-error text-on-error' : current ? 'bg-primary text-on-primary' : 'bg-surface-container-high'}`}>{done ? <Icon name="check" size={16} /> : number}</span>
+                    {number}. {t(label)}{warn && <Icon name="warning" size={16} />}
+                  </span>
+                </React.Fragment>
+              );
+            })}
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={20} /></button>
         </div>
+      </header>
 
-        {/* Steps indicator */}
-        <div className="flex items-center px-5 py-3 gap-2 border-b border-slate-100 dark:border-slate-700">
-          {[uiText("pages.client.SearchVehicles", "Type & date"), uiText("pages.client.SearchVehicles", "Détails"), uiText("pages.client.SearchVehicles", "Paiement")].map((s, i) => (
-            <React.Fragment key={i}>
-              <div className={`flex items-center gap-1.5 text-xs font-semibold ${step === i+1 ? 'text-primary-600' : step > i+1 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${step === i+1 ? 'bg-primary-600 text-white' : step > i+1 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{step > i+1 ? uiText("pages.client.SearchVehicles", "✓") : i+1}</div>
-                {s}
-              </div>
-              {i < 2 && <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600" />}
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="p-5 space-y-5">
-          {/* Step 1: Type de location + date */}
-          {step === 1 && (
-            <>
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-8">
+        {step === 3 ? (
+          <div className="max-w-2xl mx-auto card text-center flex flex-col items-center gap-4 py-10">
+            <span className={`w-20 h-20 rounded-full flex items-center justify-center ${saved ? 'bg-primary-fixed/40 text-primary' : 'bg-tertiary-fixed text-tertiary'}`}><Icon name={saved ? 'check_circle' : 'hourglass_top'} size={48} fill={saved} /></span>
+            <span className="overline text-primary">{t('Étape 3 sur 3')}</span>
+            <h2 className="page-title">{saved ? t('Réservation confirmée') : t('Réservation enregistrée')}</h2>
+            <p className="page-subtitle">{vehicle.name} — {t(rentalType.label)}{booking?.id ? ` · BK-${String(booking.id).padStart(4, '0')}` : ''}</p>
+            <dl className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+              <div className="p-3 rounded-xl bg-surface-container-low dark:bg-slate-900"><dt className="overline">{t('Prise en charge')}</dt><dd className="font-label-lg text-label-lg">{formatDate(form.date)} · {form.time}</dd></div>
+              <div className="p-3 rounded-xl bg-surface-container-low dark:bg-slate-900"><dt className="overline">{t('Lieu')}</dt><dd className="font-label-lg text-label-lg">{form.pickup || t('Non précisé')}</dd></div>
+              <div className="p-3 rounded-xl bg-surface-container-low dark:bg-slate-900"><dt className="overline">{t('Montant')}</dt><dd className="font-label-lg text-label-lg text-primary">{formatNumber(booking?.subtotal || basePrice)} FCFA</dd></div>
+            </dl>
+            {form.driverType === 'internal' && <p className="font-body-md text-body-md text-secondary">{t('Un chauffeur AutoLink vous sera assigné automatiquement.')}</p>}
+            {form.driverType === 'owner' && <p className="font-body-md text-body-md text-secondary">{t('Le propriétaire se présentera avec son chauffeur.')}</p>}
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              {saved ? t('Paiement reçu — la caution est bloquée sous séquestre et le propriétaire a été notifié. Il doit encore accepter votre demande.') : t('Enregistrée — en attente de confirmation du paiement.')}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
+              {booking?.id && <button onClick={() => navigate(`/client/bookings/${booking.id}`)} className="btn-primary"><Icon name="receipt_long" size={18} />{t('Voir ma réservation')}</button>}
+              {booking?.id && <button onClick={() => navigate(`/messages?booking=${booking.id}`)} className="btn-secondary"><Icon name="chat" size={18} />{t('Écrire au propriétaire')}</button>}
+              <button onClick={onClose} className="btn-secondary">{t('Retour au catalogue')}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+            <div className="flex flex-col gap-6">
               <div>
-                <label className="label">{uiText("pages.client.SearchVehicles", "Type de location")}</label>
-                <div className="grid grid-cols-1 gap-2">
-                  {RENTAL_TYPES.map(rt => (
-                    <label key={rt.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${rentalType.id === rt.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600 hover:border-primary-200'}`}>
-                      <input type="radio" name="rental" className="sr-only" onChange={() => setRentalType(rt)} />
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${rentalType.id === rt.id ? 'bg-primary-600' : 'bg-slate-100 dark:bg-slate-700'}`}>
-                        {rt.id === 'urban_3h' ? <Timer size={15} className={rentalType.id === rt.id ? uiText("pages.client.SearchVehicles", "text-white") : uiText("pages.client.SearchVehicles", "text-slate-500")} /> :
-                         rt.id === 'intercity' ? <Navigation size={15} className={rentalType.id === rt.id ? uiText("pages.client.SearchVehicles", "text-white") : uiText("pages.client.SearchVehicles", "text-slate-500")} /> :
-                         rt.id === 'long_haul' ? <Calendar size={15} className={rentalType.id === rt.id ? uiText("pages.client.SearchVehicles", "text-white") : uiText("pages.client.SearchVehicles", "text-slate-500")} /> :
-                         <Clock size={15} className={rentalType.id === rt.id ? uiText("pages.client.SearchVehicles", "text-white") : uiText("pages.client.SearchVehicles", "text-slate-500")} />}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-slate-900 dark:text-white">{rt.label}</span>
-                          <span className="text-xs font-bold text-primary-600">
-                            {rt.id === 'long_haul' ? `${formatNumber(vehicle.price)} ${uiText("pages.client.SearchVehicles", "FCFA/jour")}` :
-                             rt.id === 'urban_3h' ? `${uiText("pages.client.SearchVehicles", "Dès")} ${formatNumber(Math.max(Math.round(vehicle.price*0.15), rt.minPrice))} FCFA` :
-                             rt.id === 'urban_8h' ? `${uiText("pages.client.SearchVehicles", "Dès")} ${formatNumber(Math.max(Math.round(vehicle.price*0.30), rt.minPrice))} FCFA` :
-                             rt.id === 'intercity' ? `${uiText("pages.client.SearchVehicles", "Dès")} ${formatNumber(Math.max(Math.round(vehicle.price*1.5), rt.minPrice))} FCFA` :
-                             `${formatNumber(vehicle.price)} FCFA`}
-                          </span>
+                <span className="overline">{t('Étape {{n}} sur 3', { n: step })}</span>
+                <h2 className="page-title mt-1">{step === 1 ? t('Détails et options de votre location') : t('Paiement sécurisé de votre réservation')}</h2>
+              </div>
+
+              {step === 1 ? (
+                <>
+                  <section className="card flex flex-col gap-4">
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface dark:text-white">{t('Formule de location')}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {RENTAL_TYPES.map((rt) => (
+                        <button type="button" key={rt.id} onClick={() => setRentalType(rt)}
+                          className={`p-3 rounded-xl border text-left transition-all ${rentalType.id === rt.id ? 'border-primary ring-1 ring-primary bg-primary-fixed/10' : 'border-outline-variant/40 hover:bg-surface-container-low dark:border-slate-700'}`}>
+                          <span className="flex justify-between font-label-lg text-label-lg text-on-surface dark:text-white">{t(rt.label)}<span className="text-primary">{rt.id === 'long_haul' ? t('{{n}} F/jour', { n: formatNumber(vehicle.price) }) : `${formatNumber(vehicle.price)} F`}</span></span>
+                          <span className="block font-body-sm text-body-sm text-on-surface-variant">{t(rt.description)} · {rt.kmIncluded} km</span>
+                        </button>
+                      ))}
+                    </div>
+                    {rentalType.id === 'long_haul' && (
+                      <label><span className="label">{t('Nombre de jours')}</span><input type="number" min={2} max={30} className="input-field" value={form.days} onChange={(e) => set('days', Math.max(2, Number(e.target.value)))} /></label>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <label><span className="label">{t('Date de départ')}</span><input type="date" className="input-field" min={new Date().toISOString().split('T')[0]} value={form.date} onChange={(e) => set('date', e.target.value)} /></label>
+                      <label><span className="label">{t('Heure')}</span><input type="time" className="input-field" value={form.time} onChange={(e) => set('time', e.target.value)} /></label>
+                    </div>
+                    {form.date && <p className="font-body-sm text-body-sm text-on-surface-variant">{t('Restitution prévue le {{date}}', { date: formatDate(endDate()) })}</p>}
+                  </section>
+                  <section className="card flex flex-col gap-4">
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface dark:text-white">{t('Lieux & chauffeur')}</h3>
+                    <label><span className="label">{t('Adresse de prise en charge')}</span><input className="input-field" placeholder={t('Ex : Bonanjo, Douala')} value={form.pickup} onChange={(e) => set('pickup', e.target.value)} /></label>
+                    {(rentalType.id === 'intercity' || rentalType.id === 'long_haul') && (
+                      <label><span className="label">{t('Destination')}</span><input className="input-field" placeholder={t('Ex : Yaoundé Centre')} value={form.destination} onChange={(e) => set('destination', e.target.value)} /></label>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {DRIVER_OPTIONS.filter((opt) => opt.value !== 'owner' || vehicle.driver_available !== false).map((opt) => (
+                        <button type="button" key={opt.value} onClick={() => set('driverType', opt.value)}
+                          className={`p-3 rounded-xl border text-left ${form.driverType === opt.value ? 'border-primary ring-1 ring-primary bg-primary-fixed/10' : 'border-outline-variant/40 dark:border-slate-700'}`}>
+                          <Icon name={opt.icon} className="text-primary" />
+                          <span className="block font-label-lg text-label-lg text-on-surface dark:text-white">{t(opt.label)}</span>
+                          <span className="block font-body-sm text-body-sm text-on-surface-variant">{t(opt.sub)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                  {user?.kyc_status !== 'approved' && form.driverType === 'none' && (
+                    <div className="rounded-xl p-4 bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start justify-between gap-3">
+                      <span className="flex gap-2 font-body-md text-body-md"><Icon name="badge" />{t('Vous conduisez vous-même : votre permis de conduire sera vérifié à la prise en charge. Déposez-le dès maintenant pour gagner du temps.')}</span>
+                      <Link to="/profile" className="shrink-0 font-label-md text-label-md underline">{t('Mes documents')}</Link>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={onClose} className="btn-secondary">{t('Annuler')}</button>
+                    <button onClick={() => setStep(2)} disabled={!form.date} className="btn-primary flex-1">{t('Continuer vers le paiement')}<Icon name="arrow_forward" size={18} /></button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {isWallet && missing > 0 && (
+                    <section className="rounded-xl p-5 bg-error-container text-on-error-container shadow-sm flex flex-col gap-4">
+                      <div className="flex items-start gap-3">
+                        <span className="w-11 h-11 rounded-full bg-error text-on-error flex items-center justify-center shrink-0"><Icon name="account_balance_wallet" /></span>
+                        <div>
+                          <h3 className="font-headline-md text-headline-md text-error flex flex-wrap items-center gap-2">{t('Solde insuffisant pour confirmer la réservation')}<span className="px-2 py-0.5 rounded bg-error text-on-error font-label-sm text-label-sm uppercase">{t('Recharge requise')}</span></h3>
+                          <p className="font-body-md text-body-md">{t('Votre solde disponible est de {{b}} FCFA. Le montant de cette réservation est de {{t}} FCFA.', { b: formatNumber(balance), t: formatNumber(total) })}</p>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{rt.description}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{rt.kmIncluded}{" " + uiText("pages.client.SearchVehicles", "km inclus")}</p>
                       </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {rentalType.id === 'long_haul' && (
-                <div>
-                  <label className="label">{uiText("pages.client.SearchVehicles", "Nombre de jours")}</label>
-                  <input type="number" className="input-field" min={2} max={30} value={form.days}
-                    onChange={e => setForm(f => ({ ...f, days: Math.max(2, Number(e.target.value)) }))} />
-                </div>
+                      <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-surface-container-lowest dark:bg-slate-800 text-on-surface dark:text-white">
+                        <div><div className="font-body-sm text-body-sm">{t('Solde actuel')}</div><div className="font-headline-sm text-headline-sm">{formatNumber(balance)} FCFA</div></div>
+                        <div><div className="font-body-sm text-body-sm">{t('Total réservation')}</div><div className="font-headline-sm text-headline-sm">{formatNumber(total)} FCFA</div></div>
+                        <div className="rounded-lg bg-error-container px-2"><div className="font-body-sm text-body-sm text-error">{t('Manquant')}</div><div className="font-headline-md text-headline-md text-error">{formatNumber(missing)} FCFA</div></div>
+                      </div>
+                      <button onClick={() => setShowTopUp(true)} className="w-full flex items-center justify-between gap-3 p-4 rounded-xl bg-primary text-on-primary">
+                        <span className="flex items-center gap-3"><Icon name="bolt" /><span className="text-left"><span className="block font-label-lg text-label-lg">{t('Recharger le montant manquant')}</span><span className="block font-body-sm text-body-sm opacity-80">{t('Ou choisissez un autre moyen de paiement ci-dessous')}</span></span></span>
+                        <span className="font-headline-md text-headline-md">+{formatNumber(missing)} FCFA</span>
+                      </button>
+                    </section>
+                  )}
+                  {isWallet && balance !== null && !missing && (
+                    <div className="rounded-xl p-4 bg-primary-fixed/30 text-on-primary-fixed-variant flex items-center gap-2 font-label-lg text-label-lg"><Icon name="check_circle" fill />{t('Solde suffisant : {{b}} FCFA disponibles, il restera {{r}} FCFA après paiement.', { b: formatNumber(balance), r: formatNumber(balance - total) })}</div>
+                  )}
+                  <section className="card flex flex-col gap-3">
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface dark:text-white">{t('Choisissez votre moyen de paiement')}</h3>
+                    {PAYMENT_METHODS.map((pm) => {
+                      const enabled = configuredMethods.includes(pm.value);
+                      const selected = form.paymentMethod === pm.value;
+                      return (
+                        <button type="button" key={pm.value} disabled={!enabled} onClick={() => set('paymentMethod', pm.value)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border text-left ${selected ? 'border-primary ring-1 ring-primary bg-primary-fixed/10' : 'border-outline-variant/40 bg-surface-container-low dark:bg-slate-900 dark:border-slate-700'} ${enabled ? '' : 'opacity-50 cursor-not-allowed'}`}>
+                          <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selected ? 'border-primary' : 'border-outline'}`}>{selected && <span className="w-2 h-2 rounded-full bg-primary" />}</span>
+                          <span className={`w-10 h-10 rounded-lg flex items-center justify-center font-label-sm text-label-sm font-black ${pm.tile}`}>{pm.icon ? <Icon name={pm.icon} size={20} /> : pm.short}</span>
+                          <span className="flex-1"><span className="block font-label-lg text-label-lg text-on-surface dark:text-white">{t(pm.label)}</span><span className="block font-body-sm text-body-sm text-on-surface-variant">{pm.value === 'wallet' && balance !== null ? t('Solde : {{b}} FCFA', { b: formatNumber(balance) }) : enabled ? t(pm.detail) : t('Non configuré')}</span></span>
+                        </button>
+                      );
+                    })}
+                    {needsPhone && (
+                      <label><span className="label">{t('Numéro de téléphone pour le paiement')}</span><input type="tel" className="input-field" placeholder="+237 6XX XX XX XX" value={form.phone} onChange={(e) => set('phone', e.target.value)} /></label>
+                    )}
+                    {apiError && <p role="alert" className={`rounded-xl px-4 py-3 font-body-md text-body-md flex items-center gap-2 ${submitting ? 'bg-secondary-fixed text-on-secondary-fixed-variant' : 'bg-error-container text-on-error-container'}`}><Icon name={submitting ? 'hourglass_top' : 'error'} size={18} />{apiError}</p>}
+                    <div className="flex gap-3 mt-2">
+                      <button onClick={() => setStep(1)} disabled={submitting} className="btn-secondary"><Icon name="arrow_back" size={18} />{t('Retour')}</button>
+                      <button onClick={submitBooking} disabled={submitting || (needsPhone && !form.phone) || !configuredMethods.includes(form.paymentMethod) || (isWallet && missing > 0)} className="btn-primary flex-1">
+                        {submitting ? <span className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin" /> : <Icon name="lock" size={18} />}
+                        {submitting ? t('Traitement en cours…') : t('Confirmer et payer {{n}} FCFA', { n: formatNumber(total) })}
+                      </button>
+                    </div>
+                    {needsPhone && <p className="font-body-sm text-body-sm text-on-surface-variant text-center">{t('Une demande de paiement apparaîtra sur votre téléphone : validez-la avec votre code secret.')}</p>}
+                  </section>
+                </>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">{uiText("pages.client.SearchVehicles", "Date de départ")}</label>
-                  <input type="date" className="input-field" value={form.date} min={new Date().toISOString().split('T')[0]}
-                    onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">{uiText("pages.client.SearchVehicles", "Heure")}</label>
-                  <input type="time" className="input-field" value={form.time}
-                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Step 2: Adresses + options */}
-          {step === 2 && (
-            <>
-              <div>
-                <label className="label">{uiText("pages.client.SearchVehicles", "Adresse de prise en charge")}</label>
-                <input type="text" className="input-field" placeholder={uiText("pages.client.SearchVehicles", "Ex: Bonanjo, Douala")}
-                  value={form.pickup} onChange={e => setForm(f => ({ ...f, pickup: e.target.value }))} />
-              </div>
-              {(rentalType.id === 'intercity' || rentalType.id === 'long_haul') && (
-                <div>
-                  <label className="label">{uiText("pages.client.SearchVehicles", "Destination")}</label>
-                  <input type="text" className="input-field" placeholder={uiText("pages.client.SearchVehicles", "Ex: Yaoundé Centre")}
-                    value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} />
-                </div>
-              )}
-              <div>
-                <label className="label">{uiText("pages.client.SearchVehicles", "Option chauffeur")}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {DRIVER_OPTIONS.map(opt => (
-                    <label key={opt.value} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${form.driverType === opt.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
-                      <input type="radio" className="sr-only" onChange={() => setForm(f => ({ ...f, driverType: opt.value }))} />
-                      <div className="font-semibold text-sm text-slate-900 dark:text-white">{opt.label}</div>
-                      <div className="text-xs text-slate-500">{opt.sub}</div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
-                <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">{uiText("pages.client.SearchVehicles", "Forfait kilométrique inclus")}</p>
-                <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-400">
-                  <span>{uiText("pages.client.SearchVehicles", "Km inclus :") + " "}{rentalType.kmIncluded}{" " + uiText("pages.client.SearchVehicles", "km")}</span>
-                  <span>{uiText("pages.client.SearchVehicles", "Au-delà :") + " "}{formatNumber(vehicle.kmRate)}{" " + uiText("pages.client.SearchVehicles", "F/km")}</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Step 3: Récapitulatif + paiement */}
-          {step === 2 && (
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2 text-sm mt-2">
-              <div className="font-semibold text-slate-800 dark:text-white mb-2">{uiText("pages.client.SearchVehicles", "Récapitulatif")}</div>
-              <div className="flex justify-between"><span className="text-slate-500">{uiText("pages.client.SearchVehicles", "Type")}</span><span className="font-medium">{rentalType.label}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">{uiText("pages.client.SearchVehicles", "Date")}</span><span className="font-medium">{form.date || uiText("pages.client.SearchVehicles", "—")}{" " + uiText("pages.client.SearchVehicles", "à") + " "}{form.time}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">{uiText("pages.client.SearchVehicles", "Prise en charge")}</span><span className="font-medium">{form.pickup || uiText("pages.client.SearchVehicles", "—")}</span></div>
-              <div className="flex justify-between text-slate-500"><span>{uiText("pages.client.SearchVehicles", "Km inclus")}</span><span>{kmIncluded}{" " + uiText("pages.client.SearchVehicles", "km ·") + " "}{formatNumber(vehicle.kmRate)}{" " + uiText("pages.client.SearchVehicles", "F/km supp.")}</span></div>
-              <div className="flex justify-between text-slate-500"><span>{uiText("pages.client.SearchVehicles", "Location")}</span><span className="font-medium">{formatNumber(basePrice)}{" " + uiText("pages.client.SearchVehicles", "F")}</span></div>
-              {deposit > 0 && <div className="flex justify-between text-amber-700 dark:text-amber-400"><span>{uiText("pages.client.SearchVehicles", "Caution (restituée au retour)")}</span><span className="font-medium">{uiText("pages.client.SearchVehicles", "+")}{formatNumber(deposit)}{" " + uiText("pages.client.SearchVehicles", "F")}</span></div>}
-              <div className="flex justify-between font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-600 pt-2 mt-2 text-base">
-                <span>{uiText("pages.client.SearchVehicles", "Total à débiter")}</span><span className="text-primary-600">{formatNumber(basePrice + deposit)}{" " + uiText("pages.client.SearchVehicles", "FCFA")}</span>
-              </div>
             </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-700">
-          {step < 2 ? (
-            <div className="flex gap-3">
-              <button onClick={onClose} className="btn-outline flex-1 py-3">{uiText("pages.client.SearchVehicles", "Annuler")}</button>
-              <button onClick={() => setStep(2)} disabled={!form.date}
-                className="btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2">{uiText("pages.client.SearchVehicles", "Suivant") + " "}<ChevronRight size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="label">{uiText("pages.client.SearchVehicles", "Numéro de téléphone pour le paiement")}</label>
-                <input type="tel" className="input-field" placeholder={uiText("pages.client.SearchVehicles", "+237 6XX XX XX XX")}
-                  value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {PAYMENT_METHODS.map(pm => (
-                  <label key={pm.value} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === pm.value ? `${pm.border} bg-slate-50 dark:bg-slate-700` : 'border-slate-200 dark:border-slate-600'} ${!configuredMethods.includes(pm.value) && pm.value !== 'wallet' ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <input type="radio" name="payment" className="sr-only" onChange={() => configuredMethods.includes(pm.value) || pm.value === 'wallet' ? setForm(f => ({ ...f, paymentMethod: pm.value })) : null} disabled={!configuredMethods.includes(pm.value) && pm.value !== 'wallet'} />
-                    <div className={`w-7 h-7 ${pm.color} rounded-lg`} />
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center leading-snug">{pm.label}</span>
-                    {!configuredMethods.includes(pm.value) && pm.value !== 'wallet' && <span className="text-[10px] text-slate-400">{uiText("pages.client.SearchVehicles", "Bientôt")}</span>}
-                  </label>
-                ))}
-              </div>
-              {apiError && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-                  <AlertCircle size={16} /> {apiError}
-                </div>
-              )}
-              {!configuredMethods.includes(form.paymentMethod) && form.paymentMethod !== 'wallet' && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
-                  <AlertCircle size={16} /> {uiText("pages.client.SearchVehicles", "Ce moyen de paiement n'est pas encore configuré. Veuillez en choisir un autre.")}
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button onClick={() => setStep(1)} className="btn-outline px-5 py-3">{uiText("pages.client.SearchVehicles", "Retour")}</button>
-                <button onClick={submitBooking} disabled={!form.phone || submitting || !configuredMethods.includes(form.paymentMethod) && form.paymentMethod !== 'wallet'}
-                  className="btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2 font-bold">
-                  {submitting && <Loader size={16} className="animate-spin" />}
-                  {submitting ? uiText("pages.client.SearchVehicles", "Envoi en cours...") : `${uiText("pages.client.SearchVehicles", "Confirmer et payer —")} ${formatNumber(basePrice)} FCFA`}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            {summary}
+          </div>
+        )}
       </div>
+      {showTopUp && <TopUpModal initialAmount={Math.max(500, Math.ceil((missing || 25000) / 500) * 500)} onClose={() => { setShowTopUp(false); loadBalance(); }} onDone={loadBalance} />}
     </div>
   );
 }
 
 export default function SearchVehicles() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const [search, setSearch]           = useState('');
-  const [sortField, setSortField]     = useState('name');
-  const [sortOrder, setSortOrder]     = useState('asc');
-  const [category, setCategory]       = useState('Tous');
-  const [maxPrice, setMaxPrice]       = useState(200000);
-  const [onlyAvailable, setOnly]      = useState(true);
+  const favorites = useFavorites();
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState('rating');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [category, setCategory] = useState('');
+  const [maxPrice, setMaxPrice] = useState(200000);
+  const [onlyAvailable, setOnly] = useState(true);
   const [selectedVehicle, setSelected] = useState(null);
-  const [selectedType, setType]       = useState('');
-  const [selectedTier, setTier]       = useState('');
-  const [availabilityStart, setAvailabilityStart] = useState('');
+  const [selectedType, setType] = useState('');
+  const [selectedTier, setTier] = useState('');
+  const [availabilityStart, setAvailabilityStart] = useState(() => new URLSearchParams(window.location.search).get('start') || '');
   const [availabilityEnd, setAvailabilityEnd] = useState('');
-  const [vehicles, setVehicles]       = useState([]);
-  const [offline, setOffline]         = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [offline, setOffline] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [facets, setFacets] = useState({ brands: [], models: {}, categories: [], fuels: [], max_rate: 200000 });
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [fuel, setFuel] = useState('');
-  const [favoriteIds, setFavoriteIds] = useState([]);
 
   useEffect(() => {
-    if (isAuthenticated) vehiclesAPI.favorites().then(({ data }) => setFavoriteIds(data.map(item => item.id))).catch(() => {});
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    vehiclesAPI.facets().then(({ data }) => {
-      setFacets(data);
-      setMaxPrice(data.max_rate || 200000);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get('type');
-    if (t) setType(t);
+    vehiclesAPI.facets().then(({ data }) => { setFacets(data); setMaxPrice(Number(data.max_rate) || 200000); }).catch(() => {});
+    const type = new URLSearchParams(window.location.search).get('type');
+    if (type) setType(type);
   }, []);
 
   useEffect(() => {
     let mounted = true;
+    setLoadingList(true);
     vehiclesAPI.getAll({
-      ...(onlyAvailable ? {
-        available: 1,
-        ...(availabilityStart ? { start: availabilityStart } : {}),
-        ...(availabilityEnd ? { end: availabilityEnd } : {}),
-      } : {}),
+      status: 'approved', page_size: 200,
+      ...(onlyAvailable ? { available: 1, ...(availabilityStart ? { start: availabilityStart } : {}), ...(availabilityEnd ? { end: availabilityEnd } : {}) } : {}),
     })
-      .then(res => {
+      .then((res) => {
         if (!mounted) return;
         const list = (res.data.results || res.data || []).map(mapApiVehicle);
         setVehicles(list);
+        setOffline(false);
         const selectedId = Number(new URLSearchParams(window.location.search).get('vehicle'));
         if (selectedId) {
-          const vehicle = list.find(item => item.id === selectedId);
+          const vehicle = list.find((item) => item.id === selectedId);
           if (vehicle) setSelected(vehicle);
+          else vehiclesAPI.detail(selectedId).then(({ data }) => mounted && setSelected(mapApiVehicle(data))).catch(() => {});
         }
         setLoadingList(false);
       })
-      .catch(() => { setOffline(true); setLoadingList(false); });
+      .catch(() => { if (mounted) { setOffline(true); setLoadingList(false); } });
     return () => { mounted = false; };
   }, [onlyAvailable, availabilityStart, availabilityEnd]);
 
-  const filtered = vehicles.filter(v =>
-    (category === 'Tous' || v.category === category) &&
-    (!brand || v.name.toLowerCase().startsWith(brand.toLowerCase())) &&
-    (!model || v.name.toLowerCase().includes(model.toLowerCase())) &&
-    (!fuel || v.fuel === fuel) &&
-    (selectedTier === '' || v.tier === selectedTier) &&
-    v.price <= maxPrice &&
-    (!onlyAvailable || v.available) &&
-    (v.name.toLowerCase().includes(search.toLowerCase()) ||
-      v.category.toLowerCase().includes(search.toLowerCase()) ||
-      v.city.toLowerCase().includes(search.toLowerCase()))
-  ).sort((a, b) => {
-    const left = a[sortField];
-    const right = b[sortField];
-    const comparison = typeof left === 'string'
-      ? left.localeCompare(right || '', 'fr')
-      : Number(left || 0) - Number(right || 0);
+  const filtered = vehicles.filter((v) => {
+    const query = search.toLowerCase();
+    return (!category || v.category === category)
+      && (!brand || v.brand === brand)
+      && (!model || v.model === model)
+      && (!fuel || v.fuel === fuel)
+      && (!selectedTier || v.tier === selectedTier)
+      && v.price <= maxPrice
+      && (!onlyAvailable || v.available)
+      && (!query || [v.name, v.category, v.city, v.plate].some((value) => String(value || '').toLowerCase().includes(query)));
+  }).sort((a, b) => {
+    const left = sortField === 'name' ? a.name : a[sortField];
+    const right = sortField === 'name' ? b.name : b[sortField];
+    const comparison = typeof left === 'string' ? left.localeCompare(right || '', 'fr') : Number(left || 0) - Number(right || 0);
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
-  const toggleFavorite = async (id) => {
-    if (!isAuthenticated) return navigate(`/login?next=${encodeURIComponent(`/vehicles/${id}`)}`);
-    if (favoriteIds.includes(id)) {
-      await vehiclesAPI.removeFavorite(id);
-      setFavoriteIds(ids => ids.filter(item => item !== id));
-    } else {
-      await vehiclesAPI.addFavorite(id);
-      setFavoriteIds(ids => [...ids, id]);
-    }
+  const closeFunnel = () => {
+    setSelected(null);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('vehicle')) { params.delete('vehicle'); navigate({ search: params.toString() }, { replace: true }); }
   };
 
+  const maxRate = Math.max(15000, Number(facets.max_rate) || 200000);
+
   return (
-    <DashboardLayout title={uiText("pages.client.SearchVehicles", "Catalogue de véhicules")}>
-      <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* Rental type selector */}
-        <div>
-          <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">{uiText("pages.client.SearchVehicles", "Filtrer par type de location")}</p>
-          <div className="flex flex-wrap gap-2">
-            {[{ id: '', label: uiText("pages.client.SearchVehicles", "Tous les types") }, ...RENTAL_TYPES].map(rt => (
-              <button key={rt.id} onClick={() => setType(rt.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${selectedType === rt.id ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-primary-400'}`}>
-                {rt.label}
-              </button>
-            ))}
-          </div>
+    <DashboardLayout title={t('Catalogue de véhicules')} subtitle={t('Choisissez votre véhicule, votre formule et réservez en quelques clics.')}>
+      <div className="flex flex-col gap-6">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+          {[{ id: '', label: 'Toutes les formules' }, ...RENTAL_TYPES].map((rt) => (
+            <button key={rt.id} onClick={() => setType(rt.id)}
+              className={`shrink-0 px-4 py-2 rounded-full font-label-md text-label-md ${selectedType === rt.id ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface-variant border border-outline-variant/40 dark:bg-slate-800 dark:text-slate-300'}`}>{t(rt.label)}</button>
+          ))}
         </div>
 
-        {/* Tier selector */}
-        <div>
-          <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">{uiText("pages.client.SearchVehicles", "Gamme du véhicule")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[{ id: '', label: uiText("pages.client.SearchVehicles", "Toutes les gammes"), desc: uiText("pages.client.SearchVehicles", "Économique à Super Luxe") }, ...TIERS].map(t => (
-              <button key={t.id} onClick={() => setTier(t.id)}
-                className={`p-3 rounded-xl border-2 text-left transition-all ${selectedTier === t.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-primary-200'}`}>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">{t.id ? vehicleLabel(t.id, 'tier') : t.label}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</div>
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {[{ id: '', label: 'Toutes les gammes', desc: 'Économique à Super Luxe' }, ...TIERS].map((tier) => (
+            <button key={tier.id} onClick={() => setTier(tier.id)}
+              className={`p-3 rounded-xl border text-left ${selectedTier === tier.id ? 'border-primary ring-1 ring-primary bg-primary-fixed/10' : 'border-outline-variant/40 bg-surface-container-lowest dark:bg-slate-800 dark:border-slate-700'}`}>
+              <div className="font-label-lg text-label-lg text-on-surface dark:text-white">{tier.id ? vehicleLabel(tier.id, 'tier') : t(tier.label)}</div>
+              <div className="font-body-sm text-body-sm text-on-surface-variant">{t(tier.desc)}</div>
+            </button>
+          ))}
         </div>
 
-        {/* Search & filters */}
-        <div className="card">
+        <div className="card flex flex-col gap-4">
           <div className="flex flex-wrap gap-4 items-center">
-            <ListToolbar
-              className="min-w-64 flex-1"
-              search={search}
-              onSearchChange={setSearch}
-              sortField={sortField}
-              onSortFieldChange={setSortField}
-              sortOrder={sortOrder}
-              onSortOrderChange={setSortOrder}
-              sortOptions={[
-                { value: 'name', label: uiText("pages.client.SearchVehicles", "Nom") },
-                { value: 'price', label: uiText("pages.client.SearchVehicles", "Prix") },
-                { value: 'year', label: uiText("pages.client.SearchVehicles", "Année") },
-                { value: 'rating', label: uiText("pages.client.SearchVehicles", "Note") },
-              ]}
-              placeholder={uiText("pages.client.SearchVehicles", "Rechercher un véhicule, une marque…")}
-            />
+            <ListToolbar className="min-w-64 flex-1" search={search} onSearchChange={setSearch}
+              sortField={sortField} onSortFieldChange={setSortField} sortOrder={sortOrder} onSortOrderChange={setSortOrder}
+              sortOptions={[{ value: 'name', label: t('Nom') }, { value: 'price', label: t('Prix') }, { value: 'year', label: t('Année') }, { value: 'rating', label: t('Note') }]}
+              placeholder={t('Rechercher un véhicule, une marque…')} />
             <div className="flex items-center gap-2">
-              <Filter size={15} className="text-slate-400" />
-              <span className="text-sm text-slate-600 dark:text-slate-400">{uiText("pages.client.SearchVehicles", "Prix max :")}</span>
-              <input type="range" min={15000} max={Math.max(15000, Number(facets.max_rate) || 200000)} step={5000} value={Math.min(maxPrice, Math.max(15000, Number(facets.max_rate) || 200000))}
-                onChange={e => setMaxPrice(Number(e.target.value))} className="w-28 accent-primary-600" />
-              <span className="text-sm font-bold text-primary-600 whitespace-nowrap">{formatNumber(maxPrice)}{" " + uiText("pages.client.SearchVehicles", "F")}</span>
+              <span className="font-body-sm text-body-sm text-on-surface-variant">{t('Prix max :')}</span>
+              <input type="range" min={15000} max={maxRate} step={5000} value={Math.min(maxPrice, maxRate)} onChange={(e) => setMaxPrice(Number(e.target.value))} className="w-32 accent-primary" />
+              <span className="font-label-lg text-label-lg text-primary whitespace-nowrap">{formatNumber(maxPrice)} F</span>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={onlyAvailable} onChange={e => setOnly(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{uiText("pages.client.SearchVehicles", "Disponibles uniquement")}</span>
-            </label>
+            <label className="flex items-center gap-2 font-label-md text-label-md cursor-pointer"><input type="checkbox" checked={onlyAvailable} onChange={(e) => setOnly(e.target.checked)} className="w-4 h-4 accent-primary" />{t('Disponibles uniquement')}</label>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-            <label className="label">{uiText("pages.client.SearchVehicles", "Disponible à partir du") + " "}<input type="date" className="input-field mt-1" value={availabilityStart}
-                min={new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable}
-                onChange={e => setAvailabilityStart(e.target.value)} />
-            </label>
-            <label className="label">{uiText("pages.client.SearchVehicles", "Jusqu’au") + " "}<input type="date" className="input-field mt-1" value={availabilityEnd}
-                min={availabilityStart || new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable}
-                onChange={e => setAvailabilityEnd(e.target.value)} />
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <label><span className="label">{t('Disponible à partir du')}</span><input type="date" className="input-field" value={availabilityStart} min={new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable} onChange={(e) => setAvailabilityStart(e.target.value)} /></label>
+            <label><span className="label">{t('Jusqu’au')}</span><input type="date" className="input-field" value={availabilityEnd} min={availabilityStart || new Date().toISOString().slice(0, 10)} disabled={!onlyAvailable} onChange={(e) => setAvailabilityEnd(e.target.value)} /></label>
+            <label><span className="label">{t('Marque')}</span><select className="input-field" value={brand} onChange={(e) => { setBrand(e.target.value); setModel(''); }}><option value="">{t('Toutes les marques')}</option>{facets.brands.map((value) => <option key={value}>{value}</option>)}</select></label>
+            <label><span className="label">{t('Modèle')}</span><select className="input-field" value={model} onChange={(e) => setModel(e.target.value)}><option value="">{t('Tous les modèles')}</option>{(facets.models[brand] || []).map((value) => <option key={value}>{value}</option>)}</select></label>
+            <label><span className="label">{t('Carburant')}</span><select className="input-field" value={fuel} onChange={(e) => setFuel(e.target.value)}><option value="">{t('Tous les carburants')}</option>{facets.fuels.map((value) => <option key={value} value={value}>{vehicleLabel(value, 'fuel')}</option>)}</select></label>
           </div>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <select className="input-field max-w-xs" value={brand} onChange={e => { setBrand(e.target.value); setModel(''); }}><option value="">{uiText("pages.client.SearchVehicles", "Toutes les marques")}</option>{facets.brands.map(value => <option key={value}>{value}</option>)}</select>
-            <select className="input-field max-w-xs" value={model} onChange={e => setModel(e.target.value)}><option value="">{uiText("pages.client.SearchVehicles", "Tous les modèles")}</option>{(facets.models[brand] || []).map(value => <option key={value}>{value}</option>)}</select>
-            <select className="input-field max-w-xs" value={fuel} onChange={e => setFuel(e.target.value)}><option value="">{uiText("pages.client.SearchVehicles", "Tous les carburants")}</option>{facets.fuels.map(value => <option key={value} value={value}>{vehicleLabel(value, 'fuel')}</option>)}</select>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {CATEGORIES.map(c => (
-              <button key={c} onClick={() => setCategory(c)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${category === c ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                {c === 'Tous' ? uiText("pages.client.SearchVehicles", "Tous") : vehicleLabel(c, 'category')}
+          <div className="flex flex-wrap gap-2">
+            {['', ...(facets.categories || [])].map((value) => (
+              <button key={value || 'all'} onClick={() => setCategory(value)} className={`px-4 py-1.5 rounded-full font-label-md text-label-md ${category === value ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant dark:bg-slate-900 dark:text-slate-300'}`}>
+                {value ? vehicleLabel(value, 'category') : t('Toutes les catégories')}
               </button>
             ))}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{filtered.length}{" " + uiText("pages.client.SearchVehicles", "véhicule(s) trouvé(s)")}</p>
-          <p className="text-xs text-slate-400">{uiText("pages.client.SearchVehicles", "Tous les véhicules incluent un chauffeur certifié AutoLink")}</p>
+          <p className="font-label-lg text-label-lg text-on-surface-variant">{t('{{n}} véhicule(s) trouvé(s)', { n: filtered.length })}</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1"><Icon name="verified_user" size={16} className="text-primary" />{t('Caution sous séquestre sur toutes les réservations')}</p>
         </div>
 
-        {/* Vehicle cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filtered.map(v => (
-            <div key={v.id} className={`bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm border transition-all group ${v.available ? 'border-slate-100 dark:border-slate-700 hover:shadow-lg hover:-translate-y-1' : 'border-slate-100 dark:border-slate-700 opacity-60'}`}>
-              <div className="h-44 relative overflow-hidden bg-slate-100 dark:bg-slate-700">
-                <img src={v.image} alt={v.name} onClick={() => navigate(`/vehicles/${v.id}`)}
-                  role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && navigate(`/vehicles/${v.id}`)}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={e => { e.target.style.display='none'; }} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                {!v.available && (
-                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
-                    <span className="bg-red-500 text-white text-sm font-bold px-4 py-1.5 rounded-full">{uiText("pages.client.SearchVehicles", "Indisponible")}</span>
-                  </div>
-                )}
-                <div className="absolute top-2 left-2 flex gap-1.5">
-                  <span className="bg-primary-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{vehicleLabel(v.category, 'category')}</span>
-                  <span className={`${TIER_STYLE[v.tier]?.cls || 'bg-slate-600'} text-white text-xs font-bold px-2.5 py-1 rounded-full`}>
-                    {vehicleLabel(v.tier, 'tier') || uiText("pages.client.SearchVehicles", "Standard")}
-                  </span>
-                </div>
-                <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                  <Star size={10} className="fill-amber-400 text-amber-400" />{v.rating}
-                </div>
-                <button onClick={() => toggleFavorite(v.id)} className="absolute top-11 right-2 rounded-full bg-white/90 p-2" aria-label={uiText("pages.client.SearchVehicles", "Ajouter aux favoris")}>
-                  <Heart size={16} className={favoriteIds.includes(v.id) ? uiText("pages.client.SearchVehicles", "fill-rose-500 text-rose-500") : uiText("pages.client.SearchVehicles", "text-slate-500")} />
-                </button>
-                <div className="absolute bottom-2 left-2 text-white text-xs font-mono">{v.plate}</div>
-              </div>
-              <div className="p-4">
-                <button className="font-bold text-slate-900 dark:text-white text-sm mb-0.5 text-left" onClick={() => navigate(`/vehicles/${v.id}`)}>{v.name}</button>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{vehicleLabel(v.fuel, 'fuel')}{" " + uiText("pages.client.SearchVehicles", "·") + " "}{v.seats}{" " + uiText("pages.client.SearchVehicles", "places · Score qualité") + " "}{v.score}{uiText("pages.client.SearchVehicles", "/100")}</p>
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 mb-3 text-xs text-blue-700 dark:text-blue-400">
-                  {v.kmIncluded}{" " + uiText("pages.client.SearchVehicles", "km inclus ·") + " "}{formatNumber(v.kmRate)}{" " + uiText("pages.client.SearchVehicles", "F/km supp.") + " "}</div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-lg font-black text-primary-700 dark:text-primary-400">{formatNumber(v.price)}</span>
-                    <span className="text-xs text-slate-500">{" " + uiText("pages.client.SearchVehicles", "F/jour")}</span>
-                  </div>
-                  <button disabled={!v.available} onClick={() => setSelected(v)}
-                    className={`text-sm py-2 px-4 rounded-xl font-bold transition-all ${v.available ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>
-                    {v.available ? uiText("pages.client.SearchVehicles", "Réserver") : uiText("pages.client.SearchVehicles", "Complet")}
-                  </button>
-                </div>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {filtered.map((v) => (
+            <VehicleCard key={v.id} vehicle={v} unavailable={!v.available} onReserve={() => setSelected(v)}
+              favorite={favorites.ids.includes(v.id)} onToggleFavorite={favorites.toggle} />
           ))}
         </div>
 
         {filtered.length === 0 && !loadingList && (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Car size={28} className="text-slate-400" />
-            </div>
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">{offline ? uiText("pages.client.SearchVehicles", "Serveur injoignable") : uiText("pages.client.SearchVehicles", "Aucun véhicule trouvé")}</h3>
-            <p className="text-slate-500 dark:text-slate-400">{offline ? uiText("pages.client.SearchVehicles", "Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.") : uiText("pages.client.SearchVehicles", "Modifiez vos filtres pour élargir la recherche.")}</p>
+          <div className="card text-center py-16">
+            <Icon name={offline ? 'cloud_off' : 'search_off'} size={44} className="text-outline" />
+            <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white mt-2">{offline ? t('Serveur injoignable') : t('Aucun véhicule trouvé')}</h3>
+            <p className="font-body-md text-body-md text-on-surface-variant">{offline ? t('Impossible de contacter le serveur — vérifiez votre connexion puis rechargez la page.') : t('Modifiez vos filtres pour élargir la recherche.')}</p>
           </div>
         )}
-        {loadingList && (
-          <div className="text-center py-20 text-slate-400 text-sm">{uiText("pages.client.SearchVehicles", "Chargement des véhicules…")}</div>
-        )}
+        {loadingList && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-96 rounded-xl bg-surface-container animate-pulse" />)}</div>}
       </div>
-      {selectedVehicle && <BookingModal vehicle={selectedVehicle} onClose={() => setSelected(null)} />}
+      {selectedVehicle && <BookingFunnel vehicle={selectedVehicle} onClose={closeFunnel} />}
     </DashboardLayout>
   );
 }

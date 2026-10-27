@@ -62,12 +62,12 @@ export default function Settings() {
 
         {/* Apparence */}
         <div className="card">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+          <h3 className="font-bold text-on-surface dark:text-white dark:text-white flex items-center gap-2 mb-4">
             {isDark ? <Moon size={17} /> : <Sun size={17} />}{" " + uiText("pages.Settings", "Apparence") + " "}</h3>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{uiText("pages.Settings", "Mode sombre")}</div>
-              <div className="text-xs text-slate-400">{uiText("pages.Settings", "Interface sombre pour un confort nocturne")}</div>
+              <div className="font-medium text-on-surface dark:text-white dark:text-slate-200 text-sm">{uiText("pages.Settings", "Mode sombre")}</div>
+              <div className="text-xs text-on-surface-variant">{uiText("pages.Settings", "Interface sombre pour un confort nocturne")}</div>
             </div>
             <Toggle on={isDark} onClick={toggleTheme} label={uiText("pages.Settings", "Mode sombre")} />
           </div>
@@ -75,8 +75,8 @@ export default function Settings() {
 
         {/* Notifications */}
         <div className="card">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
-            <Bell size={17} />{" " + uiText("pages.Settings", "Notifications") + " "}{saved && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle size={12} />{" " + uiText("pages.Settings", "Enregistré")}</span>}
+          <h3 className="font-bold text-on-surface dark:text-white dark:text-white flex items-center gap-2 mb-4">
+            <Bell size={17} />{" " + uiText("pages.Settings", "Notifications") + " "}{saved && <span className="text-xs text-primary font-semibold flex items-center gap-1"><CheckCircle size={12} />{" " + uiText("pages.Settings", "Enregistré")}</span>}
           </h3>
           <div className="space-y-4">
             {[
@@ -86,17 +86,17 @@ export default function Settings() {
             ].map(({ key, label, desc }) => (
               <div key={key} className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{label}</div>
-                  <div className="text-xs text-slate-400">{desc}</div>
+                  <div className="font-medium text-on-surface dark:text-white dark:text-slate-200 text-sm">{label}</div>
+                  <div className="text-xs text-on-surface-variant">{desc}</div>
                 </div>
                 <Toggle on={prefs[key]} onClick={() => setPref(key, !prefs[key])} label={label} />
               </div>
             ))}
           </div>
-          <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <div className="mt-5 flex items-center justify-between gap-4 border-t border-outline-variant/30 pt-4 dark:border-slate-700">
             <div>
-              <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{uiText("pages.Settings", "Recevoir la newsletter AutoLink")}</div>
-              <div className="text-xs text-slate-400">{uiText("pages.Settings", "Actualités et offres par email. Vous pourrez vous désinscrire à tout moment.")}</div>
+              <div className="font-medium text-on-surface dark:text-white dark:text-slate-200 text-sm">{uiText("pages.Settings", "Recevoir la newsletter AutoLink")}</div>
+              <div className="text-xs text-on-surface-variant">{uiText("pages.Settings", "Actualités et offres par email. Vous pourrez vous désinscrire à tout moment.")}</div>
             </div>
             <Toggle
               on={user?.newsletter_opt_in ?? true}
@@ -105,17 +105,17 @@ export default function Settings() {
               label={uiText("pages.Settings", "Recevoir la newsletter AutoLink")}
             />
           </div>
-          {newsletterMessage && <p role="status" className="mt-2 text-xs text-slate-500">{newsletterMessage}</p>}
+          {newsletterMessage && <p role="status" className="mt-2 text-xs text-on-surface-variant">{newsletterMessage}</p>}
         </div>
 
         {/* Langue */}
         <div className="card">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+          <h3 className="font-bold text-on-surface dark:text-white dark:text-white flex items-center gap-2 mb-4">
             <Globe size={17} />{" " + uiText("pages.Settings", "Langue") + " "}</h3>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{uiText("pages.Settings", "Français (Cameroun)")}</div>
-              <div className="text-xs text-slate-400">{uiText("pages.Settings", "Choisissez la langue de l’application")}</div>
+              <div className="font-medium text-on-surface dark:text-white dark:text-slate-200 text-sm">{uiText("pages.Settings", "Français (Cameroun)")}</div>
+              <div className="text-xs text-on-surface-variant">{uiText("pages.Settings", "Choisissez la langue de l’application")}</div>
             </div>
             <LanguageSwitcher />
           </div>
@@ -123,16 +123,16 @@ export default function Settings() {
 
         {/* Compte */}
         <div className="card">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+          <h3 className="font-bold text-on-surface dark:text-white dark:text-white flex items-center gap-2 mb-4">
             <User size={17} />{" " + uiText("pages.Settings", "Compte") + " "}</h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400">{uiText("pages.Settings", "Email")}</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200">{user?.email}</span>
+              <span className="text-on-surface-variant dark:text-on-surface-variant">{uiText("pages.Settings", "Email")}</span>
+              <span className="font-medium text-on-surface dark:text-white dark:text-slate-200">{user?.email}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400">{uiText("pages.Settings", "Rôle")}</span>
-              <span className="font-medium text-slate-800 dark:text-slate-200">{user?.role}</span>
+              <span className="text-on-surface-variant dark:text-on-surface-variant">{uiText("pages.Settings", "Rôle")}</span>
+              <span className="font-medium text-on-surface dark:text-white dark:text-slate-200">{user?.role}</span>
             </div>
             <button onClick={() => navigate('/profile')}
               className="btn-outline w-full py-2.5 text-sm mt-2 flex items-center justify-center gap-2">
@@ -141,12 +141,12 @@ export default function Settings() {
         </div>
 
         {/* Sécurité */}
-        <div className="card border-red-100 dark:border-red-900/40">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+        <div className="card border-error/30 dark:border-red-900/40">
+          <h3 className="font-bold text-on-surface dark:text-white dark:text-white flex items-center gap-2 mb-3">
             <Shield size={17} />{" " + uiText("pages.Settings", "Sécurité") + " "}</h3>
-          <p className="text-xs text-slate-400 mb-4">{uiText("pages.Settings", "Pour changer votre mot de passe ou fermer votre compte, contactez le support AutoLink.") + " "}</p>
+          <p className="text-xs text-on-surface-variant mb-4">{uiText("pages.Settings", "Pour changer votre mot de passe ou fermer votre compte, contactez le support AutoLink.") + " "}</p>
           <button onClick={() => { logout(); navigate('/'); }}
-            className="w-full py-2.5 rounded-xl border-2 border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-2">
+            className="w-full py-2.5 rounded-xl border-2 border-error/30 text-error font-semibold text-sm hover:bg-error-container/50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-2">
             <LogOut size={15} />{" " + uiText("pages.Settings", "Se déconnecter") + " "}</button>
         </div>
       </div>
