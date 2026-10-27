@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Payment, Payout
+from .models import Payment, Payout, WithdrawalRequest
 
 
 @admin.register(Payment)
@@ -13,3 +13,11 @@ class PaymentAdmin(admin.ModelAdmin):
 class PayoutAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'recipient', 'amount', 'method', 'status', 'processed_at']
     list_filter = ['status', 'method']
+
+
+@admin.register(WithdrawalRequest)
+class WithdrawalRequestAdmin(admin.ModelAdmin):
+    list_display = ['reference', 'user', 'amount', 'method', 'phone', 'status', 'created_at', 'processed_at']
+    list_filter = ['status', 'method']
+    search_fields = ['reference', 'phone', 'user__email', 'user__last_name']
+    readonly_fields = ['reference', 'amount', 'created_at', 'processed_at', 'processed_by']

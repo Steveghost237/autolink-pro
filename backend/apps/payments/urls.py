@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    PaymentViewSet, PayoutViewSet, WalletViewSet,
+    PaymentViewSet, PayoutViewSet, WalletViewSet, WithdrawalRequestViewSet,
     StripeReturnView, PayPalReturnView, StripeWebhookView,
     PaymentMethodsView, OrangeNotificationView, BookingPaymentStatusView,
     FinanceStatsView, FinanceTransactionListView, FinanceTransactionExportView,
@@ -11,6 +11,7 @@ router = DefaultRouter()
 router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'payouts', PayoutViewSet, basename='payout')
 router.register(r'wallet', WalletViewSet, basename='wallet')
+router.register(r'withdrawals', WithdrawalRequestViewSet, basename='withdrawal')
 
 urlpatterns = [
     # Retours après paiement hébergé (Stripe Checkout / PayPal) + webhook

@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.drivers',
     'apps.inspections',
     'apps.affiliates',
+    'apps.messaging',
 ]
 
 MIDDLEWARE = [

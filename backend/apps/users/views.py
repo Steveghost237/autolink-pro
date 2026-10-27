@@ -23,8 +23,9 @@ from .email_utils import (
     send_login_notification,
     send_welcome_email,
 )
-from .models import ContactMessage, NewsletterCampaign, User, Notification, LoginCode
-from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer
+from rest_framework.parsers import FormParser, MultiPartParser
+from .models import ContactMessage, NewsletterCampaign, PlatformSettings, User, Notification, LoginCode
+from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer, KYCUploadSerializer, PlatformSettingsSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -85,10 +86,15 @@ class SiteConfigAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        platform = PlatformSettings.current()
         return Response({
-            'contact_email': settings.CONTACT_EMAIL,
-            'phones': ['+237 656 789 000', '+237 699 456 000'],
-            'addresses': ['Akwa, Rue Joss, Douala', 'Centre-ville, Yaoundé'],
+            'contact_email': platform.contact_email or settings.CONTACT_EMAIL,
+            'phones': [p.strip() for p in platform.phones.split(',') if p.strip()],
+            'addresses': [a.strip() for a in platform.addresses.split('|') if a.strip()],
+            'commission_rate': platform.commission_rate,
+            'min_withdrawal_amount': platform.min_withdrawal_amount,
+            'maintenance_mode': platform.maintenance_mode,
+            'bookings_enabled': platform.bookings_enabled,
             'hours': {
                 'weekdays': {'open': '06:00', 'close': '22:00'},
                 'saturday': {'open': '07:00', 'close': '21:00'},
@@ -100,6 +106,101 @@ class SiteConfigAPIView(APIView):
 class IsAdminRole(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+class PlatformSettingsView(generics.RetrieveUpdateAPIView):
+    """Paramètres plateforme (écran admin « Paramètres plateforme »)."""
+    serializer_class = PlatformSettingsSerializer
+    permission_classes = [IsAdminRole]
+
+    def get_object(self):
+        return PlatformSettings.current()
+
+
+class AdminActivityView(APIView):
+    """Journal d'activité opérationnelle (tableau de bord admin) + compteurs de file."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        from apps.bookings.models import Booking
+        from apps.payments.models import Payment, WithdrawalRequest
+        from apps.vehicles.models import Vehicle
+        events = []
+        for booking in Booking.objects.select_related('client', 'vehicle').order_by('-created_at')[:10]:
+            events.append({
+                'at': booking.created_at, 'kind': 'booking', 'status': booking.status,
+                'title': f'Réservation BK-{booking.pk:04d} · {booking.vehicle}',
+                'detail': f'{booking.client.get_full_name()} — {booking.start_date} → {booking.end_date}',
+                'link': f'/admin/bookings/{booking.pk}',
+            })
+        for payment in Payment.objects.select_related('payer').exclude(paid_at=None).order_by('-paid_at')[:10]:
+            events.append({
+                'at': payment.paid_at, 'kind': 'payment', 'status': payment.status,
+                'title': f'Paiement {payment.amount:.0f} FCFA ({payment.get_method_display()})',
+                'detail': f'{payment.payer.get_full_name()} — caution {payment.get_escrow_status_display().lower()}',
+                'link': '/admin/finance',
+            })
+        for vehicle in Vehicle.objects.select_related('owner').order_by('-created_at')[:10]:
+            events.append({
+                'at': vehicle.created_at, 'kind': 'vehicle', 'status': vehicle.status,
+                'title': f'Véhicule soumis : {vehicle}',
+                'detail': f'Propriétaire {vehicle.owner.get_full_name()} — {vehicle.plate}',
+                'link': '/admin/catalog',
+            })
+        for withdrawal in WithdrawalRequest.objects.select_related('user').order_by('-created_at')[:10]:
+            events.append({
+                'at': withdrawal.created_at, 'kind': 'withdrawal', 'status': withdrawal.status,
+                'title': f'Retrait {withdrawal.amount:.0f} FCFA ({withdrawal.get_method_display()})',
+                'detail': f'{withdrawal.user.get_full_name()} — {withdrawal.reference}',
+                'link': '/admin/owners',
+            })
+        for user in User.objects.exclude(kyc_submitted_at=None).order_by('-kyc_submitted_at')[:10]:
+            events.append({
+                'at': user.kyc_submitted_at, 'kind': 'kyc', 'status': user.kyc_status,
+                'title': f'Dossier KYC : {user.get_full_name() or user.username}',
+                'detail': user.email, 'link': '/admin/users',
+            })
+        events.sort(key=lambda e: e['at'], reverse=True)
+        return Response({
+            'queue': {
+                'vehicles_pending': Vehicle.objects.filter(status='pending').count(),
+                'kyc_pending': User.objects.filter(kyc_status='pending').count(),
+                'disputes_open': Booking.objects.filter(status='disputed').count(),
+                'withdrawals_pending': WithdrawalRequest.objects.filter(status='pending').count(),
+                'withdrawals_pending_amount': sum(
+                    w.amount for w in WithdrawalRequest.objects.filter(status='pending')),
+                'owner_requests_pending': Booking.objects.filter(
+                    owner_response='pending', status__in=('pending', 'confirmed')).count(),
+                'contact_unhandled': ContactMessage.objects.filter(is_handled=False).count(),
+            },
+            'events': events[:25],
+        })
+
+
+class KYCUploadView(generics.UpdateAPIView):
+    """Dépôt de la CNI / du permis par l'utilisateur → dossier KYC en vérification."""
+    serializer_class = KYCUploadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ['post', 'patch', 'options']
+
+    def get_object(self):
+        return self.request.user
+
+    def post(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        user = serializer.save(kyc_status='pending', kyc_note='', kyc_submitted_at=timezone.now(),
+                               id_document_verified=False)
+        for admin in User.objects.filter(role='ADMIN', is_active=True):
+            Notification.objects.create(
+                user=admin, title='Dossier KYC à vérifier',
+                message=f'{user.get_full_name() or user.username} a déposé ses pièces justificatives.')
+
+    def update(self, request, *args, **kwargs):
+        super().update(request, *args, **kwargs)
+        return Response(UserSerializer(request.user, context={'request': request}).data)
 
 
 class ContactMessageViewSet(ModelViewSet):
@@ -478,7 +579,7 @@ class OTPVerifyView(APIView):
 
 class UserListView(generics.ListCreateAPIView):
     permission_classes = [IsAdminRole]
-    filterset_fields = ['role', 'is_verified', 'is_active']
+    filterset_fields = ['role', 'is_verified', 'is_active', 'kyc_status', 'id_document_verified']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering_fields = ['created_at', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_verified']
 
@@ -508,7 +609,16 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         if serializer.instance == self.request.user and serializer.validated_data.get('is_active') is False:
             raise serializers.ValidationError({'is_active': 'Vous ne pouvez pas suspendre votre propre compte.'})
-        serializer.save()
+        previous_kyc = serializer.instance.kyc_status
+        kyc_status = serializer.validated_data.get('kyc_status')
+        extra = {'id_document_verified': kyc_status == 'approved'} if kyc_status else {}
+        user = serializer.save(**extra)
+        if kyc_status and kyc_status != previous_kyc and kyc_status in ('approved', 'rejected'):
+            Notification.objects.create(
+                user=user,
+                title='Documents validés' if kyc_status == 'approved' else 'Documents refusés',
+                message=('Vos pièces justificatives ont été validées.' if kyc_status == 'approved'
+                         else f'Vos pièces justificatives ont été refusées. {user.kyc_note}'.strip()))
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()

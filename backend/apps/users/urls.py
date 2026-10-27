@@ -1,6 +1,9 @@
 from django.urls import path
 from .views import (
+    AdminActivityView,
     GoogleAuthView,
+    KYCUploadView,
+    PlatformSettingsView,
     LoginView,
     MeView,
     NewsletterCampaignListView,
@@ -29,6 +32,9 @@ urlpatterns = [
     path('newsletter/campaigns/<int:pk>/resend/', NewsletterResendView.as_view(), name='newsletter-campaign-resend'),
     path('newsletter/send/', NewsletterSendView.as_view(), name='newsletter-send'),
     path('me/', MeView.as_view(), name='me'),
+    path('me/kyc/', KYCUploadView.as_view(), name='me-kyc'),
+    path('platform-settings/', PlatformSettingsView.as_view(), name='platform-settings'),
+    path('admin/activity/', AdminActivityView.as_view(), name='admin-activity'),
     path('notifications/', NotificationListView.as_view(), name='notifications'),
     path('notifications/read/', NotificationReadView.as_view(), name='notifications-read-all'),
     path('notifications/<int:pk>/read/', NotificationReadView.as_view(), name='notification-read'),

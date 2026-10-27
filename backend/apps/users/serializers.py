@@ -7,14 +7,48 @@ from .email_utils import (
     send_login_notification,
     send_welcome_email,
 )
-from .models import ContactMessage, NewsletterCampaign, User, Notification
+from .models import ContactMessage, NewsletterCampaign, PlatformSettings, User, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'language', 'balance', 'created_at']
-        read_only_fields = ['id', 'is_verified', 'balance', 'created_at']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'language', 'balance',
+                  'city', 'address', 'date_of_birth', 'id_document', 'id_document_verified', 'driving_license',
+                  'driving_license_expires_at', 'kyc_status', 'kyc_note', 'kyc_submitted_at', 'created_at']
+        read_only_fields = ['id', 'is_verified', 'balance', 'id_document', 'id_document_verified', 'driving_license',
+                            'kyc_status', 'kyc_note', 'kyc_submitted_at', 'created_at']
+
+
+class KYCUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id_document', 'driving_license', 'driving_license_expires_at']
+
+    def validate(self, attrs):
+        if not attrs.get('id_document') and not attrs.get('driving_license'):
+            raise serializers.ValidationError('Ajoutez au moins une pièce justificative.')
+        for field in ('id_document', 'driving_license'):
+            document = attrs.get(field)
+            if not document:
+                continue
+            if document.size > 8 * 1024 * 1024:
+                raise serializers.ValidationError({field: 'Fichier trop volumineux (8 Mo max).'})
+            if not document.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.pdf')):
+                raise serializers.ValidationError({field: 'Formats acceptés : JPG, PNG, WEBP ou PDF.'})
+        return attrs
+
+
+class PlatformSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlatformSettings
+        exclude = ['id']
+        read_only_fields = ['updated_at']
+
+    def validate_commission_rate(self, value):
+        if not 0 <= value <= 1:
+            raise serializers.ValidationError('Le taux doit être compris entre 0 et 1.')
+        return value
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -65,8 +99,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'balance',
                   'is_active', 'is_verified', 'id_document_verified', 'is_staff', 'created_at',
+                  'city', 'id_document', 'driving_license', 'driving_license_expires_at',
+                  'kyc_status', 'kyc_note', 'kyc_submitted_at',
                   'bookings_count', 'vehicles_count', 'trips_count']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'id_document', 'driving_license', 'kyc_submitted_at']
 
 
 class AdminUserCreateSerializer(serializers.ModelSerializer):

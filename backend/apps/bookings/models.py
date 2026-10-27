@@ -10,6 +10,12 @@ from decimal import Decimal
 COMMISSION_RATE = Decimal('0.50')
 
 
+def commission_rate():
+    """Taux de commission AutoLink (paramétrable par l'admin, 50 % par défaut)."""
+    from apps.users.models import PlatformSettings
+    return Decimal(str(PlatformSettings.current().commission_rate or COMMISSION_RATE))
+
+
 class Booking(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'En attente de paiement'
@@ -36,6 +42,12 @@ class Booking(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     driver_type = models.CharField(max_length=20, choices=DriverType.choices, default=DriverType.NONE)
+    # Réponse du propriétaire à une nouvelle demande (écran « Demandes de location »).
+    # Un refus annule la réservation et rembourse intégralement le client.
+    owner_response = models.CharField(
+        max_length=20, default='pending',
+        choices=[('pending', 'En attente'), ('accepted', 'Acceptée'), ('refused', 'Refusée')])
+    owner_responded_at = models.DateTimeField(null=True, blank=True)
 
     start_date = models.DateField()
     end_date = models.DateField()
@@ -80,7 +92,7 @@ class Booking(models.Model):
         self.discount_percent = 10 if self.days >= 30 else 5 if self.days > 3 else 0
         gross = self.daily_rate * self.days
         self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
-        self.commission_amount = (self.subtotal * COMMISSION_RATE).quantize(Decimal('0.01'))
+        self.commission_amount = (self.subtotal * commission_rate()).quantize(Decimal('0.01'))
         self.owner_amount = self.subtotal - self.commission_amount
         super().save(*args, **kwargs)
 
