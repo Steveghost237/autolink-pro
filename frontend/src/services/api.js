@@ -65,7 +65,9 @@ export const vehiclesAPI = {
   create: (payload) => api.post('/vehicles/', payload),
   update: (id, payload) => api.patch(`/vehicles/${id}/`, payload),
   delete: (id) => api.delete(`/vehicles/${id}/`),
-  uploadMedia: (id, payload) => api.post(`/vehicles/${id}/media/`, payload),
+  uploadMedia: (id, payload) => api.post(`/vehicles/${id}/media/`, payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   media: (id) => api.get(`/vehicles/${id}/media/`),
   deleteMedia: (id, mediaId) => api.delete(`/vehicles/${id}/media/${mediaId}/`),
   availability: (id) => api.get(`/vehicles/${id}/availability/`),
