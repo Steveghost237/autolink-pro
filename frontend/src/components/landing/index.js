@@ -1,0 +1,16 @@
+export { default as PublicNavbar }    from './PublicNavbar';
+export { default as Hero }            from './Hero';
+export { default as SearchWidget }    from './SearchWidget';
+export { default as Standings }       from './Standings';
+export { default as Fleet }           from './Fleet';
+export { default as VehicleCard }     from './VehicleCard';
+export { default as Formules }        from './Formules';
+export { default as Steps }           from './Steps';
+export { default as Why }             from './Why';
+export { default as StatsBand }       from './StatsBand';
+export { default as AnimatedCounter } from './AnimatedCounter';
+export { default as Testimonials }    from './Testimonials';
+export { default as PartnerCta }      from './PartnerCta';
+export { default as Faq }             from './Faq';
+export { default as Footer }          from './Footer';
+export * from './data';

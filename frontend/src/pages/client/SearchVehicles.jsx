@@ -69,6 +69,8 @@ const DRIVER_OPTIONS = [
 ];
 
 function BookingModal({ vehicle, onClose }) {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const requestedType = new URLSearchParams(window.location.search).get('type');
   const requestedDays = Number(new URLSearchParams(window.location.search).get('days')) || 1;
@@ -179,7 +181,10 @@ function BookingModal({ vehicle, onClose }) {
         ) : (
           <p className="text-xs text-slate-400 mb-6">{uiText("pages.client.SearchVehicles", "Enregistrée — en attente de confirmation du paiement.")}</p>
         )}
-        <button onClick={onClose} className="btn-primary w-full">{uiText("pages.client.SearchVehicles", "Retour au catalogue")}</button>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="btn-outline flex-1 py-3">{uiText("pages.client.SearchVehicles", "Retour au catalogue")}</button>
+          <button onClick={() => navigate('/client/bookings')} className="btn-primary flex-1 py-3">{uiText("pages.client.SearchVehicles", "Voir mes réservations")}</button>
+        </div>
       </div>
     </div>
   );
@@ -420,12 +425,30 @@ export default function SearchVehicles() {
       setMaxPrice(data.max_rate || 200000);
     }).catch(() => {});
   }, []);
+  const [pendingId, setPendingId]     = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get('type');
     if (t) setType(t);
+    // Arrivée depuis le catalogue public / la landing avec un véhicule précis
+    const vid = params.get('vehicle');
+    if (vid) setPendingId(vid);
   }, []);
+
+  // Ouvre automatiquement la modale de réservation du véhicule demandé.
+  // Le véhicule transmis via sessionStorage (catalogue hors-ligne) prime ;
+  // sinon on le recherche dans la liste API chargée.
+  useEffect(() => {
+    if (loadingList || pendingId == null) return;
+    let pending = null;
+    try { pending = JSON.parse(sessionStorage.getItem('autolink_pending_vehicle')); } catch (_) {}
+    sessionStorage.removeItem('autolink_pending_vehicle');
+    const found = vehicles.find(v => String(v.id) === String(pendingId));
+    const target = pending && String(pending.id) === String(pendingId) ? pending : (found || pending);
+    if (target) setSelected(target);
+    setPendingId(null);
+  }, [loadingList, pendingId, vehicles]);
 
   useEffect(() => {
     let mounted = true;

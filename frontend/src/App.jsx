@@ -6,6 +6,12 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 
 import Landing from './pages/Landing';
+import Catalog from './pages/Catalog';
+import VehicleDetail from './pages/VehicleDetail';
+import HowItWorks from './pages/HowItWorks';
+import Pricing from './pages/Pricing';
+import Help from './pages/Help';
+import BecomeOwner from './pages/BecomeOwner';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ClientDashboard from './pages/client/ClientDashboard';
@@ -57,6 +63,12 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/catalogue" element={<Catalog />} />
+      <Route path="/vehicule/:id" element={<VehicleDetail />} />
+      <Route path="/comment-ca-marche" element={<HowItWorks />} />
+      <Route path="/tarifs" element={<Pricing />} />
+      <Route path="/aide" element={<Help />} />
+      <Route path="/devenir-proprietaire" element={<BecomeOwner />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/privacy" element={<LegalPages />} />
