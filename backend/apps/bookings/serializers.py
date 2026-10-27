@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.inspections.serializers import VehicleInspectionSerializer
 from .models import Booking
 
 
@@ -26,6 +27,7 @@ class BookingSerializer(serializers.ModelSerializer):
     on_behalf_email = serializers.EmailField(
         write_only=True, required=False, allow_blank=True,
         help_text='Réservation faite par un intermédiaire pour le compte de ce client.')
+    inspections = VehicleInspectionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Booking
@@ -34,7 +36,7 @@ class BookingSerializer(serializers.ModelSerializer):
                             'intermediary_commission', 'daily_rate', 'days',
                             'subtotal', 'commission_amount', 'owner_amount',
                             'discount_percent', 'deposit_amount',
-                            'dispute_reason', 'dispute_opened_at',
+                            'dispute_reason', 'dispute_opened_at', 'driver_response',
                             'created_at', 'updated_at']
 
     def get_client_name(self, obj): return obj.client.get_full_name()

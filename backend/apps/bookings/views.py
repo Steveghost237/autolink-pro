@@ -1,7 +1,12 @@
 from decimal import Decimal
+from io import BytesIO
+from django.conf import settings
+from django.core.mail import EmailMessage
 from django.db import transaction as db_transaction
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Avg
 from django.utils import timezone
+from django.http import HttpResponse
+from xml.sax.saxutils import escape
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -31,13 +36,14 @@ def _assign_internal_driver(booking):
         driver__isnull=False,
     ).values_list('driver_id', flat=True)
     driver = (User.objects
-              .filter(role='DRIVER', is_active=True)
+              .filter(role='DRIVER', is_active=True, driver_profile__is_online=True)
               .exclude(id__in=busy)
               .order_by('id')
               .first())
     if driver:
         booking.driver = driver
-        booking.save(update_fields=['driver', 'updated_at'])
+        booking.driver_response = 'offered'
+        booking.save(update_fields=['driver', 'driver_response', 'updated_at'])
         _notify(driver, 'Nouvelle course',
                 f'Vous êtes assigné à la location du véhicule {booking.vehicle} '
                 f'du {booking.start_date} au {booking.end_date}. '
@@ -49,7 +55,12 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['status', 'vehicle']
-    ordering_fields = ['created_at', 'start_date', 'subtotal']
+    search_fields = [
+        'client__username', 'client__first_name', 'client__last_name',
+        'client__email', 'vehicle__brand', 'vehicle__model', 'vehicle__plate',
+        'status', 'dispute_reason',
+    ]
+    ordering_fields = ['created_at', 'start_date', 'end_date', 'subtotal', 'status', 'dispute_opened_at']
 
     def get_queryset(self):
         Booking.auto_complete_expired()
@@ -66,12 +77,39 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Booking.objects.filter(intermediary=user)
         return Booking.objects.none()
 
+    def _driver_booking(self, user, booking):
+        if user.role != 'DRIVER' or booking.driver_id != user.id:
+            raise PermissionDenied('Cette course ne vous est pas assignée.')
+
+    @action(detail=True, methods=['post'], url_path='driver-accept')
+    def driver_accept(self, request, pk=None):
+        booking = self.get_object()
+        self._driver_booking(request.user, booking)
+        if booking.status != 'confirmed' or booking.driver_response != 'offered':
+            raise ValidationError({'detail': 'Cette course ne peut plus être acceptée.'})
+        booking.driver_response = 'accepted'
+        booking.save(update_fields=['driver_response', 'updated_at'])
+        return Response(self.get_serializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='driver-refuse')
+    def driver_refuse(self, request, pk=None):
+        booking = self.get_object()
+        self._driver_booking(request.user, booking)
+        if booking.status != 'confirmed' or booking.driver_response != 'offered':
+            raise ValidationError({'detail': 'Cette course ne peut plus être refusée.'})
+        booking.driver_response = 'refused'
+        booking.save(update_fields=['driver_response', 'updated_at'])
+        return Response(self.get_serializer(booking).data)
+
     def create(self, request, *args, **kwargs):
         # Ajoute payment_url à la réponse quand un checkout externe est créé
         resp = super().create(request, *args, **kwargs)
         if getattr(self, '_last_payment_url', None):
             resp.data['payment_url'] = self._last_payment_url
             self._last_payment_url = None
+        if getattr(self, '_last_payment_reference', None):
+            resp.data['payment_reference'] = self._last_payment_reference
+            self._last_payment_reference = None
         return resp
 
     def perform_create(self, serializer):
@@ -138,6 +176,14 @@ class BookingViewSet(viewsets.ModelViewSet):
                     url = self._pay_external(booking, payment_method, request)
                     self._last_payment_url = url
                     return
+                if payment_method in ('mtn', 'orange'):
+                    url, reference = self._pay_mobile(booking, payment_method, request)
+                    if url:
+                        self._last_payment_url = url
+                    self._last_payment_reference = str(booking.pk)
+                    return
+                if payment_method != 'wallet':
+                    raise ValidationError({'payment_method': 'Ce moyen de paiement n’est pas disponible.'})
                 self._pay(booking, payment_method)
                 booking.status = Booking.Status.CONFIRMED
                 booking.save(update_fields=['status', 'updated_at'])
@@ -233,9 +279,43 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         return url
 
+    def _pay_mobile(self, booking, method, request):
+        from apps.payments.models import Payment
+        from apps.payments import providers
+        if not (providers.mtn_configured() if method == 'mtn' else providers.orange_configured()):
+            raise ValidationError({'payment_method': 'Moyen de paiement non configuré.'})
+        phone = request.data.get('phone')
+        if not phone:
+            raise ValidationError({'phone': 'Le numéro de téléphone est requis.'})
+        ref = f'BK-{booking.pk}-{uuid.uuid4().hex[:8]}'
+        payment = Payment.objects.create(
+            booking=booking, payer=booking.client, method=method, status='pending',
+            amount=booking.subtotal + (booking.deposit_amount or 0),
+            commission=booking.commission_amount, owner_payout=booking.owner_amount,
+            escrow_status='held', deposit_amount=booking.deposit_amount or 0,
+            deposit_status='held', transaction_ref=ref,
+        )
+        if method == 'mtn':
+            result = providers.mtn_request_to_pay(payment.amount, phone, ref)
+            payment.provider_ref = result['provider_ref']
+            payment.provider_status = result['status']
+            payment.save(update_fields=['provider_ref', 'provider_status'])
+            return None, ref
+        result = providers.orange_create_payment(
+            payment.amount, ref, ref,
+            f'{settings.FRONTEND_URL}/client/bookings?orange=return&ref={booking.pk}',
+            f'{settings.FRONTEND_URL}/client/bookings?payment=canceled',
+            request.build_absolute_uri('/api/payments/orange-notification/'))
+        payment.provider_ref = ref
+        payment.provider_token = result['notif_token']
+        payment.provider_pay_token = result['pay_token']
+        payment.provider_status = 'PENDING'
+        payment.save(update_fields=['provider_ref', 'provider_token', 'provider_pay_token', 'provider_status'])
+        return result['payment_url'], ref
+
     def perform_update(self, serializer):
         """Transitions de statut selon le rôle — l'admin n'intervient plus en routine."""
-        booking = self.get_object()
+        booking = serializer.instance
         user = self.request.user
         new_status = self.request.data.get('status')
 
@@ -249,12 +329,12 @@ class BookingViewSet(viewsets.ModelViewSet):
                 serializer.instance.sync_vehicle_status()
             return
 
-        if new_status is None:
-            raise PermissionDenied('Modification non autorisée.')
-
         if user.role == 'CLIENT':
             if booking.client_id != user.id:
                 raise PermissionDenied('Cette réservation ne vous appartient pas.')
+            if new_status is None:
+                self._edit_client_booking(serializer, booking, user)
+                return
             if new_status not in CLIENT_ALLOWED_STATUS:
                 raise PermissionDenied('Action non autorisée.')
             if booking.status not in CLIENT_CANCELLABLE:
@@ -265,10 +345,15 @@ class BookingViewSet(viewsets.ModelViewSet):
             return
 
         if user.role == 'DRIVER':
-            if booking.driver_id != user.id:
-                raise PermissionDenied('Cette course ne vous est pas assignée.')
+            self._driver_booking(user, booking)
             if new_status not in DRIVER_ALLOWED_STATUS:
                 raise PermissionDenied('Action non autorisée.')
+            if new_status == 'active' and (
+                booking.status != 'confirmed' or booking.driver_response != 'accepted'
+            ):
+                raise ValidationError({'status': 'Acceptez la course avant de la démarrer.'})
+            if new_status == 'completed' and booking.status != 'active':
+                raise ValidationError({'status': 'Seule une course en cours peut être terminée.'})
             if new_status == 'completed':
                 booking.finish()  # statut + véhicule libéré + caution versée + notifs
                 serializer.instance = booking
@@ -288,6 +373,193 @@ class BookingViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Action non autorisée.')
 
         raise PermissionDenied('Modification non autorisée.')
+
+    def _edit_client_booking(self, serializer, booking, user):
+        if booking.status not in ('pending', 'confirmed') or booking.start_date <= timezone.localdate():
+            raise ValidationError({'detail': 'Cette réservation ne peut plus être modifiée.'})
+        changes = set(serializer.validated_data)
+        allowed = {'start_date', 'end_date', 'pickup_address', 'dropoff_address', 'notes', 'driver_type'}
+        if not changes <= allowed:
+            raise PermissionDenied('Seules les dates, les lieux, les notes et le chauffeur sont modifiables.')
+        try:
+            payment = booking.payment
+        except Exception:
+            payment = None
+        paid_wallet = bool(payment and payment.method == 'wallet' and payment.status == 'completed')
+        price_fields = {'start_date', 'end_date', 'driver_type'}
+        if not paid_wallet and changes & price_fields:
+            raise ValidationError({'detail': 'Pour modifier les dates ou le chauffeur, annulez puis effectuez une nouvelle réservation.'})
+
+        start = serializer.validated_data.get('start_date', booking.start_date)
+        end = serializer.validated_data.get('end_date', booking.end_date)
+        if end <= start:
+            raise ValidationError({'end_date': 'La date de fin doit suivre la date de début.'})
+        if paid_wallet and changes & {'start_date', 'end_date'}:
+            if start <= timezone.localdate():
+                raise ValidationError({'start_date': 'La nouvelle date de début doit être future.'})
+            conflict = Booking.objects.filter(
+                vehicle=booking.vehicle, status__in=('confirmed', 'active'),
+                start_date__lte=end, end_date__gte=start,
+            ).exclude(pk=booking.pk).exists()
+            if conflict:
+                raise ValidationError({'start_date': 'Le véhicule est déjà réservé sur cette période.'})
+
+        old_subtotal = booking.subtotal
+        with db_transaction.atomic():
+            if paid_wallet:
+                from apps.users.models import User
+                wallet_user = User.objects.select_for_update().get(pk=user.pk)
+            serializer.save()
+            difference = booking.subtotal - old_subtotal if paid_wallet else Decimal('0')
+            if difference:
+                if difference > 0 and wallet_user.balance < difference:
+                    raise ValidationError({'balance': 'Solde insuffisant pour cette modification.'})
+                wallet_user.balance = wallet_user.balance - difference
+                wallet_user.save(update_fields=['balance', 'updated_at'])
+                from apps.payments.models import WalletTransaction
+                WalletTransaction.objects.create(
+                    user=wallet_user,
+                    kind='debit' if difference > 0 else 'refund',
+                    method='wallet',
+                    amount=abs(difference),
+                    balance_after=wallet_user.balance,
+                    reference=f'BK-EDIT-{booking.pk}',
+                    note=f'Ajustement de prix {booking}',
+                )
+                payment.amount = booking.subtotal
+                payment.commission = booking.commission_amount
+                payment.owner_payout = booking.owner_amount
+                payment.save(update_fields=['amount', 'commission', 'owner_payout'])
+
+    def _receipt_pdf(self, booking):
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from apps.users.email_utils import get_user_language
+
+        language = get_user_language(booking.client)
+        buffer = BytesIO()
+        document = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        try:
+            payment = booking.payment
+            method = payment.get_method_display()
+            payment_status = payment.get_status_display()
+            if language == 'en':
+                method = {
+                    'wallet': 'Wallet',
+                    'mtn': 'MTN Mobile Money',
+                    'orange': 'Orange Money',
+                    'senbid': 'SenBid',
+                    'paybid': 'PayBid',
+                    'stripe': 'Card (Stripe)',
+                    'paypal': 'PayPal',
+                }.get(payment.method, method)
+                payment_status = {
+                    'pending': 'Pending',
+                    'completed': 'Confirmed',
+                    'failed': 'Failed',
+                    'refunded': 'Refunded',
+                }.get(payment.status, payment_status)
+        except Exception:
+            method, payment_status = '—', 'Pending' if language == 'en' else 'En attente'
+        if language == 'en':
+            lines = [
+                '<b>AutoLink Pro</b>',
+                f'Contact: {settings.CONTACT_EMAIL}',
+                f'Booking receipt BK-{booking.pk:04d}',
+                f'Client: {escape(booking.client.get_full_name())} ({escape(booking.client.email)})',
+                f'Vehicle: {escape(booking.vehicle.brand)} {escape(booking.vehicle.model)} — {escape(booking.vehicle.plate)}',
+                f'Dates: {booking.start_date.isoformat()} to {booking.end_date.isoformat()} ({booking.days} days)',
+                f'Daily rate: {booking.daily_rate} FCFA',
+                f'Discount: {booking.discount_percent}%',
+                f'Subtotal: {booking.subtotal} FCFA',
+                f'Deposit: {booking.deposit_amount} FCFA',
+                f'Payment method: {method} — {payment_status}',
+                f'Issue date: {timezone.localdate().isoformat()}',
+            ]
+        else:
+            lines = [
+                '<b>AutoLink Pro</b>',
+                f'Contact : {settings.CONTACT_EMAIL}',
+                f'Reçu de réservation BK-{booking.pk:04d}',
+                f'Client : {escape(booking.client.get_full_name())} ({escape(booking.client.email)})',
+                f'Véhicule : {escape(booking.vehicle.brand)} {escape(booking.vehicle.model)} — {escape(booking.vehicle.plate)}',
+                f'Dates : {booking.start_date} au {booking.end_date} ({booking.days} jour(s))',
+                f'Tarif journalier : {booking.daily_rate} FCFA',
+                f'Remise : {booking.discount_percent} %',
+                f'Sous-total : {booking.subtotal} FCFA',
+                f'Caution : {booking.deposit_amount} FCFA',
+                f'Moyen de paiement : {method} — {payment_status}',
+                f'Date d’émission : {timezone.localdate()}',
+            ]
+        story = []
+        for line in lines:
+            story.extend((Paragraph(line, styles['Normal']), Spacer(1, 10)))
+        document.build(story)
+        return buffer.getvalue()
+
+    def _can_access_receipt(self, booking, user):
+        if booking.client_id == user.id or booking.vehicle.owner_id == user.id or user.role == 'ADMIN':
+            return
+        raise PermissionDenied('Vous ne pouvez pas accéder à ce reçu.')
+
+    @action(detail=True, methods=['get'])
+    def receipt(self, request, pk=None):
+        booking = self._receipt_booking(pk)
+        self._can_access_receipt(booking, request.user)
+        response = HttpResponse(self._receipt_pdf(booking), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="recu-BK-{booking.pk:04d}.pdf"'
+        return response
+
+    @action(detail=True, methods=['post'], url_path='receipt/email')
+    def email_receipt(self, request, pk=None):
+        booking = self._receipt_booking(pk)
+        self._can_access_receipt(booking, request.user)
+        from apps.users.email_utils import get_user_language
+
+        language = get_user_language(booking.client)
+        reference = f'BK-{booking.pk:04d}'
+        if language == 'en':
+            subject = f'Your AutoLink Pro receipt — {reference}'
+            body = 'Please find your booking receipt attached.'
+            filename = f'receipt-{reference}.pdf'
+            detail = 'Receipt sent by email.'
+        else:
+            subject = f'Votre reçu AutoLink Pro — {reference}'
+            body = 'Veuillez trouver votre reçu de réservation en pièce jointe.'
+            filename = f'recu-{reference}.pdf'
+            detail = 'Reçu envoyé par email.'
+        email = EmailMessage(
+            subject=subject,
+            body=body,
+            to=[booking.client.email],
+        )
+        email.attach(filename, self._receipt_pdf(booking), 'application/pdf')
+        email.send(fail_silently=False)
+        return Response({'detail': detail}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _receipt_booking(pk):
+        try:
+            return Booking.objects.select_related('client', 'vehicle', 'vehicle__owner').get(pk=pk)
+        except Booking.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound('Réservation introuvable.')
+
+    @action(detail=False, methods=['get'], url_path='client-stats')
+    def client_stats(self, request):
+        if request.user.role != 'CLIENT':
+            raise PermissionDenied('Réservé aux clients.')
+        bookings = Booking.objects.filter(client=request.user)
+        return Response({
+            'average_rating': bookings.aggregate(value=Avg('client_rating'))['value'] or 0,
+            'rated_count': bookings.exclude(client_rating__isnull=True).count(),
+            'distinct_vehicles': bookings.values('vehicle_id').distinct().count(),
+            'bookings_total': bookings.count(),
+            'total_spent': bookings.exclude(status='cancelled').aggregate(
+                value=Sum('subtotal'))['value'] or Decimal('0'),
+        })
 
     @staticmethod
     def _refund_if_paid(booking):
@@ -377,6 +649,24 @@ class BookingViewSet(viewsets.ModelViewSet):
             payment.release_escrow()   # part propriétaire
             payment.forfeit_deposit()  # caution client versée au propriétaire
         return Response(BookingSerializer(booking).data)
+
+    @action(detail=False, methods=['get'])
+    def disputes(self, request):
+        if request.user.role != 'ADMIN':
+            raise PermissionDenied('Liste réservée à l’administration.')
+        queryset = self.get_queryset().filter(dispute_reason__gt='')
+        state = request.query_params.get('state', 'open')
+        if state == 'open':
+            queryset = queryset.filter(status='disputed')
+        elif state == 'resolved':
+            queryset = queryset.exclude(status='disputed')
+        else:
+            raise ValidationError({'state': 'Valeurs possibles : open, resolved.'})
+        queryset = self.filter_queryset(queryset)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            return self.get_paginated_response(self.get_serializer(page, many=True).data)
+        return Response(self.get_serializer(queryset, many=True).data)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):

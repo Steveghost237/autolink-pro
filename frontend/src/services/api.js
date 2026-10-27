@@ -23,6 +23,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('autolink_access');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['Accept-Language'] = localStorage.getItem('lang') || 'fr';
   return config;
 });
 
@@ -63,6 +64,20 @@ export const vehiclesAPI = {
   detail: (id) => api.get(`/vehicles/${id}/`),
   create: (payload) => api.post('/vehicles/', payload),
   update: (id, payload) => api.patch(`/vehicles/${id}/`, payload),
+  delete: (id) => api.delete(`/vehicles/${id}/`),
+  uploadMedia: (id, payload) => api.post(`/vehicles/${id}/media/`, payload),
+  media: (id) => api.get(`/vehicles/${id}/media/`),
+  deleteMedia: (id, mediaId) => api.delete(`/vehicles/${id}/media/${mediaId}/`),
+  facets: () => api.get('/vehicles/facets/'),
+  favorites: () => api.get('/vehicles/favorites/'),
+  addFavorite: (vehicle) => api.post('/vehicles/favorites/', { vehicle }),
+  removeFavorite: (vehicle) => api.delete(`/vehicles/favorites/${vehicle}/`),
+};
+
+export const adminVehiclesAPI = {
+  list: (params) => api.get('/vehicles/admin/', { params }),
+  update: (id, payload) => api.patch(`/vehicles/admin/${id}/`, payload),
+  delete: (id) => api.delete(`/vehicles/admin/${id}/`),
 };
 
 export const bookingsAPI = {
@@ -72,15 +87,43 @@ export const bookingsAPI = {
   create: (payload) => api.post('/bookings/', payload),
   update: (id, payload) => api.patch(`/bookings/${id}/`, payload),
   updateStatus: (id, status) => api.patch(`/bookings/${id}/`, { status }),
+  acceptDriverRide: (id) => api.post(`/bookings/${id}/driver-accept/`),
+  refuseDriverRide: (id) => api.post(`/bookings/${id}/driver-refuse/`),
   dispute: (id, reason) => api.post(`/bookings/${id}/dispute/`, { reason }),
   resolveDispute: (id, decision) => api.post(`/bookings/${id}/resolve-dispute/`, { decision }),
+  disputes: (params) => api.get('/bookings/disputes/', { params }),
   stats: () => api.get('/bookings/stats/'),
+  clientStats: () => api.get('/bookings/client-stats/'),
+  receipt: (id) => api.get(`/bookings/${id}/receipt/`, { responseType: 'blob' }),
+  emailReceipt: (id) => api.post(`/bookings/${id}/receipt/email/`),
 };
 
 export const notificationsAPI = {
-  list: () => api.get('/users/notifications/'),
+  list: (params) => api.get('/users/notifications/', { params }),
   readAll: () => api.post('/users/notifications/read/'),
   read: (id) => api.post(`/users/notifications/${id}/read/`),
+};
+
+export const siteAPI = {
+  config: () => api.get('/site-config/'),
+};
+
+export const contactAPI = {
+  send: (payload) => api.post('/contact/', payload),
+};
+
+export const contactMessagesAPI = {
+  list: (params) => api.get('/contact/messages/', { params }),
+  update: (id, payload) => api.patch(`/contact/messages/${id}/`, payload),
+  delete: (id) => api.delete(`/contact/messages/${id}/`),
+};
+
+export const newsletterAPI = {
+  campaigns: (params) => api.get('/users/newsletter/campaigns/', { params }),
+  send: (payload) => api.post('/users/newsletter/send/', payload),
+  resend: (id) => api.post(`/users/newsletter/campaigns/${id}/resend/`),
+  update: (id, payload) => api.patch(`/users/newsletter/campaigns/${id}/`, payload),
+  delete: (id) => api.delete(`/users/newsletter/campaigns/${id}/`),
 };
 
 export const usersAPI = {
@@ -88,6 +131,7 @@ export const usersAPI = {
   getAll: (params) => api.get('/users/', { params }),
   create: (payload) => api.post('/users/', payload),
   update: (id, payload) => api.patch(`/users/${id}/`, payload),
+  delete: (id) => api.delete(`/users/${id}/`),
   me: () => api.get('/users/me/'),
   updateMe: (payload) => api.patch('/users/me/', payload),
 };
@@ -95,6 +139,59 @@ export const usersAPI = {
 export const walletAPI = {
   get: () => api.get('/payments/wallet/'),
   topup: (amount, method, phone) => api.post('/payments/wallet/topup/', { amount, method, phone }),
+  status: (reference) => api.get(`/payments/wallet/transactions/${encodeURIComponent(reference)}/status/`),
+  methods: () => api.get('/payments/methods/'),
+};
+export const paymentsAPI = {
+  methods: () => api.get('/payments/methods/'),
+  bookingStatus: (reference) => api.get(`/payments/bookings/${reference}/status/`),
+};
+export const financeAPI = {
+  stats: () => api.get('/payments/finance/stats/'),
+  transactions: (params) => api.get('/payments/finance/transactions/', { params }),
+  exportTransactions: (params) => api.get('/payments/finance/transactions/export/', {
+    params, responseType: 'blob',
+  }),
+};
+export const payoutsAPI = {
+  list: (params) => api.get('/payments/payouts/', { params }),
+};
+export const driversAPI = {
+  applications: (params) => api.get('/drivers/applications/', { params }),
+  createApplication: (payload) => api.post('/drivers/applications/', payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  updateApplication: (id, payload) => api.patch(`/drivers/applications/${id}/`, payload, {
+    headers: payload instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+  }),
+  adminApplications: (params) => api.get('/drivers/admin/applications/', { params }),
+  updateAdminApplication: (id, payload) => api.patch(`/drivers/admin/applications/${id}/`, payload),
+  profiles: (params) => api.get('/drivers/profiles/', { params }),
+  adminProfiles: (params) => api.get('/drivers/admin/profiles/', { params }),
+  availability: (is_online) => api.patch('/drivers/profiles/availability/', { is_online }),
+  earnings: () => api.get('/drivers/profiles/earnings/'),
+  earningLedger: (params) => api.get('/drivers/earnings/', { params }),
+};
+
+export const inspectionsAPI = {
+  queue: (params) => api.get('/inspections/queue/', { params }),
+  dashboard: () => api.get('/inspections/dashboard/'),
+  list: (params) => api.get('/inspections/', { params }),
+  create: (payload) => api.post('/inspections/', payload, payload instanceof FormData
+    ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
+};
+
+export const controllerVehiclesAPI = {
+  list: (params) => api.get('/vehicles/controller-review/', { params }),
+  decide: (id, status) => api.patch(`/vehicles/controller-review/${id}/`, { status }),
+};
+
+export const affiliatesAPI = {
+  agents: (params) => api.get('/affiliates/agents/', { params }),
+  createAgent: (payload) => api.post('/affiliates/agents/', payload),
+  updateAgent: (id, payload) => api.patch(`/affiliates/agents/${id}/`, payload),
+  payouts: (params) => api.get('/affiliates/payouts/', { params }),
+  createPayout: (payload) => api.post('/affiliates/payouts/', payload),
 };
 
 // Service recrutement/formation de chauffeurs (propriétaires + admin)

@@ -1,22 +1,170 @@
+import csv
 import json
 import uuid
+import hmac
+from datetime import date
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction as db_transaction
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.utils import timezone
 from django.http import HttpResponseRedirect
-from rest_framework import viewsets, permissions, status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, generics, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from config.pagination import StandardPagination
 from .models import Payment, Payout, WalletTransaction
-from .serializers import PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
+from apps.bookings.models import Booking
+from apps.drivers.models import DriverEarning
+from .serializers import FinanceTransactionSerializer, PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
 from . import providers
+
+
+class FinanceAdminPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+def _month_start(value):
+    return date(value.year, value.month, 1)
+
+
+def _next_month(value):
+    return date(value.year + (value.month == 12), value.month % 12 + 1, 1)
+
+
+def _completed_payments():
+    return Payment.objects.filter(status=Payment.Status.COMPLETED)
+
+
+class FinanceStatsView(APIView):
+    permission_classes = [FinanceAdminPermission]
+
+    def get(self, request):
+        today = timezone.localdate()
+        month_start = _month_start(today)
+        month_payments = _completed_payments().filter(
+            paid_at__date__gte=month_start, paid_at__date__lte=today)
+        month_payouts = Payout.objects.filter(
+            status=Payment.Status.COMPLETED,
+            processed_at__date__gte=month_start,
+            processed_at__date__lte=today,
+        )
+        payment_totals = month_payments.aggregate(
+            revenue=Coalesce(Sum('amount'), Decimal('0.00')),
+            commission=Coalesce(Sum('commission'), Decimal('0.00')),
+            transaction_count=Count('id'),
+        )
+        driver_earnings = DriverEarning.objects.filter(
+            created_at__date__gte=month_start, created_at__date__lte=today,
+        ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+        monthly_series = []
+        month = month_start
+        for _ in range(12):
+            monthly_series.append(month)
+            previous_year = month.year - (month.month == 1)
+            previous_month = month.month - 1 if month.month > 1 else 12
+            month = date(previous_year, previous_month, 1)
+        monthly_series.reverse()
+        series = []
+        for start in monthly_series:
+            end = _next_month(start)
+            payments = _completed_payments().filter(
+                paid_at__date__gte=start, paid_at__date__lt=end)
+            payouts = Payout.objects.filter(
+                status=Payment.Status.COMPLETED,
+                processed_at__date__gte=start, processed_at__date__lt=end,
+            )
+            payment_sums = payments.aggregate(
+                revenue=Coalesce(Sum('amount'), Decimal('0.00')),
+                commission=Coalesce(Sum('commission'), Decimal('0.00')),
+            )
+            earning_total = DriverEarning.objects.filter(
+                created_at__date__gte=start, created_at__date__lt=end,
+            ).aggregate(total=Coalesce(Sum('amount'), Decimal('0.00')))['total']
+            series.append({
+                'month': start.strftime('%Y-%m'),
+                'revenue': payment_sums['revenue'],
+                'commission': payment_sums['commission'],
+                'driver_earnings': earning_total,
+                'platform_net': payment_sums['commission'] - earning_total,
+                'owner_payouts': payouts.aggregate(
+                    total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
+            })
+        methods = list(month_payments.values('method').annotate(
+            amount=Coalesce(Sum('amount'), Decimal('0.00')),
+            transactions=Count('id'),
+        ).order_by('method'))
+        return Response({
+            'month': month_start.strftime('%Y-%m'),
+            'revenue': payment_totals['revenue'],
+            'commission': payment_totals['commission'],
+            'driver_earnings': driver_earnings,
+            'platform_net': payment_totals['commission'] - driver_earnings,
+            'owner_payouts': month_payouts.aggregate(
+                total=Coalesce(Sum('amount'), Decimal('0.00')))['total'],
+            'transaction_count': payment_totals['transaction_count'],
+            'monthly_series': series,
+            'payment_methods': methods,
+        })
+
+
+class FinanceTransactionListView(generics.ListAPIView):
+    serializer_class = FinanceTransactionSerializer
+    permission_classes = [FinanceAdminPermission]
+    pagination_class = StandardPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'method']
+    search_fields = [
+        'transaction_ref', 'payer__username', 'payer__email', 'payer__first_name',
+        'payer__last_name', 'booking__vehicle__brand', 'booking__vehicle__model',
+        'booking__vehicle__plate',
+    ]
+    ordering_fields = ['created_at', 'paid_at', 'amount', 'commission', 'status', 'method']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Payment.objects.select_related('payer', 'booking__vehicle').all()
+
+
+class FinanceTransactionExportView(FinanceTransactionListView):
+    pagination_class = None
+
+    def get(self, request, *args, **kwargs):
+        rows = self.filter_queryset(self.get_queryset())
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'Référence', 'Client', 'Email', 'Véhicule', 'Méthode', 'Statut',
+            'Montant', 'Commission', 'Part propriétaire', 'Créée le', 'Payée le',
+        ])
+        for payment in rows.iterator():
+            data = FinanceTransactionSerializer(payment).data
+            writer.writerow([
+                data['reference'], data['client_name'], data['client_email'],
+                data['vehicle'], data['method'], data['status'], data['amount'],
+                data['commission'], data['owner_payout'], data['created_at'], data['paid_at'] or '',
+            ])
+        return response
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
+    filterset_fields = ['status', 'method', 'escrow_status']
+    search_fields = [
+        'transaction_ref', 'payer__username', 'payer__email',
+        'booking__vehicle__plate', 'booking__vehicle__brand', 'booking__vehicle__model',
+    ]
+    ordering_fields = ['created_at', 'amount', 'status', 'paid_at', 'escrow_status']
 
     def get_queryset(self):
         user = self.request.user
@@ -31,6 +179,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PayoutSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    pagination_class = StandardPagination
+    filterset_fields = ['status', 'method']
+    search_fields = [
+        'transaction_ref', 'recipient__username', 'recipient__email',
+        'payment__booking__vehicle__plate', 'payment__booking__vehicle__brand',
+    ]
+    ordering_fields = ['created_at', 'processed_at', 'amount', 'status']
 
     def get_queryset(self):
         user = self.request.user
@@ -42,12 +198,18 @@ class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
 class WalletViewSet(viewsets.ViewSet):
     """Solde AutoLink — rechargement et historique."""
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['reference', 'note', 'method', 'kind', 'status']
+    ordering_fields = ['created_at', 'amount', 'kind', 'status']
 
     def list(self, request):
+        transactions = request.user.wallet_transactions.all()
+        for backend in self.filter_backends:
+            transactions = backend().filter_queryset(request, transactions, self)
         return Response({
             'balance': request.user.balance,
             'transactions': WalletTransactionSerializer(
-                request.user.wallet_transactions.all()[:50], many=True
+                transactions[:50], many=True
             ).data,
         })
 
@@ -58,6 +220,43 @@ class WalletViewSet(viewsets.ViewSet):
         amount = serializer.validated_data['amount']
         method = serializer.validated_data['method']
         ref = f'TOP-{uuid.uuid4().hex[:10].upper()}'
+        if method in ('mtn', 'orange'):
+            configured = providers.mtn_configured() if method == 'mtn' else providers.orange_configured()
+            if not configured:
+                return Response({'detail': 'Moyen de paiement non configuré.'}, status=503)
+            phone = serializer.validated_data.get('phone')
+            if not phone:
+                return Response({'detail': 'Le numéro de téléphone est requis.'}, status=400)
+            tx = WalletTransaction.objects.create(
+                user=request.user, kind='topup', method=method, amount=amount,
+                balance_after=request.user.balance or 0, reference=ref, status='pending')
+            try:
+                if method == 'mtn':
+                    result = providers.mtn_request_to_pay(amount, phone, ref)
+                    tx.provider_ref = result['provider_ref']
+                    tx.provider_status = result['status']
+                else:
+                    result = providers.orange_create_payment(
+                        amount, ref, ref,
+                        f'{settings.FRONTEND_URL}/client/dashboard?topup=orange&ref={ref}',
+                        f'{settings.FRONTEND_URL}/client/dashboard?topup=canceled',
+                        self._abs(request, '/api/payments/orange-notification/'))
+                    tx.provider_ref = ref
+                    tx.provider_token = result['notif_token']
+                    tx.provider_pay_token = result['pay_token']
+                    tx.provider_status = 'PENDING'
+                tx.save()
+            except providers.ProviderError as error:
+                tx.status = 'failed'
+                tx.provider_status = 'ERROR'
+                tx.note = str(error)[:200]
+                tx.save(update_fields=['status', 'provider_status', 'note'])
+                return Response({'detail': str(error)}, status=502)
+            return Response({
+                'reference': ref, 'status': tx.status,
+                'payment_url': result.get('payment_url'),
+                'transaction': WalletTransactionSerializer(tx).data,
+            }, status=202)
 
         # ── Paiement externe LIVE : Stripe Checkout / PayPal ────────────────
         # La recharge reste "pending" ; le solde n'est crédité qu'au retour
@@ -96,22 +295,26 @@ class WalletViewSet(viewsets.ViewSet):
                 'transaction': WalletTransactionSerializer(tx).data,
             }, status=status.HTTP_202_ACCEPTED)
 
-        # ── Mobile money (MTN/Orange/SenBid/PayBid) : crédit direct ─────────
-        # En attente des APIs des opérateurs locaux.
-        with db_transaction.atomic():
-            user = request.user.__class__.objects.select_for_update().get(pk=request.user.pk)
-            user.balance = (user.balance or Decimal('0')) + amount
-            user.save(update_fields=['balance', 'updated_at'])
-            tx = WalletTransaction.objects.create(
-                user=user, kind='topup', method=method, amount=amount,
-                balance_after=user.balance,
-                reference=ref,
-                note=f'Rechargement via {method}',
-            )
-        return Response({
-            'balance': user.balance,
-            'transaction': WalletTransactionSerializer(tx).data,
-        }, status=status.HTTP_201_CREATED)
+        return Response({'detail': 'Moyen de paiement non configuré.'}, status=503)
+
+    @action(detail=False, methods=['get'], url_path=r'transactions/(?P<reference>[^/.]+)/status')
+    def transaction_status(self, request, reference=None):
+        try:
+            tx = WalletTransaction.objects.get(reference=reference, user=request.user, kind='topup')
+        except WalletTransaction.DoesNotExist:
+            return Response({'detail': 'Transaction introuvable.'}, status=404)
+        if tx.status != 'pending':
+            return Response(WalletTransactionSerializer(tx).data)
+        if tx.method not in ('mtn', 'orange'):
+            return Response(WalletTransactionSerializer(tx).data)
+        try:
+            raw = providers.mtn_status(tx.provider_ref) if tx.method == 'mtn' else providers.orange_status(
+                tx.provider_ref, tx.amount, tx.provider_pay_token)
+        except providers.ProviderError as error:
+            return Response({'detail': str(error)}, status=502)
+        _settle_wallet(tx, raw)
+        tx.refresh_from_db()
+        return Response(WalletTransactionSerializer(tx).data)
 
     @staticmethod
     def _abs(request, path):
@@ -120,10 +323,11 @@ class WalletViewSet(viewsets.ViewSet):
 
 
 def _credit_wallet_tx(tx, note_suffix=''):
-    """Crédite le solde d'une recharge externe — idempotent."""
-    if tx.status != 'pending':
-        return False
+    """Crédite une recharge confirmée exactement une fois."""
     with db_transaction.atomic():
+        tx = WalletTransaction.objects.select_for_update().get(pk=tx.pk)
+        if tx.status != 'pending':
+            return False
         user = tx.user.__class__.objects.select_for_update().get(pk=tx.user_id)
         user.balance = (user.balance or Decimal('0')) + tx.amount
         user.save(update_fields=['balance', 'updated_at'])
@@ -131,8 +335,44 @@ def _credit_wallet_tx(tx, note_suffix=''):
         tx.balance_after = user.balance
         if note_suffix:
             tx.note = f'{tx.note} {note_suffix}'
-        tx.save(update_fields=['status', 'balance_after', 'note'])
+        tx.save(update_fields=['status', 'balance_after', 'note', 'provider_status'])
     return True
+
+
+def _provider_success(raw):
+    return str(raw.get('status', '')).upper() in ('SUCCESSFUL', 'SUCCESS', 'COMPLETED')
+
+
+def _settle_wallet(tx, raw):
+    status_value = str(raw.get('status', 'PENDING')).upper()
+    with db_transaction.atomic():
+        locked = WalletTransaction.objects.select_for_update().get(pk=tx.pk)
+        locked.provider_status = status_value
+        locked.save(update_fields=['provider_status'])
+        if locked.status == 'pending' and _provider_success(raw):
+            _credit_wallet_tx(locked, '(paiement confirmé)')
+        elif locked.status == 'pending' and status_value in ('FAILED', 'ERROR', 'EXPIRED'):
+            locked.status = 'failed'
+            locked.save(update_fields=['status', 'provider_status'])
+        else:
+            locked.save(update_fields=['provider_status'])
+
+
+def _settle_booking(payment, raw):
+    with db_transaction.atomic():
+        locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        locked.provider_status = str(raw.get('status', 'PENDING')).upper()
+        if locked.status != 'pending':
+            locked.save(update_fields=['provider_status'])
+            return
+        if _provider_success(raw):
+            locked.status = 'completed'
+            locked.paid_at = timezone.now()
+            locked.save(update_fields=['status', 'paid_at', 'provider_status'])
+            _confirm_booking_payment(locked)
+        elif locked.provider_status in ('FAILED', 'ERROR', 'EXPIRED'):
+            locked.status = 'failed'
+            locked.save(update_fields=['status', 'provider_status'])
 
 
 def _confirm_booking_payment(payment):
@@ -154,6 +394,71 @@ def _confirm_booking_payment(payment):
                 f'Votre véhicule {vehicle} a été réservé par {booking.client.get_full_name()} '
                 f'du {booking.start_date} au {booking.end_date} (paiement {payment.method} reçu).')
         booking.sync_vehicle_status()
+
+
+class PaymentMethodsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # Return all payment methods, with configuration status
+        all_methods = ['mtn', 'orange', 'stripe', 'paypal']
+        configured_methods = []
+        for method in all_methods:
+            if method == 'mtn' and providers.mtn_configured():
+                configured_methods.append(method)
+            elif method == 'orange' and providers.orange_configured():
+                configured_methods.append(method)
+            elif method == 'stripe' and providers.stripe_configured():
+                configured_methods.append(method)
+            elif method == 'paypal' and providers.paypal_configured():
+                configured_methods.append(method)
+        return Response({
+            'methods': all_methods,
+            'configured_methods': configured_methods,
+            'booking_methods': ['wallet', *all_methods]
+        })
+
+
+class OrangeNotificationView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        token = str(request.data.get('notif_token', ''))
+        order_id = str(request.data.get('order_id', ''))
+        tx = WalletTransaction.objects.filter(provider_ref=order_id, method='orange').first()
+        payment = Payment.objects.filter(provider_ref=order_id, method='orange').first()
+        expected = tx.provider_token if tx else payment.provider_token if payment else ''
+        if not expected or not hmac.compare_digest(token, expected):
+            return Response({'detail': 'Notification non autorisée.'}, status=403)
+        try:
+            amount = tx.amount if tx else payment.amount
+            pay_token = tx.provider_pay_token if tx else payment.provider_pay_token
+            raw = providers.orange_status(order_id, amount, pay_token)
+        except providers.ProviderError as error:
+            return Response({'detail': str(error)}, status=502)
+        _settle_wallet(tx, raw) if tx else _settle_booking(payment, raw)
+        return Response({'status': 'ok'})
+
+
+class BookingPaymentStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, reference):
+        try:
+            booking = Booking.objects.select_related('payment').get(pk=reference, client=request.user)
+            payment = booking.payment
+        except (Booking.DoesNotExist, Payment.DoesNotExist):
+            return Response({'detail': 'Paiement introuvable.'}, status=404)
+        if payment.status == 'pending' and payment.method in ('mtn', 'orange'):
+            try:
+                raw = providers.mtn_status(payment.provider_ref) if payment.method == 'mtn' else providers.orange_status(
+                    payment.provider_ref, payment.amount, payment.provider_pay_token)
+            except providers.ProviderError as error:
+                return Response({'detail': str(error)}, status=502)
+            _settle_booking(payment, raw)
+            payment.refresh_from_db()
+        return Response({'status': payment.status, 'provider_status': payment.provider_status})
 
 
 class StripeReturnView(APIView):

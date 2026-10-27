@@ -1,4 +1,6 @@
 from django.db import models
+from django.db import transaction
+from django.db.models import F
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -43,6 +45,12 @@ class Booking(models.Model):
     intermediary_commission = models.DecimalField(
         max_digits=12, decimal_places=2, default=0,
         help_text='Commission de l\'intermédiaire — prélevée sur la part AutoLink.')
+    driver_response = models.CharField(
+        max_length=20,
+        choices=[('not_applicable', 'Sans objet'), ('offered', 'Proposée'),
+                 ('accepted', 'Acceptée'), ('refused', 'Refusée')],
+        default='not_applicable',
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     driver_type = models.CharField(max_length=20, choices=DriverType.choices, default=DriverType.NONE)
@@ -87,7 +95,7 @@ class Booking(models.Model):
         if self.start_date and self.end_date:
             self.days = (self.end_date - self.start_date).days or 1
         # Tarification dynamique : dégressivité longue durée
-        self.discount_percent = 10 if self.days >= 30 else 5 if self.days >= 7 else 0
+        self.discount_percent = 10 if self.days >= 30 else 5 if self.days > 3 else 0
         gross = self.daily_rate * self.days
         self.subtotal = (gross * Decimal(100 - self.discount_percent) / 100).quantize(Decimal('0.01'))
         self.commission_amount = (self.subtotal * get_commission_rate()).quantize(Decimal('0.01'))
@@ -115,14 +123,40 @@ class Booking(models.Model):
 
     def finish(self):
         """Termine la location : véhicule libéré + caution versée au propriétaire."""
-        if self.status in ('completed', 'cancelled'):
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().select_related(
+                'vehicle', 'client', 'vehicle__owner',
+            ).get(pk=self.pk)
+            if booking.status == 'cancelled':
+                return
+            if booking.status != 'completed':
+                booking.status = self.Status.COMPLETED
+                booking.save(update_fields=['status', 'updated_at'])
+                booking.sync_vehicle_status()
+                booking._release_escrow()
+                booking._release_deposit()
+                booking._notify_end()
+            booking._record_driver_earning()
+            self.status = booking.status
+            self.updated_at = booking.updated_at
+
+    def _record_driver_earning(self):
+        if not self.driver_id:
             return
-        self.status = self.Status.COMPLETED
-        self.save(update_fields=['status', 'updated_at'])
-        self.sync_vehicle_status()
-        self._release_escrow()
-        self._release_deposit()
-        self._notify_end()
+        from apps.drivers.models import DriverEarning, DriverProfile
+
+        amount = (self.subtotal * Decimal(str(settings.DRIVER_SHARE_RATE))).quantize(Decimal('0.01'))
+        DriverProfile.objects.get_or_create(driver_id=self.driver_id)
+        profile = DriverProfile.objects.select_for_update().get(driver_id=self.driver_id)
+        _, created = DriverEarning.objects.get_or_create(
+            booking_id=self.pk,
+            defaults={'driver_id': self.driver_id, 'amount': amount},
+        )
+        if created:
+            DriverProfile.objects.filter(pk=profile.pk).update(
+                total_earned=F('total_earned') + amount,
+                total_trips=F('total_trips') + 1,
+            )
 
     def _release_escrow(self):
         """Libère la caution : le propriétaire reçoit ses 50%."""

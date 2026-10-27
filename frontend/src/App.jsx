@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
@@ -16,6 +18,8 @@ import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
 import DriverService from './pages/owner/DriverService';
 import IntermediaryDashboard from './pages/intermediary/IntermediaryDashboard';
+import DriverDashboard from './pages/driver/DriverDashboard';
+import DriverApplicationForm from './pages/driver/DriverApplicationForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriverRecruitment from './pages/admin/DriverRecruitment';
 import Finance from './pages/admin/Finance';
@@ -24,6 +28,10 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
+import Disputes from './pages/admin/Disputes';
+import ContactMessages from './pages/admin/ContactMessages';
+import Newsletter from './pages/admin/Newsletter';
+import LegalPages from './pages/LegalPages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Messages from './pages/Messages';
@@ -31,6 +39,9 @@ import Maintenance from './pages/owner/Maintenance';
 import AdminMaintenance from './pages/admin/AdminMaintenance';
 import PlatformSettings from './pages/admin/PlatformSettings';
 import NotFound from './pages/NotFound';
+import VehicleDetail from './pages/VehicleDetail';
+import Favorites from './pages/client/Favorites';
+import BookingDetail from './pages/client/BookingDetail';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -48,22 +59,35 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/privacy" element={<LegalPages />} />
+      <Route path="/terms" element={<LegalPages />} />
+      <Route path="/cookies" element={<LegalPages />} />
+      <Route path="/vehicles/:id" element={<VehicleDetail />} />
 
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
       <Route path="/client/stats" element={<Guard roles={['CLIENT']}><ClientStats /></Guard>} />
       <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><ClientWallet /></Guard>} />
+      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><BookingDetail /></Guard>} />
+      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
+      <Route path="/owner/bookings/:id" element={<Guard roles={['OWNER']}><BookingDetail /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
       <Route path="/owner/driver-service" element={<Guard roles={['OWNER']}><DriverService /></Guard>} />
       <Route path="/owner/maintenance" element={<Guard roles={['OWNER']}><Maintenance /></Guard>} />
 
       <Route path="/intermediary/dashboard" element={<Guard roles={['INTERMEDIARY']}><IntermediaryDashboard /></Guard>} />
+      <Route path="/owner/vehicles/:id/edit" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
+
+      <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
+      <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
+      <Route path="/driver/bookings/:id" element={<Guard roles={['DRIVER']}><BookingDetail /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
+      <Route path="/admin/bookings/:id" element={<Guard roles={['ADMIN']}><BookingDetail /></Guard>} />
       <Route path="/admin/drivers" element={<Guard roles={['ADMIN']}><DriverRecruitment /></Guard>} />
       <Route path="/admin/finance" element={<Guard roles={['ADMIN']}><Finance /></Guard>} />
       <Route path="/admin/inspections" element={<Guard roles={['ADMIN', 'CONTROLLER']}><VehicleInspection /></Guard>} />
@@ -72,6 +96,9 @@ function AppRoutes() {
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
       <Route path="/admin/maintenance" element={<Guard roles={['ADMIN']}><AdminMaintenance /></Guard>} />
       <Route path="/admin/platform-settings" element={<Guard roles={['ADMIN']}><PlatformSettings /></Guard>} />
+      <Route path="/admin/disputes" element={<Guard roles={['ADMIN']}><Disputes /></Guard>} />
+      <Route path="/admin/messages" element={<Guard roles={['ADMIN']}><ContactMessages /></Guard>} />
+      <Route path="/admin/newsletter" element={<Guard roles={['ADMIN']}><Newsletter /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
@@ -86,11 +113,14 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useTranslation();
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <AppRoutes />
+          <ConfirmProvider>
+            <AppRoutes />
+          </ConfirmProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>

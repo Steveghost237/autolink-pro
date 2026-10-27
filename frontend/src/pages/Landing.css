@@ -1,0 +1,52 @@
+.brand-marquee-row {
+  overflow: hidden;
+}
+
+.brand-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 1rem;
+  animation: brand-marquee-scroll 48s linear infinite;
+}
+
+.brand-marquee-reverse .brand-marquee-track {
+  animation-direction: reverse;
+}
+
+.brand-marquee-row:hover .brand-marquee-track {
+  animation-play-state: paused;
+}
+
+.brand-marquee-item {
+  display: flex;
+  width: 10rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 0 1rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.brand-marquee-item svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+@keyframes brand-marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-marquee-track {
+    animation-play-state: paused;
+  }
+}

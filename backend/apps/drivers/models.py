@@ -113,3 +113,22 @@ class DriverServiceRequest(models.Model):
 
     def __str__(self):
         return f'DSR-{self.pk:04d} — {self.owner.get_full_name()} ({self.drivers_count} chauffeur(s))'
+class DriverEarning(models.Model):
+    driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='driver_earnings',
+    )
+    booking = models.OneToOneField(
+        'bookings.Booking',
+        on_delete=models.PROTECT,
+        related_name='driver_earning',
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.driver} — {self.amount} FCFA'

@@ -1,176 +1,240 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, Ban, CheckCircle, Users, Car, UserCheck, Shield, Share2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Ban, CheckCircle, Plus, Trash2, Users, Download } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListToolbar from '../../components/ListToolbar';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { usersAPI } from '../../services/api';
+import { formatDate,  uiText } from '../../i18n';
 
-const ROLE_CONFIG = {
-  CLIENT:       { label: 'Client',        style: 'badge-info',    icon: Users },
-  OWNER:        { label: 'Propriétaire',  style: 'badge-primary', icon: Car },
-  DRIVER:       { label: 'Chauffeur',     style: 'badge-warning', icon: UserCheck },
-  ADMIN:        { label: 'Admin',         style: 'badge-error',   icon: Shield },
-  CONTROLLER:   { label: 'Contrôleur',    style: 'bg-purple-100 text-purple-700', icon: Shield },
-  INTERMEDIARY: { label: 'Intermédiaire', style: 'bg-violet-100 text-violet-700', icon: Share2 },
+const ROLES = [
+  ['CLIENT', uiText("pages.admin.ManageUsers", "Client")], ['OWNER', uiText("pages.admin.ManageUsers", "Propriétaire")], ['DRIVER', uiText("pages.admin.ManageUsers", "Chauffeur")],
+  ['INTERMEDIARY', uiText("pages.admin.ManageUsers", "Intermédiaire")],
+  ['CONTROLLER', uiText("pages.admin.ManageUsers", "Contrôleur")], ['ADMIN', uiText("pages.admin.ManageUsers", "Administrateur")],
+];
+const SORT_OPTIONS = [
+  { value: 'created_at', label: uiText("pages.admin.ManageUsers", "Date d’inscription") },
+  { value: 'username', label: uiText("pages.admin.ManageUsers", "Nom d’utilisateur") },
+  { value: 'email', label: uiText("pages.admin.ManageUsers", "Email") },
+  { value: 'role', label: uiText("pages.admin.ManageUsers", "Rôle") },
+  { value: 'is_active', label: uiText("pages.admin.ManageUsers", "Statut") },
+];
+const EMPTY_FORM = {
+  username: '', email: '', first_name: '', last_name: '', phone: '',
+  role: 'CLIENT', password: '',
 };
 
 export default function ManageUsers() {
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
-  const [busy, setBusy] = useState(null);
+  const [role, setRole] = useState('');
+  const [active, setActive] = useState('');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const params = {};
-      if (roleFilter !== 'ALL') params.role = roleFilter;
-      if (search) params.search = search;
-      const { data } = await usersAPI.list(params);
-      setUsers(data.results || data || []);
-    } catch (_) { /* API injoignable */ }
-    setLoading(false);
-  }, [roleFilter, search]);
+      const { data } = await usersAPI.list({
+        page, page_size: 20, search: search.trim(), role: role || undefined,
+        is_active: active || undefined,
+        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
+      });
+      setUsers(data.results || []);
+      setCount(data.count ?? data.length ?? 0);
+      setError('');
+    } catch (_) {
+      setError(uiText("pages.admin.ManageUsers", "Impossible de charger les utilisateurs."));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, role, active, sortField, sortOrder]);
 
-  useEffect(() => {
-    const t = setTimeout(load, 250); // debounce recherche
-    return () => clearTimeout(t);
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  const update = async (u, payload) => {
-    setBusy(u.id);
+  const saveUser = async (id, changes) => {
     try {
-      const { data } = await usersAPI.update(u.id, payload);
-      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, ...data } : x));
-    } catch (_) {}
-    setBusy(null);
+      await usersAPI.update(id, changes);
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "La modification a échoué."));
+    }
   };
 
-  const counts = users.reduce((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; return acc; }, {});
+  const exportToExcel = async () => {
+    try {
+      const { data } = await usersAPI.list({
+        page_size: 1000, search: search.trim(), role: role || undefined,
+        is_active: active || undefined,
+        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
+      });
+      const rows = data.results || [];
+      const headers = ['Utilisateur', 'Email', 'Téléphone', 'Rôle', 'Statut', 'Vérifié', 'Inscription', 'Réservations', 'Véhicules', 'Courses'];
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(user => [
+          `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+          user.email || '',
+          user.phone || '',
+          user.role || '',
+          user.is_active ? 'Actif' : 'Suspendu',
+          user.is_verified ? 'Oui' : 'Non',
+          user.created_at ? formatDate(new Date(user.created_at)) : '',
+          user.bookings_count || 0,
+          user.vehicles_count || 0,
+          user.trips_count || 0,
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `utilisateurs_autolink_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      setError(uiText("pages.admin.ManageUsers", "L'export a échoué."));
+    }
+  };
+
+  const toggleActive = async (user) => {
+    if (user.is_active && !(await confirm({
+      title: uiText("pages.admin.ManageUsers", "Suspendre ce compte ?"),
+      message: `${user.first_name || user.username} ne pourra plus se connecter.`,
+      confirmLabel: uiText("pages.admin.ManageUsers", "Suspendre"), danger: true,
+    }))) return;
+    await saveUser(user.id, { is_active: !user.is_active });
+  };
+
+  const deleteUser = async (user) => {
+    if (!(await confirm({
+      title: uiText("pages.admin.ManageUsers", "Supprimer ce compte ?"),
+      message: uiText("pages.admin.ManageUsers", "Le compte {{email}} sera supprimé définitivement.", { email: user.email }),
+      confirmLabel: uiText("pages.admin.ManageUsers", "Supprimer"), danger: true,
+    }))) return;
+    try {
+      await usersAPI.delete(user.id);
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "Ce compte ne peut pas être supprimé."));
+    }
+  };
+
+  const createUser = async (event) => {
+    event.preventDefault();
+    try {
+      await usersAPI.create(form);
+      setCreating(false);
+      setForm(EMPTY_FORM);
+      setPage(1);
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "La création du compte a échoué."));
+    }
+  };
 
   return (
-    <DashboardLayout title="Gestion des utilisateurs">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Clients',        count: counts.CLIENT || 0,       icon: Users,     color: 'bg-blue-50 text-blue-600' },
-            { label: 'Propriétaires',  count: counts.OWNER || 0,        icon: Car,       color: 'bg-emerald-50 text-emerald-600' },
-            { label: 'Intermédiaires', count: counts.INTERMEDIARY || 0, icon: Share2, color: 'bg-violet-50 text-violet-600' },
-            { label: 'Chauffeurs',     count: counts.DRIVER || 0,       icon: UserCheck, color: 'bg-amber-50 text-amber-600' },
-          ].map(({ label, count, icon: Icon, color }) => (
-            <div key={label} className="card flex items-center gap-4">
-              <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shrink-0`}><Icon size={22} /></div>
-              <div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">{count}</div>
-                <div className="text-sm text-slate-500">{label}</div>
-              </div>
-            </div>
-          ))}
+    <DashboardLayout title={uiText("pages.admin.ManageUsers", "Gestion des utilisateurs")}>
+      <div className="mx-auto max-w-7xl space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.ManageUsers", "compte(s)")}</p>
+          <button onClick={() => setCreating(true)} className="btn-primary flex items-center gap-2">
+            <Plus size={17} />{" " + uiText("pages.admin.ManageUsers", "Créer un utilisateur") + " "}</button>
         </div>
-
-        {/* Filters */}
-        <div className="card flex flex-wrap gap-4">
-          <div className="flex-1 min-w-48 relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" className="input-field pl-9" placeholder="Rechercher par nom, email ou code..."
-              value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <select className="input-field w-auto" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-            <option value="ALL">Tous les rôles</option>
-            <option value="CLIENT">Clients</option>
-            <option value="OWNER">Propriétaires</option>
-            <option value="INTERMEDIARY">Intermédiaires</option>
-            <option value="DRIVER">Chauffeurs (archives)</option>
-            <option value="CONTROLLER">Contrôleurs</option>
-            <option value="ADMIN">Admins</option>
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <div className="card flex flex-wrap items-center gap-3">
+          <ListToolbar
+            search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
+            sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
+            sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
+            sortOptions={SORT_OPTIONS} placeholder={uiText("pages.admin.ManageUsers", "Rechercher nom, email, téléphone")}
+          />
+          <select className="input-field w-auto" value={role} onChange={event => { setRole(event.target.value); setPage(1); }}>
+            <option value="">{uiText("pages.admin.ManageUsers", "Tous les rôles")}</option>
+            {ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
+          <select className="input-field w-auto" value={active} onChange={event => { setActive(event.target.value); setPage(1); }}>
+            <option value="">{uiText("pages.admin.ManageUsers", "Tous les statuts")}</option>
+            <option value="true">{uiText("pages.admin.ManageUsers", "Actifs")}</option>
+            <option value="false">{uiText("pages.admin.ManageUsers", "Suspendus")}</option>
+          </select>
+          <button onClick={exportToExcel} className="btn-outline flex items-center gap-2 text-sm">
+            <Download size={16} />{uiText("pages.admin.ManageUsers", "Exporter Excel")}
+          </button>
         </div>
-
-        {/* Table */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-100 dark:border-slate-700">
-                <tr>
-                  {['Utilisateur', 'Rôle', 'Statut', 'Vérifié', 'Inscrit le', 'Réservations', 'Actions'].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">{h}</th>
-                  ))}
+        <div className="card overflow-x-auto p-0">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr>{["Utilisateur", "Rôle", "Statut", "Vérifié", "Inscription", "Activité", "Actions"].map(label => <th key={label} className="px-4 py-3">{uiText("pages.admin.ManageUsers", label)}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map(user => (
+                <tr key={user.id}>
+                  <td className="px-4 py-3">
+                    <div className="font-semibold">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</div>
+                    <div className="text-xs text-slate-500">{user.email}{" " + uiText("pages.admin.ManageUsers", "·") + " "}{user.phone || uiText("pages.admin.ManageUsers", "—")}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select aria-label={`Rôle de ${user.username}`} className="input-field w-auto py-1"
+                      value={user.role} onChange={event => saveUser(user.id, { role: event.target.value })}>
+                      {ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">{user.is_active ? uiText("pages.admin.ManageUsers", "Actif") : uiText("pages.admin.ManageUsers", "Suspendu")}</td>
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={user.is_verified} aria-label={uiText("pages.admin.ManageUsers", "Vérifier {{name}}", { name: user.username })}
+                      onChange={event => saveUser(user.id, { is_verified: event.target.checked })} />
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(new Date(user.created_at))}</td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    {user.bookings_count || 0}{" " + uiText("pages.admin.ManageUsers", "réservation(s) ·") + " "}{user.vehicles_count || 0}{" " + uiText("pages.admin.ManageUsers", "véhicule(s) ·") + " "}{user.trips_count || 0}{" " + uiText("pages.admin.ManageUsers", "course(s)") + " "}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button title={user.is_active ? uiText("pages.admin.ManageUsers", "Suspendre") : uiText("pages.admin.ManageUsers", "Réactiver")} onClick={() => toggleActive(user)}
+                        className={`rounded-lg p-2 ${user.is_active ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {user.is_active ? <Ban size={16} /> : <CheckCircle size={16} />}
+                      </button>
+                      <button title={uiText("pages.admin.ManageUsers", "Supprimer")} onClick={() => deleteUser(user)} className="rounded-lg p-2 text-red-600">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                {filtered(users, roleFilter).map(u => {
-                  const RC = ROLE_CONFIG[u.role] || ROLE_CONFIG.CLIENT;
-                  const Icon = RC.icon;
-                  const active = u.is_active;
-                  return (
-                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
-                            {(u.first_name || u.username || '?').charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">{u.first_name} {u.last_name}</div>
-                            <div className="text-xs text-slate-400">{u.email}</div>
-                            {u.referral_code && <code className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">{u.referral_code}</code>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={RC.style}><Icon size={10} className="inline mr-1" />{RC.label}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {active
-                          ? <span className="badge-success">Actif</span>
-                          : <span className="badge-error">Suspendu</span>}
-                      </td>
-                      <td className="py-3 px-4">
-                        {u.is_verified
-                          ? <CheckCircle size={16} className="text-emerald-500" />
-                          : <button disabled={busy === u.id} onClick={() => update(u, { is_verified: true })}
-                              className="text-xs text-primary-600 font-semibold hover:underline">Vérifier</button>}
-                      </td>
-                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300 text-xs">
-                        {u.role === 'INTERMEDIARY'
-                          ? `${u.bookings_count} apportée(s) · ${Number(u.commissions_total || 0).toLocaleString()} F`
-                          : `${u.bookings_count ?? 0} réservation(s)`}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <button className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Voir profil"><Eye size={15} /></button>
-                          {u.role !== 'ADMIN' && (
-                            <button disabled={busy === u.id}
-                              onClick={() => update(u, { is_active: !active })}
-                              className={`p-1.5 rounded-lg transition-colors ${active ? 'hover:bg-red-50 text-red-500' : 'hover:bg-emerald-50 text-emerald-600'}`}
-                              title={active ? 'Suspendre' : 'Réactiver'}>
-                              {active ? <Ban size={15} /> : <CheckCircle size={15} />}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {!loading && filtered(users, roleFilter).length === 0 && (
-            <div className="text-center py-12">
-              <Users size={40} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-500">Aucun utilisateur trouvé</p>
+              ))}
+            </tbody>
+          </table>
+          {!loading && users.length === 0 && <div className="py-12 text-center text-slate-500"><Users className="mx-auto mb-2" />{uiText("pages.admin.ManageUsers", "Aucun utilisateur trouvé.")}</div>}
+          {loading && <p className="p-6 text-center text-slate-500">{uiText("pages.admin.ManageUsers", "Chargement…")}</p>}
+          <div className="flex items-center justify-between border-t p-4 text-sm">
+            <span>{uiText("pages.admin.ManageUsers", "Page") + " "}{page}{" " + uiText("pages.admin.ManageUsers", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
+            <div className="flex gap-2">
+              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>{uiText("pages.admin.ManageUsers", "Précédent")}</button>
+              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>{uiText("pages.admin.ManageUsers", "Suivant")}</button>
             </div>
-          )}
-          {loading && <div className="text-center py-12 text-slate-400">Chargement…</div>}
-          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 text-sm text-slate-500">
-            {users.length} utilisateur(s)
           </div>
         </div>
       </div>
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form onSubmit={createUser} className="card w-full max-w-xl space-y-3">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{uiText("pages.admin.ManageUsers", "Créer un utilisateur")}</h2><button type="button" onClick={() => setCreating(false)}>{uiText("pages.admin.ManageUsers", "Fermer")}</button></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ['username', uiText("pages.admin.ManageUsers", "Nom d’utilisateur")], ['email', uiText("pages.admin.ManageUsers", "Email")], ['first_name', uiText("pages.admin.ManageUsers", "Prénom")],
+                ['last_name', uiText("pages.admin.ManageUsers", "Nom")], ['phone', uiText("pages.admin.ManageUsers", "Téléphone")], ['password', uiText("pages.admin.ManageUsers", "Mot de passe")],
+              ].map(([key, label]) => <label key={key} className="text-sm">{label}<input required className="input-field mt-1" type={key === 'password' ? uiText("pages.admin.ManageUsers", "password") : key === 'email' ? uiText("pages.admin.ManageUsers", "email") : uiText("pages.admin.ManageUsers", "text")} value={form[key]} onChange={event => setForm(value => ({ ...value, [key]: event.target.value }))} /></label>)}
+              <label className="text-sm">{uiText("pages.admin.ManageUsers", "Rôle")}<select className="input-field mt-1" value={form.role} onChange={event => setForm(value => ({ ...value, role: event.target.value }))}>{ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            </div>
+            <button className="btn-primary w-full">{uiText("pages.admin.ManageUsers", "Créer le compte")}</button>
+          </form>
+        </div>
+      )}
     </DashboardLayout>
   );
-}
-
-// Filtre local complémentaire (recherche déjà côté serveur via ?search=)
-function filtered(users, roleFilter) {
-  return users.filter(u => roleFilter === 'ALL' || u.role === roleFilter);
 }

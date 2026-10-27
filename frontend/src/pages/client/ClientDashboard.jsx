@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import PromoCarousel from '../../components/PromoCarousel';
+import TopUpModal from '../../components/TopUpModal';
 import { Car, Search, FileText, Star, Clock, CreditCard, ArrowRight, Timer, Navigation, Calendar, X, CheckCircle } from 'lucide-react';
-import { bookingsAPI, vehiclesAPI } from '../../services/api';
+import { walletAPI, bookingsAPI, vehiclesAPI } from '../../services/api';
+import { formatNumber, formatDate, uiText, vehicleLabel } from '../../i18n';
 
 const STATUS_STYLES = {
   completed: 'badge-success',
@@ -14,19 +16,26 @@ const STATUS_STYLES = {
 };
 
 const RENTAL_QUICK = [
-  { id: 'urban_3h',  label: '3 heures',    icon: Timer,      desc: 'Courses & RDV',          color: 'bg-blue-600' },
-  { id: 'urban_8h',  label: '8 heures',    icon: Clock,      desc: 'Demi-journée / Pro',     color: 'bg-teal-600' },
-  { id: 'urban_day', label: '24 heures',   icon: Calendar,   desc: 'Journée complète',       color: 'bg-primary-600' },
-  { id: 'intercity', label: 'Interurbain', icon: Navigation, desc: 'Douala ↔ Yaoundé',       color: 'bg-orange-500' },
+  { id: 'urban_3h',  label: uiText("pages.client.ClientDashboard", "3 heures"),    icon: Timer,      desc: uiText("pages.client.ClientDashboard", "Courses & RDV"),          color: 'bg-blue-600' },
+  { id: 'urban_8h',  label: uiText("pages.client.ClientDashboard", "8 heures"),    icon: Clock,      desc: uiText("pages.client.ClientDashboard", "Demi-journée / Pro"),     color: 'bg-teal-600' },
+  { id: 'urban_day', label: uiText("pages.client.ClientDashboard", "24 heures"),   icon: Calendar,   desc: uiText("pages.client.ClientDashboard", "Journée complète"),       color: 'bg-primary-600' },
+  { id: 'intercity', label: uiText("pages.client.ClientDashboard", "Interurbain"), icon: Navigation, desc: uiText("pages.client.ClientDashboard", "Douala ↔ Yaoundé"),       color: 'bg-orange-500' },
+  { id: 'long_haul', label: uiText("pages.client.ClientDashboard", "Longue durée"), icon: Calendar, desc: uiText("pages.client.ClientDashboard", "Plus de 3 jours · -5% / -10%"), color: 'bg-indigo-600' },
 ];
 
-const STATUS_LABELS = { completed: 'Terminé', pending: 'En attente', active: 'En cours', confirmed: 'Confirmé', cancelled: 'Annulé' };
+const STATUS_LABELS = {
+  completed: uiText("pages.client.ClientDashboard", "Terminé"),
+  pending: uiText("pages.client.ClientDashboard", "En attente"),
+  active: uiText("pages.client.ClientDashboard", "En cours"),
+  confirmed: uiText("pages.client.ClientDashboard", "Confirmé"),
+  cancelled: uiText("pages.client.ClientDashboard", "Annulé"),
+};
 
 const TOPUP_BANNERS = {
-  success:  { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'Paiement confirmé — votre solde a été rechargé.' },
-  canceled: { cls: 'bg-amber-50 text-amber-700 border-amber-200',      text: 'Paiement annulé — aucun montant n\'a été débité.' },
-  pending:  { cls: 'bg-blue-50 text-blue-700 border-blue-200',          text: 'Paiement en cours de traitement — votre solde sera mis à jour automatiquement.' },
-  error:    { cls: 'bg-red-50 text-red-700 border-red-200',             text: 'Le paiement n\'a pas abouti. Réessayez ou choisissez un autre moyen.' },
+  success:  { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: uiText("pages.client.ClientDashboard", "Paiement confirmé — votre solde a été rechargé.") },
+  canceled: { cls: 'bg-amber-50 text-amber-700 border-amber-200',      text: uiText("pages.client.ClientDashboard", "Paiement annulé — aucun montant n'a été débité.") },
+  pending:  { cls: 'bg-blue-50 text-blue-700 border-blue-200',          text: uiText("pages.client.ClientDashboard", "Paiement en cours de traitement — votre solde sera mis à jour automatiquement.") },
+  error:    { cls: 'bg-red-50 text-red-700 border-red-200',             text: uiText("pages.client.ClientDashboard", "Le paiement n'a pas abouti. Réessayez ou choisissez un autre moyen.") },
 };
 
 export default function ClientDashboard() {
@@ -35,17 +44,26 @@ export default function ClientDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [recentBookings, setRecentBookings] = useState([]);
   const [featuredVehicles, setFeaturedVehicles] = useState([]);
+  const [clientStats, setClientStats] = useState({ average_rating: 0, distinct_vehicles: 0, bookings_total: 0, total_spent: 0 });
+  const [walletHistory, setWalletHistory] = useState([]);
+  const [balance, setBalance] = useState(null);
   const topupResult = searchParams.get('topup');
-  const totalSpent = recentBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
 
   useEffect(() => {
+    walletAPI.get()
+      .then(res => {
+        setBalance(Number(res.data.balance));
+        setWalletHistory(res.data.transactions || []);
+      })
+      .catch(() => {});
+    bookingsAPI.clientStats().then(({ data }) => setClientStats(data)).catch(() => {});
     // Réservations récentes (vraies données API)
     bookingsAPI.getAll()
       .then(res => {
         const list = (res.data.results || res.data || []);
         setRecentBookings(list.slice(0, 3).map(b => ({
           id: b.id,
-          vehicle: b.vehicle_name || 'Véhicule',
+          vehicle: b.vehicle_name || uiText("pages.client.ClientDashboard", "Véhicule"),
           driver: b.driver_name || 'Sans chauffeur',
           date: b.start_date,
           type: `${b.days || 1} jour(s)`,
@@ -61,7 +79,8 @@ export default function ClientDashboard() {
         setFeaturedVehicles(list.slice(0, 3).map(v => ({
           id: v.id,
           name: `${v.brand} ${v.model} ${v.year}`,
-          category: v.tier_label || v.category || v.tier,
+          category: v.category || v.tier_label || v.tier,
+          categoryType: v.category ? 'category' : 'tier',
           price: Number(v.daily_rate || 0),
           rating: Number(v.rating) || 5.0,
           image: v.image_url,
@@ -73,10 +92,19 @@ export default function ClientDashboard() {
       const t = setTimeout(() => setSearchParams({}, { replace: true }), 8000);
       return () => clearTimeout(t);
     }
-  }, [topupResult]);
+  }, [topupResult, setSearchParams]);
+
+  useEffect(() => {
+    const reference = searchParams.get('ref');
+    if (topupResult !== 'orange' || !reference) return;
+    walletAPI.status(reference).then(({ data }) => {
+      if (data.status === 'completed') walletAPI.get().then(({ data: wallet }) => setBalance(Number(wallet.balance)));
+      setSearchParams({ topup: data.status === 'completed' ? 'success' : 'pending' }, { replace: true });
+    }).catch(() => setSearchParams({ topup: 'error' }, { replace: true }));
+  }, [topupResult, searchParams, setSearchParams]);
 
   return (
-    <DashboardLayout title="Tableau de bord">
+    <DashboardLayout title={uiText("pages.client.ClientDashboard", "Tableau de bord")}>
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Retour de paiement externe (Stripe/PayPal) */}
@@ -91,20 +119,18 @@ export default function ClientDashboard() {
         <div className="relative rounded-2xl overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=80"
-            alt="AutoLink Pro"
+            alt={uiText("pages.client.ClientDashboard", "AutoLink Pro")}
             className="w-full h-44 object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-center px-6">
-            <p className="text-white/70 text-sm mb-1">Bienvenue,</p>
+            <p className="text-white/70 text-sm mb-1">{uiText("pages.client.ClientDashboard", "Bienvenue,")}</p>
             <h2 className="text-2xl font-black text-white mb-4">{user?.firstName} {user?.lastName}</h2>
             <div className="flex flex-wrap gap-3">
               <button onClick={() => navigate('/client/search')} className="flex items-center gap-2 bg-white text-slate-900 font-semibold py-2 px-4 rounded-xl hover:bg-slate-100 transition-all shadow-lg text-sm">
-                <Search size={16} /> Réserver un véhicule
-              </button>
+                <Search size={16} />{" " + uiText("pages.client.ClientDashboard", "Réserver un véhicule") + " "}</button>
               <button onClick={() => navigate('/client/bookings')} className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold py-2 px-4 rounded-xl transition-all text-sm">
-                <FileText size={16} /> Mes réservations
-              </button>
+                <FileText size={16} />{" " + uiText("pages.client.ClientDashboard", "Mes réservations") + " "}</button>
             </div>
           </div>
         </div>
@@ -114,12 +140,12 @@ export default function ClientDashboard() {
 
         {/* Rental type quick access */}
         <div>
-          <h3 className="font-bold text-slate-800 dark:text-white mb-3">Choisir un type de location</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <h3 className="font-bold text-slate-800 dark:text-white mb-3">{uiText("pages.client.ClientDashboard", "Choisir un type de location")}</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {RENTAL_QUICK.map(({ id, label, icon: Icon, desc, color }) => (
               <button
                 key={id}
-                onClick={() => navigate(`/client/search?type=${id}`)}
+                onClick={() => navigate(`/client/search?type=${id}${id === 'long_haul' ? '&days=4' : ''}`)}
                 className="flex flex-col items-start gap-2 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-primary-300 hover:shadow-md transition-all text-left group"
               >
                 <div className={`w-9 h-9 ${color} rounded-lg flex items-center justify-center`}>
@@ -137,10 +163,10 @@ export default function ClientDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: FileText,  label: 'Réservations totales', value: recentBookings.length,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { icon: CreditCard,label: 'Total dépensé',        value: `${totalSpent.toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
-            { icon: Star,      label: 'Note moyenne donnée',  value: '4.7 / 5',                          color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
-            { icon: Car,       label: 'Véhicules essayés',    value: 3,                                   color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
+            { icon: FileText,  label: uiText("pages.client.ClientDashboard", "Réservations totales"), value: clientStats.bookings_total,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
+            { icon: CreditCard,label: uiText("pages.client.ClientDashboard", "Total dépensé"),        value: `${formatNumber(Number(clientStats.total_spent || 0))} FCFA`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
+            { icon: Star,      label: uiText("pages.client.ClientDashboard", "Note moyenne donnée"),  value: `${Number(clientStats.average_rating || 0).toFixed(1)} / 5`, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
+            { icon: Car,       label: uiText("pages.client.ClientDashboard", "Véhicules essayés"),    value: clientStats.distinct_vehicles,      color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="card">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
@@ -156,14 +182,13 @@ export default function ClientDashboard() {
           {/* Recent Bookings */}
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-slate-900 dark:text-white">Réservations récentes</h3>
-              <button onClick={() => navigate('/client/bookings')} className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-                Voir tout <ArrowRight size={14} />
+              <h3 className="font-bold text-slate-900 dark:text-white">{uiText("pages.client.ClientDashboard", "Réservations récentes")}</h3>
+              <button onClick={() => navigate('/client/bookings')} className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">{uiText("pages.client.ClientDashboard", "Voir tout") + " "}<ArrowRight size={14} />
               </button>
             </div>
             <div className="space-y-3">
               {recentBookings.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Aucune réservation pour le moment.</p>
+                <p className="text-sm text-slate-400 text-center py-6">{uiText("pages.client.ClientDashboard", "Aucune réservation pour le moment.")}</p>
               )}
               {recentBookings.map(b => (
                 <div key={b.id} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -173,11 +198,11 @@ export default function ClientDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-slate-900 dark:text-white text-sm">{b.vehicle}</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {b.driver} · {b.date} · {b.type}
+                      {b.driver}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{b.date}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{b.type}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-bold text-slate-900 dark:text-white text-sm">{b.amount.toLocaleString()} F</div>
+                    <div className="font-bold text-slate-900 dark:text-white text-sm">{formatNumber(b.amount)}{" " + uiText("pages.client.ClientDashboard", "F")}</div>
                     <span className={STATUS_STYLES[b.status]}>{STATUS_LABELS[b.status] || b.status}</span>
                   </div>
                 </div>
@@ -187,10 +212,10 @@ export default function ClientDashboard() {
 
           {/* Featured vehicles */}
           <div className="card">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-4">Véhicules disponibles</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-4">{uiText("pages.client.ClientDashboard", "Véhicules disponibles")}</h3>
             <div className="space-y-3">
               {featuredVehicles.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Chargement du catalogue…</p>
+                <p className="text-sm text-slate-400 text-center py-6">{uiText("pages.client.ClientDashboard", "Chargement du catalogue…")}</p>
               )}
               {featuredVehicles.map(v => (
                 <div key={v.name} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary-300 transition-colors">
@@ -198,21 +223,29 @@ export default function ClientDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-slate-900 dark:text-white text-xs leading-snug">{v.name}</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating} · {v.category}
+                      <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{vehicleLabel(v.category, v.categoryType)}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-xs font-bold text-primary-600">{v.price.toLocaleString()}</div>
-                    <div className="text-xs text-slate-400">F/jour</div>
+                    <div className="text-xs font-bold text-primary-600">{formatNumber(v.price)}</div>
+                    <div className="text-xs text-slate-400">{uiText("pages.client.ClientDashboard", "F/jour")}</div>
                   </div>
                 </div>
               ))}
             </div>
             <button onClick={() => navigate('/client/search')} className="btn-primary w-full mt-4 py-2.5 text-sm flex items-center justify-center gap-2">
-              <Search size={16} /> Voir tout le catalogue
-            </button>
+              <Search size={16} />{" " + uiText("pages.client.ClientDashboard", "Voir tout le catalogue") + " "}</button>
           </div>
         </div>
+        <section className="card">
+          <h3 className="font-bold mb-3">{uiText("pages.client.ClientDashboard", "Historique du portefeuille")}</h3>
+          {walletHistory.length === 0 ? <p className="text-sm text-slate-500">{uiText("pages.client.ClientDashboard", "Aucune transaction pour le moment.")}</p> : <div className="divide-y">
+            {walletHistory.slice(0, 8).map(tx => <div key={tx.id} className="py-2 flex justify-between text-sm">
+              <span>{tx.note || tx.reference}{" " + uiText("pages.client.ClientDashboard", "·") + " "}{tx.created_at ? formatDate(new Date(tx.created_at)) : ''}</span>
+              <span className="font-semibold">{tx.kind === 'refund' || tx.kind === 'topup' ? uiText("pages.client.ClientDashboard", "+") : uiText("pages.client.ClientDashboard", "−")}{formatNumber(Number(tx.amount))}{" " + uiText("pages.client.ClientDashboard", "FCFA")}</span>
+            </div>)}
+          </div>}
+        </section>
       </div>
     </DashboardLayout>
   );

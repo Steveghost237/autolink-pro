@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if language == 'en' %}Welcome to AutoLink Pro{% else %}Bienvenue chez AutoLink Pro{% endif %}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+        }
+        .logo-text {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .content {
+            padding: 30px;
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-text">🚗 AutoLink Pro</div>
+        </div>
+        <div class="content">
+            {% if language == 'en' %}
+            <h1>Welcome to AutoLink Pro! 🚗</h1>
+            <p>Hello <strong>{{ first_name }}</strong>,</p>
+            <p>Welcome to AutoLink Pro! Your account is now ready to go.</p>
+            <p>You can now:</p>
+            <ul>
+                <li>Browse our premium vehicle catalog</li>
+                <li>Book vehicles for your trips</li>
+                <li>Manage your reservations</li>
+                <li>Track your bookings in real-time</li>
+            </ul>
+            <p>We're excited to have you on board!</p>
+            <a href="/" class="button">Start Exploring</a>
+            <p>If you have any questions, feel free to reach out to our support team.</p>
+            {% else %}
+            <h1>Bienvenue chez AutoLink Pro ! 🚗</h1>
+            <p>Bonjour <strong>{{ first_name }}</strong>,</p>
+            <p>Bienvenue chez AutoLink Pro ! Votre compte est maintenant prêt.</p>
+            <p>Vous pouvez désormais :</p>
+            <ul>
+                <li>Parcourir notre catalogue de véhicules premium</li>
+                <li>Réserver des véhicules pour vos déplacements</li>
+                <li>Gérer vos réservations</li>
+                <li>Suivre vos réservations en temps réel</li>
+            </ul>
+            <p>Nous sommes ravis de vous compter parmi nous !</p>
+            <a href="/" class="button">Commencer à explorer</a>
+            <p>Si vous avez des questions, n'hésitez pas à contacter notre équipe de support.</p>
+            {% endif %}
+        </div>
+        <div class="footer">
+            <p>&copy; {% now "Y" %} AutoLink Pro. All rights reserved.</p>
+            <p>Location des voitures par excellence</p>
+        </div>
+    </div>
+</body>
+</html>

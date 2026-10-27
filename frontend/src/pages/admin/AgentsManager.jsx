@@ -1,220 +1,207 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Tag, Plus, CheckCircle, XCircle, TrendingUp, DollarSign, Users, Copy, ToggleLeft, ToggleRight, Search, AlertCircle } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { CheckCircle, Copy, Plus, Tag, ToggleLeft, ToggleRight } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
-import { usersAPI } from '../../services/api';
+import ListToolbar from '../../components/ListToolbar';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import { affiliatesAPI } from '../../services/api';
+import { formatNumber, formatDateTime,  uiText } from '../../i18n';
+
+const AGENT_SORT = [
+  { value: 'created_at', label: uiText("pages.admin.AgentsManager", "Date de création") },
+  { value: 'code', label: uiText("pages.admin.AgentsManager", "Code") },
+  { value: 'name', label: uiText("pages.admin.AgentsManager", "Nom") },
+  { value: 'city', label: uiText("pages.admin.AgentsManager", "Ville") },
+  { value: 'commission_rate', label: uiText("pages.admin.AgentsManager", "Taux") },
+  { value: 'is_active', label: uiText("pages.admin.AgentsManager", "Statut") },
+];
+const PAYOUT_SORT = [
+  { value: 'paid_at', label: uiText("pages.admin.AgentsManager", "Date") },
+  { value: 'amount', label: uiText("pages.admin.AgentsManager", "Montant") },
+  { value: 'agent__code', label: uiText("pages.admin.AgentsManager", "Code agent") },
+];
 
 export default function AgentsManager() {
-  const [agents, setAgents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
+  const [tab, setTab] = useState('agents');
+  const [rows, setRows] = useState([]);
+  const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [showCreate, setShowCreate] = useState(false);
-  const [newAgent, setNewAgent] = useState({ first_name: '', last_name: '', email: '', phone: '', commission_rate: 5, password: '' });
-  const [copied, setCopied] = useState(null);
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newAgent, setNewAgent] = useState({
+    name: '', agent_type: 'Commercial', phone: '', city: 'Douala', rate: 5,
+  });
+  const [payoutAgent, setPayoutAgent] = useState(null);
+  const [payoutNote, setPayoutNote] = useState('');
+  const [copied, setCopied] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const { data } = await usersAPI.list({ role: 'INTERMEDIARY' });
-      setAgents(data.results || data || []);
-    } catch (_) { /* API injoignable */ }
-    setLoading(false);
-  }, []);
-
+      const params = {
+        page, page_size: 20, search: search.trim(),
+        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
+      };
+      const { data } = tab === 'agents'
+        ? await affiliatesAPI.agents(params)
+        : await affiliatesAPI.payouts(params);
+      setRows(data.results || []);
+      setCount(data.count || 0);
+      setError('');
+    } catch (_) {
+      setError(tab === 'agents' ? uiText("pages.admin.AgentsManager", "Impossible de charger les agents.") : uiText("pages.admin.AgentsManager", "Impossible de charger les versements enregistrés."));
+    }
+  }, [page, search, sortField, sortOrder, tab]);
   useEffect(() => { load(); }, [load]);
 
-  const toggleAgent = async (a) => {
-    try {
-      await usersAPI.update(a.id, { is_active: !a.is_active });
-      setAgents(prev => prev.map(x => x.id === a.id ? { ...x, is_active: !a.is_active } : x));
-    } catch (_) {}
+  const switchTab = value => {
+    setTab(value);
+    setPage(1);
+    setSearch('');
+    setSortField(value === 'agents' ? 'created_at' : 'paid_at');
   };
 
-  const copyCode = (code) => {
-    navigator.clipboard.writeText(code);
-    setCopied(code);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const createAgent = async () => {
-    if (!newAgent.email || !newAgent.first_name || !newAgent.password) return;
-    setSaving(true);
+  const createAgent = async event => {
+    event.preventDefault();
     setError('');
     try {
-      await usersAPI.create({ ...newAgent, role: 'INTERMEDIARY', is_verified: true });
+      const { rate, ...fields } = newAgent;
+      await affiliatesAPI.createAgent({ ...fields, commission_rate: (Number(rate) / 100).toFixed(4) });
       setShowCreate(false);
-      setNewAgent({ first_name: '', last_name: '', email: '', phone: '', commission_rate: 5, password: '' });
-      load();
-    } catch (err) {
-      const data = err.response?.data;
-      const first = data && Object.values(data)[0];
-      setError(Array.isArray(first) ? first[0] : (first || 'Création impossible.'));
+      setNewAgent({ name: '', agent_type: 'Commercial', phone: '', city: 'Douala', rate: 5 });
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || uiText("pages.admin.AgentsManager", "Impossible de créer le code agent."));
     }
-    setSaving(false);
   };
 
-  const filtered = agents.filter(a =>
-    `${a.first_name} ${a.last_name} ${a.email} ${a.referral_code || ''}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const toggleAgent = async agent => {
+    const nextActive = !agent.is_active;
+    if (!nextActive && !(await confirm({
+      title: uiText("pages.admin.AgentsManager", "Désactiver cet agent ?"),
+      message: `Le code ${agent.code} ne pourra plus être utilisé.`,
+      confirmLabel: uiText("pages.admin.AgentsManager", "Désactiver"),
+      danger: true,
+    }))) return;
+    try {
+      await affiliatesAPI.updateAgent(agent.id, { is_active: nextActive });
+      await load();
+    } catch (_) { setError(uiText("pages.admin.AgentsManager", "Impossible de modifier le statut de cet agent.")); }
+  };
 
-  const active = agents.filter(a => a.is_active);
-  const totalCommissions = active.reduce((s, a) => s + Number(a.commissions_total || 0), 0);
-  const totalBookings = active.reduce((s, a) => s + (a.bookings_count || 0), 0);
+  const submitPayout = async event => {
+    event.preventDefault();
+    if (!(await confirm({
+      title: uiText("pages.admin.AgentsManager", "Marquer ce montant comme versé ?"),
+      message: uiText("pages.admin.AgentsManager", "Cette action enregistre le versement dans le registre et ne déplace pas de fonds."),
+      confirmLabel: uiText("pages.admin.AgentsManager", "Marquer comme versé"),
+    }))) return;
+    try {
+      await affiliatesAPI.createPayout({
+        agent: payoutAgent.id, amount: payoutAgent.commission_due, note: payoutNote,
+      });
+      setPayoutAgent(null);
+      setPayoutNote('');
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.amount?.[0] || uiText("pages.admin.AgentsManager", "Impossible d’enregistrer le versement."));
+    }
+  };
 
+  const copyCode = async code => {
+    await navigator.clipboard.writeText(code);
+    setCopied(code);
+    window.setTimeout(() => setCopied(''), 1500);
+  };
+
+  const sortOptions = tab === 'agents' ? AGENT_SORT : PAYOUT_SORT;
   return (
-    <DashboardLayout title="Intermédiaires">
-      <div className="max-w-6xl mx-auto space-y-6">
-
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: Users,      label: 'Intermédiaires actifs',  value: active.length,                          color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
-            { icon: TrendingUp, label: 'Réservations apportées', value: totalBookings,                          color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
-            { icon: DollarSign, label: 'Commissions générées',   value: `${totalCommissions.toLocaleString()} F`, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { icon: Tag,        label: 'Taux moyen',             value: `${(active.reduce((s,a)=>s+Number(a.commission_rate||0),0) / (active.length||1)).toFixed(1)} %`, color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="card">
-              <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
-                <Icon size={20} />
-              </div>
-              <div className="text-xl font-bold text-slate-900 dark:text-white">{value}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{label}</div>
-            </div>
-          ))}
+    <DashboardLayout title={uiText("pages.admin.AgentsManager", "Agents affiliés")}>
+      <div className="mx-auto max-w-6xl space-y-5">
+        <div className="flex flex-wrap gap-2">
+          <button className={tab === 'agents' ? uiText("pages.admin.AgentsManager", "btn-primary") : uiText("pages.admin.AgentsManager", "btn-outline")} onClick={() => switchTab('agents')}>{uiText("pages.admin.AgentsManager", "Agents")}</button>
+          <button className={tab === 'payouts' ? uiText("pages.admin.AgentsManager", "btn-primary") : uiText("pages.admin.AgentsManager", "btn-outline")} onClick={() => switchTab('payouts')}>{uiText("pages.admin.AgentsManager", "Versements enregistrés")}</button>
+          {tab === 'agents' && <button className="btn-outline flex items-center gap-2" onClick={() => setShowCreate(true)}><Plus size={16} />{" " + uiText("pages.admin.AgentsManager", "Créer un code agent")}</button>}
+        </div>
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <div className="card">
+          <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
+            sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
+            sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
+            sortOptions={sortOptions} placeholder={tab === 'agents' ? uiText("pages.admin.AgentsManager", "Rechercher un agent ou un code") : uiText("pages.admin.AgentsManager", "Rechercher un versement ou un agent")} />
         </div>
 
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-52">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" className="input-field pl-9" placeholder="Rechercher un intermédiaire ou un code..."
-              value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <button onClick={() => setShowCreate(true)}
-            className="btn-primary flex items-center gap-2 py-2.5 px-5">
-            <Plus size={18} /> Créer un intermédiaire
-          </button>
-        </div>
-
-        {/* Table */}
-        <div className="card p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-100 dark:border-slate-700">
-                <tr>
-                  {['Code', 'Intermédiaire', 'Réservations', 'Commissions', 'Taux', 'Statut', 'Actions'].map(h => (
-                    <th key={h} className="text-left text-xs font-bold text-slate-500 dark:text-slate-400 px-4 py-3 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {filtered.map(a => (
-                  <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs font-bold text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-1 rounded">{a.referral_code || '—'}</code>
-                        {a.referral_code && (
-                          <button onClick={() => copyCode(a.referral_code)} className="text-slate-400 hover:text-violet-600 transition-colors">
-                            {copied === a.referral_code ? <CheckCircle size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900 dark:text-white text-sm">{a.first_name} {a.last_name}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{a.email} · {a.phone || '—'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-bold text-slate-900 dark:text-white">{a.bookings_count}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-bold text-orange-600">{Number(a.commissions_total || 0).toLocaleString()} F</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{Number(a.commission_rate)} %</td>
-                    <td className="px-4 py-3">
-                      {a.is_active
-                        ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-600"><CheckCircle size={13} /> Actif</span>
-                        : <span className="flex items-center gap-1 text-xs font-bold text-red-500"><XCircle size={13} /> Inactif</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => toggleAgent(a)} title={a.is_active ? 'Désactiver' : 'Activer'}
-                        className="text-slate-400 hover:text-violet-600 transition-colors">
-                        {a.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
-                      </button>
-                    </td>
+        {tab === 'agents' ? (
+          <div className="card overflow-x-auto p-0">
+            <table className="w-full min-w-[900px]">
+              <thead><tr>{["Code", "Agent", "Conversions", "CA généré", "Commission acquise", "Versé", "Dû", "Taux", "Statut", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-xs uppercase text-slate-500">{uiText("pages.admin.AgentsManager", label)}</th>)}</tr></thead>
+              <tbody className="divide-y">
+                {rows.map(agent => (
+                  <tr key={agent.id}>
+                    <td className="px-4 py-3"><code>{agent.code}</code><button className="ml-2 text-primary-600" title={uiText("pages.admin.AgentsManager", "Copier le code")} onClick={() => copyCode(agent.code)}>{copied === agent.code ? <CheckCircle size={14} /> : <Copy size={14} />}</button></td>
+                    <td className="px-4 py-3"><div className="font-semibold">{agent.name}</div><div className="text-xs text-slate-500">{agent.city}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.agent_type}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.phone}</div></td>
+                    <td className="px-4 py-3">{agent.conversions}</td>
+                    <td className="px-4 py-3">{formatNumber(Number(agent.generated_revenue))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
+                    <td className="px-4 py-3">{formatNumber(Number(agent.commission_earned))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
+                    <td className="px-4 py-3">{formatNumber(Number(agent.payouts_total))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
+                    <td className="px-4 py-3 font-semibold">{formatNumber(Number(agent.commission_due))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
+                    <td className="px-4 py-3">{formatNumber(Number(agent.commission_rate) * 100)}{" " + uiText("pages.admin.AgentsManager", "%")}</td>
+                    <td className="px-4 py-3">{agent.is_active ? uiText("pages.admin.AgentsManager", "Actif") : uiText("pages.admin.AgentsManager", "Désactivé")}</td>
+                    <td className="px-4 py-3"><div className="flex gap-2">
+                      <button title={agent.is_active ? uiText("pages.admin.AgentsManager", "Désactiver") : uiText("pages.admin.AgentsManager", "Activer")} onClick={() => toggleAgent(agent)}>{agent.is_active ? <ToggleRight className="text-emerald-600" /> : <ToggleLeft />}</button>
+                      <button disabled={!agent.is_active || Number(agent.commission_due) <= 0} className="btn-primary px-2 py-1 text-xs disabled:opacity-40" onClick={() => setPayoutAgent(agent)}>{uiText("pages.admin.AgentsManager", "Marquer comme versé")}</button>
+                    </div></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {rows.length === 0 && <p className="py-12 text-center text-slate-500">{uiText("pages.admin.AgentsManager", "Aucun agent à afficher.")}</p>}
           </div>
-          {!loading && filtered.length === 0 && (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">Aucun intermédiaire trouvé.</div>
-          )}
-          {loading && (
-            <div className="text-center py-12 text-slate-400">Chargement…</div>
-          )}
-        </div>
-
-        {/* Create modal */}
-        {showCreate && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-auto">
-              <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-700">
-                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><Tag size={18} /> Nouvel intermédiaire</h3>
-                <button onClick={() => setShowCreate(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><XCircle size={18} /></button>
-              </div>
-              <div className="p-5 space-y-4">
-                {error && (
-                  <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-sm">
-                    <AlertCircle size={16} /> {error}
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Prénom</label>
-                    <input type="text" className="input-field" placeholder="Jean"
-                      value={newAgent.first_name} onChange={e => setNewAgent(f => ({ ...f, first_name: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="label">Nom</label>
-                    <input type="text" className="input-field" placeholder="Nkounga"
-                      value={newAgent.last_name} onChange={e => setNewAgent(f => ({ ...f, last_name: e.target.value }))} />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Email</label>
-                  <input type="email" className="input-field" placeholder="agent@email.com"
-                    value={newAgent.email} onChange={e => setNewAgent(f => ({ ...f, email: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Téléphone (+237)</label>
-                  <input type="tel" className="input-field" placeholder="+237 6XX XX XX XX"
-                    value={newAgent.phone} onChange={e => setNewAgent(f => ({ ...f, phone: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Commission (%)</label>
-                    <input type="number" className="input-field" min={1} max={15} value={newAgent.commission_rate}
-                      onChange={e => setNewAgent(f => ({ ...f, commission_rate: Number(e.target.value) }))} />
-                  </div>
-                  <div>
-                    <label className="label">Mot de passe initial</label>
-                    <input type="text" className="input-field" placeholder="Min. 6 caractères"
-                      value={newAgent.password} onChange={e => setNewAgent(f => ({ ...f, password: e.target.value }))} />
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500">Commission prélevée sur la part AutoLink — transparent pour le propriétaire. Le code parrain est généré automatiquement.</p>
-              </div>
-              <div className="p-5 border-t border-slate-100 dark:border-slate-700 flex gap-3">
-                <button onClick={() => setShowCreate(false)} className="btn-outline flex-1 py-3">Annuler</button>
-                <button onClick={createAgent} disabled={saving} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
-                  {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Plus size={16} /> Créer le compte</>}
-                </button>
-              </div>
-            </div>
+        ) : (
+          <div className="space-y-3">
+            {rows.map(payout => (
+              <article key={payout.id} className="card flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="font-semibold">{payout.agent_name}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{payout.agent_code}</h2><p className="text-sm text-slate-500">{payout.note || uiText("pages.admin.AgentsManager", "Aucune note")}{" " + uiText("pages.admin.AgentsManager", "· Par") + " "}{payout.paid_by_name || uiText("pages.admin.AgentsManager", "Administrateur")}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{formatDateTime(new Date(payout.paid_at))}</p></div>
+                <strong>{formatNumber(Number(payout.amount))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</strong>
+              </article>
+            ))}
+            {rows.length === 0 && <div className="card py-12 text-center text-slate-500">{uiText("pages.admin.AgentsManager", "Aucun versement enregistré.")}</div>}
           </div>
         )}
+        <div className="flex items-center justify-between text-sm">
+          <span>{uiText("pages.admin.AgentsManager", "Page") + " "}{page}{" " + uiText("pages.admin.AgentsManager", "/") + " "}{Math.max(1, Math.ceil(count / 20))}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{count}{" " + uiText("pages.admin.AgentsManager", "résultat(s)")}</span>
+          <div className="flex gap-2">
+            <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>{uiText("pages.admin.AgentsManager", "Précédent")}</button>
+            <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>{uiText("pages.admin.AgentsManager", "Suivant")}</button>
+          </div>
+        </div>
       </div>
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <form onSubmit={createAgent} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold"><Tag size={18} />{" " + uiText("pages.admin.AgentsManager", "Nouveau code agent")}</h2>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Nom complet")}<input required className="input-field mt-1" value={newAgent.name} onChange={event => setNewAgent(current => ({ ...current, name: event.target.value }))} /></label>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Ville")}<input required className="input-field mt-1" value={newAgent.city} onChange={event => setNewAgent(current => ({ ...current, city: event.target.value }))} /></label>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Type")}<input className="input-field mt-1" value={newAgent.agent_type} onChange={event => setNewAgent(current => ({ ...current, agent_type: event.target.value }))} /></label>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Téléphone")}<input className="input-field mt-1" value={newAgent.phone} onChange={event => setNewAgent(current => ({ ...current, phone: event.target.value }))} /></label>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Taux de commission (%)")}<input required type="number" min="0" max="100" step="0.1" className="input-field mt-1" value={newAgent.rate} onChange={event => setNewAgent(current => ({ ...current, rate: event.target.value }))} /></label>
+            <div className="flex gap-3"><button type="button" className="btn-outline flex-1" onClick={() => setShowCreate(false)}>{uiText("pages.admin.AgentsManager", "Annuler")}</button><button className="btn-primary flex-1">{uiText("pages.admin.AgentsManager", "Créer le code")}</button></div>
+          </form>
+        </div>
+      )}
+      {payoutAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <form onSubmit={submitPayout} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6">
+            <h2 className="text-lg font-bold">{uiText("pages.admin.AgentsManager", "Marquer comme versé")}</h2>
+            <p className="text-sm text-slate-600">{payoutAgent.name}{" " + uiText("pages.admin.AgentsManager", "· solde dû") + " "}{formatNumber(Number(payoutAgent.commission_due))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</p>
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{uiText("pages.admin.AgentsManager", "Enregistrement comptable uniquement : aucun transfert de fonds n’est effectué.")}</p>
+            <label className="label">{uiText("pages.admin.AgentsManager", "Note")}<input className="input-field mt-1" value={payoutNote} onChange={event => setPayoutNote(event.target.value)} /></label>
+            <div className="flex gap-3"><button type="button" className="btn-outline flex-1" onClick={() => setPayoutAgent(null)}>{uiText("pages.admin.AgentsManager", "Annuler")}</button><button className="btn-primary flex-1">{uiText("pages.admin.AgentsManager", "Continuer")}</button></div>
+          </form>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

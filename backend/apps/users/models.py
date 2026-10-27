@@ -2,6 +2,8 @@ import secrets
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -19,6 +21,12 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_verified = models.BooleanField(default=False)
+    newsletter_opt_in = models.BooleanField(default=True)
+    language = models.CharField(
+        max_length=2,
+        choices=(('fr', 'Français'), ('en', 'English')),
+        default='fr',
+    )
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     id_document = models.ImageField(upload_to='kyc/', null=True, blank=True)
     id_document_verified = models.BooleanField(default=False)
@@ -58,6 +66,47 @@ class User(AbstractUser):
 
     def __str__(self):
         return f'{self.get_full_name()} ({self.role})'
+
+
+class ContactMessage(models.Model):
+    last_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=30)
+    email = models.EmailField(blank=True)
+    rental_type = models.CharField(max_length=120, blank=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_handled = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Message de contact'
+        verbose_name_plural = 'Messages de contact'
+
+    def __str__(self):
+        return f'{self.first_name} {self.last_name} — {self.created_at:%Y-%m-%d}'
+
+
+class NewsletterCampaign(models.Model):
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    sent_at = models.DateTimeField(default=timezone.now)
+    recipients_count = models.PositiveIntegerField(default=0)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='newsletter_campaigns',
+    )
+
+    class Meta:
+        ordering = ['-sent_at']
+        verbose_name = 'Campagne newsletter'
+        verbose_name_plural = 'Campagnes newsletter'
+
+    def __str__(self):
+        return self.subject
 
 
 class Notification(models.Model):
