@@ -24,6 +24,9 @@ import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
 import DriverService from './pages/owner/DriverService';
 import IntermediaryDashboard from './pages/intermediary/IntermediaryDashboard';
+import OwnerRequests from './pages/owner/OwnerRequests';
+import OwnerRevenue from './pages/owner/OwnerRevenue';
+import OwnerVehicleDetail from './pages/owner/OwnerVehicleDetail';
 import DriverDashboard from './pages/driver/DriverDashboard';
 import DriverApplicationForm from './pages/driver/DriverApplicationForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -86,12 +89,15 @@ function AppRoutes() {
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/bookings/:id" element={<Guard roles={['OWNER']}><BookingDetail /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
+      <Route path="/owner/vehicles/:id" element={<Guard roles={['OWNER']}><OwnerVehicleDetail /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
       <Route path="/owner/driver-service" element={<Guard roles={['OWNER']}><DriverService /></Guard>} />
       <Route path="/owner/maintenance" element={<Guard roles={['OWNER']}><Maintenance /></Guard>} />
 
       <Route path="/intermediary/dashboard" element={<Guard roles={['INTERMEDIARY']}><IntermediaryDashboard /></Guard>} />
       <Route path="/owner/vehicles/:id/edit" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
+      <Route path="/owner/requests" element={<Guard roles={['OWNER']}><OwnerRequests /></Guard>} />
+      <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><OwnerRevenue /></Guard>} />
 
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
       <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />

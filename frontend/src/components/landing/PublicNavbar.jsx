@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Phone, Menu, X, LayoutDashboard } from 'lucide-react';
+import { Phone, Menu, X, LayoutDashboard, MapPin, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import AutoLinkLogo from '../AutoLinkLogo';
 import { NAV_LINKS } from './data';
@@ -40,6 +40,28 @@ export default function PublicNavbar() {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white transition-shadow duration-300 ${scrolled ? 'shadow-md' : 'border-b border-slate-100'}`}>
+      {/* Barre d'information supérieure */}
+      <div className="hidden md:block bg-slate-900 text-slate-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-5">
+            <a href="tel:+237656789000" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <Phone size={12} className="text-teal-400" /> +237 656 789 000
+            </a>
+            <span className="flex items-center gap-1.5">
+              <MapPin size={12} className="text-teal-400" /> Douala &amp; Yaoundé, Cameroun
+            </span>
+          </div>
+          <div className="flex items-center gap-5">
+            <span className="flex items-center gap-1.5">
+              <Clock size={12} className="text-teal-400" /> Assistance 7j/7 — 6h à 22h
+            </span>
+            <Link to="/devenir-proprietaire" className="font-semibold text-teal-400 hover:text-teal-300 transition-colors">
+              Devenir partenaire →
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
@@ -51,16 +73,12 @@ export default function PublicNavbar() {
           </Link>
 
           {/* Desktop nav links */}
-          <nav className="hidden lg:flex items-center gap-7">
+          <nav className="hidden lg:flex items-center gap-7 ml-12">
             {links.map(renderLink)}
           </nav>
 
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-4">
-            <a href="tel:+237656789000" className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-teal-600 transition-colors">
-              <Phone size={15} className="text-teal-600" />
-              +237 656 789 000
-            </a>
             {isAuthenticated ? (
               <button onClick={() => navigate(getDashboardPath(user?.role))}
                 className="flex items-center gap-2 text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg transition-colors shadow-sm">

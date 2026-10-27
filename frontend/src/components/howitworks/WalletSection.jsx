@@ -1,46 +1,59 @@
 import React from 'react';
-import { Wallet, ArrowRight } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { WALLET_FEATURES } from './data';
 
-/* Section « Le Portefeuille AutoLink Pro » — 4 fonctionnalités + carte d'alimentation. */
+/* Satellites répartis sur l'orbite via décalage d'animation (90° d'écart). */
+
+/* Section « Le Portefeuille AutoLink Pro » — orbite : les fonctionnalités tournent autour du cercle central. */
 export default function WalletSection() {
   return (
-    <section className="py-20 bg-teal-50/60">
+    <section className="py-24 bg-teal-50/60 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-3">
-            Le Portefeuille <span className="text-teal-600">AutoLink Pro</span> : Comment ça fonctionne ?
+        <div className="text-center mb-20">
+          <h2 className="text-2xl md:text-3xl font-black text-teal-600 mb-3">
+            Le Portefeuille AutoLink Pro : Comment ça fonctionne ?
           </h2>
           <p className="text-slate-500 max-w-2xl mx-auto">
             Un compte intégré qui centralise paiements, cautions et remboursements.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          {WALLET_FEATURES.map(f => (
-            <div key={f.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 hover:shadow-lg hover:-translate-y-1 transition-all">
-              <span className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center mb-4">
-                <f.icon size={20} className="text-teal-600" />
-              </span>
-              <h3 className="font-black text-slate-900 text-sm mb-2">{f.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
+        {/* Orbite — rayon réduit (--orbit-r piloté en responsive) */}
+        <div className="relative w-[260px] h-[260px] sm:w-[360px] sm:h-[360px] mx-auto [--orbit-r:130px] sm:[--orbit-r:180px]">
+          {/* Anneaux décoratifs */}
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-teal-300/60" />
+          <div className="absolute inset-6 rounded-full border border-teal-200/50" />
+          <div className="absolute inset-0 rounded-full bg-teal-100/30 scale-90 -z-10" />
+
+          {/* Cercle central — agrandi */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-44 h-44 sm:w-56 sm:h-56 bg-teal-600 rounded-full shadow-2xl shadow-teal-600/30 flex flex-col items-center justify-center text-center text-white ring-8 ring-teal-100">
+              <Wallet size={36} className="mb-2" />
+              <span className="text-sm sm:text-base font-black leading-tight px-4">Portefeuille<br />AutoLink Pro</span>
+            </div>
+          </div>
+
+          {/* Satellites — orbitent autour du cercle teal SANS tourner sur eux-mêmes */}
+          {WALLET_FEATURES.map((f, i) => (
+            <div key={f.title}
+              className="absolute top-1/2 left-1/2 animate-[orbit-rotate_40s_linear_infinite] hover:[animation-play-state:paused]"
+              style={{ animationDelay: `${i * -10}s` }}>
+              <div className="bg-white rounded-full border border-teal-100 shadow-xl px-4 py-2.5 flex items-center gap-2 whitespace-nowrap">
+                <span className="text-teal-600 font-black text-sm leading-none">0{i + 1}</span>
+                <span className="text-[10px] sm:text-[11px] font-black text-slate-700 uppercase tracking-wide">{f.title}</span>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-slate-900 rounded-2xl p-6 lg:p-8 flex flex-col md:flex-row items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <span className="w-12 h-12 bg-teal-600/20 rounded-xl flex items-center justify-center shrink-0">
-              <Wallet size={22} className="text-teal-400" />
-            </span>
-            <div>
-              <h3 className="font-black text-white">Confiez-nous la gestion de votre caution</h3>
-              <p className="text-sm text-slate-400">Blocage et déblocage automatiques, tracés et certifiés à chaque location.</p>
+        {/* Légende descriptive — espace généreux sous l'orbite */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto mt-24">
+          {WALLET_FEATURES.map(f => (
+            <div key={f.title} className="flex items-start gap-2.5 text-left">
+              <span className="w-1.5 h-1.5 bg-teal-500 rounded-full mt-1.5 shrink-0" />
+              <p className="text-xs text-slate-500 leading-relaxed"><strong className="text-slate-800">{f.title} — </strong>{f.desc}</p>
             </div>
-          </div>
-          <button className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shrink-0">
-            Découvrir le portefeuille <ArrowRight size={15} />
-          </button>
+          ))}
         </div>
       </div>
     </section>

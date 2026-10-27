@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   MapPin, CalendarRange, UserCheck, RefreshCw, X, Car,
-  ChevronDown, ShieldCheck, CreditCard, Loader, Filter,
+  ChevronDown, ChevronLeft, ChevronRight, ShieldCheck, CreditCard, Loader, Filter,
 } from 'lucide-react';
 import { PublicNavbar, Footer } from '../components/landing';
 import CatalogCard from '../components/catalog/CatalogCard';
@@ -23,7 +23,7 @@ const SORTS = [
   { id: 'desc',   label: 'Prix décroissant' },
   { id: 'rating', label: 'Mieux notés' },
 ];
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 6;
 
 /* Mappe un véhicule API vers le format carte catalogue */
 const mapApiVehicle = (v) => normalizeVehicle({
@@ -51,7 +51,7 @@ export default function Catalog() {
   const [params, setParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
   const [sort, setSort] = useState('reco');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [toolbar, setToolbar] = useState({
@@ -110,6 +110,26 @@ export default function Catalog() {
     return sorted;
   }, [vehicles, filters, sort]);
 
+  // Retour à la page 1 à chaque changement de filtres / tri
+  useEffect(() => { setPage(1); }, [filters, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const goTo = (p) => {
+    setPage(Math.min(Math.max(1, p), totalPages));
+    document.getElementById('resultats')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  // Fenêtre de pages : 1 … courante±1 … dernière
+  const pageNums = (() => {
+    if (totalPages <= 7) return [...Array(totalPages)].map((_, i) => i + 1);
+    const nums = [1];
+    if (page > 3) nums.push('…');
+    for (let p = Math.max(2, page - 1); p <= Math.min(totalPages - 1, page + 1); p++) nums.push(p);
+    if (page < totalPages - 2) nums.push('…');
+    nums.push(totalPages);
+    return nums;
+  })();
+
   const activeChips = [
     { key: 'ville', label: toolbar.ville },
     ...filters.gammes.map(g => ({ key: `gamme-${g}`, label: GAMMES.find(x => x.id === g)?.label, clear: () => setFilters(f => ({ ...f, gammes: f.gammes.filter(x => x !== g) })) })),
@@ -140,12 +160,12 @@ export default function Catalog() {
     <div className="min-h-screen bg-slate-50">
       <PublicNavbar />
 
-      <div className="pt-24 lg:pt-28 pb-16">
+      <div className="pt-28 lg:pt-36 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Barre de recherche — ville / formule / période / service */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-6">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sm:p-6 mb-10">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-5 items-end">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Ville</label>
                 <div className="relative">
@@ -189,9 +209,9 @@ export default function Catalog() {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </div>
-              <button onClick={applyToolbar}
-                className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-xl transition-colors text-sm">
-                <RefreshCw size={15} /> Actualiser
+              <button onClick={applyToolbar} title="Actualiser la recherche"
+                className="flex items-center justify-center w-11 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-colors shadow-sm">
+                <RefreshCw size={16} />
               </button>
             </div>
           </div>
@@ -204,7 +224,7 @@ export default function Catalog() {
             )}
 
             {/* Résultats */}
-            <div>
+            <div id="resultats" className="scroll-mt-32">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   {!filtersOpen && (
@@ -217,9 +237,9 @@ export default function Catalog() {
                       )}
                     </button>
                   )}
-                  <h1 className="text-xl md:text-2xl font-black text-slate-900">
+                  <h1 className="text-xl md:text-2xl text-slate-900">
                     {filtered.length} véhicule{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
-                    <span className="text-teal-600"> à {toolbar.ville}</span>
+                    <span className="text-slate-900"> à {toolbar.ville}</span>
                   </h1>
                 </div>
                 <div className="flex items-center gap-3">
@@ -275,16 +295,30 @@ export default function Catalog() {
                 </div>
               ) : (
                 <>
-                  <div className={`grid sm:grid-cols-2 gap-5 ${filtersOpen ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
-                    {filtered.slice(0, visible).map(v => (
+                  <div className={`grid sm:grid-cols-2 gap-6 ${filtersOpen ? 'xl:grid-cols-2' : 'xl:grid-cols-3'}`}>
+                    {pageItems.map(v => (
                       <CatalogCard key={`${v.fromApi ? 'api' : 'cat'}-${v.id}`} v={v} formuleLabel={formuleLabel} wide={!filtersOpen} />
                     ))}
                   </div>
-                  {visible < filtered.length && (
-                    <div className="text-center mt-10">
-                      <button onClick={() => setVisible(n => n + PAGE_SIZE)}
-                        className="inline-flex items-center gap-2 border-2 border-slate-200 hover:border-teal-600 hover:text-teal-700 text-slate-700 font-bold py-3 px-8 rounded-xl transition-colors text-sm bg-white">
-                        <ChevronDown size={16} /> Charger plus de véhicules
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
+                      <button onClick={() => goTo(page - 1)} disabled={page === 1} aria-label="Page précédente"
+                        className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                        <ChevronLeft size={16} />
+                      </button>
+                      {pageNums.map((p, i) => p === '…' ? (
+                        <span key={`e${i}`} className="w-10 h-10 flex items-center justify-center text-slate-400 text-sm">…</span>
+                      ) : (
+                        <button key={p} onClick={() => goTo(p)}
+                          className={`w-10 h-10 rounded-xl text-sm font-bold transition-colors ${p === page ? 'bg-teal-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-teal-500 hover:text-teal-700'}`}>
+                          {p}
+                        </button>
+                      ))}
+                      <button onClick={() => goTo(page + 1)} disabled={page === totalPages} aria-label="Page suivante"
+                        className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   )}

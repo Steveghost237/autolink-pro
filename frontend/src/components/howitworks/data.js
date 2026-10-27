@@ -59,6 +59,21 @@ export const CAUTION_GAINS = [
   'Déblocage automatique si l’état de sortie est conforme',
   'Médiation AutoLink Pro et dédommagement en cas de litige',
 ];
+export const CAUTION_REFUND = [
+  'État de sortie validé en moins de 24 h',
+  'Remboursement automatique sous 48 h maximum',
+  'Suivi en temps réel dans votre Portefeuille AutoLink',
+];
+export const CAUTION_SEQUESTER = [
+  'Fonds bloqués chez un partenaire de paiement agréé',
+  'Jamais sur le compte du propriétaire ni d’AutoLink Pro',
+  'Traçabilité complète de chaque franc séquestré',
+];
+export const CAUTION_DISPUTE = [
+  'Médiateur neutre AutoLink Pro qui tranche sous 7 jours',
+  'Photos horodatées recevables comme preuve pour les deux parties',
+  'Dédommagement versé automatiquement à la partie lésée',
+];
 export const CAUTION_ICONS = { risk: XCircle, gain: CheckCircle2 };
 
 /* ── Documents requis ────────────────────────────────── */

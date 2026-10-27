@@ -7,8 +7,8 @@ export default function AnswersSection() {
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-3">
-            Une réponse claire et <span className="text-teal-600">structurée à chaque étape</span>
+          <h2 className="text-2xl md:text-4xl font-black text-teal-600 mb-3">
+            Une réponse claire et structurée à chaque étape
           </h2>
           <p className="text-slate-500 max-w-2xl mx-auto">
             Vous n'êtes jamais seul : humains, données et flexibilité à chaque instant.
@@ -21,7 +21,7 @@ export default function AnswersSection() {
               <span className="w-11 h-11 bg-white border border-slate-100 rounded-xl flex items-center justify-center mb-5">
                 <a.icon size={20} className="text-teal-600" />
               </span>
-              <h3 className="font-black text-slate-900 mb-2">{a.title}</h3>
+              <h3 className="text-slate-900 mb-2">{a.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{a.desc}</p>
             </div>
           ))}

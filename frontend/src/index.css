@@ -81,3 +81,9 @@
   }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
 }
+
+/* Orbite : l'élément tourne autour du centre SANS pivoter sur lui-même */
+@keyframes orbit-rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-r, 120px)) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-r, 120px)) rotate(-360deg); }
+}

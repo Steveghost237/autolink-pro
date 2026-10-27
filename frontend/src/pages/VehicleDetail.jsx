@@ -65,7 +65,7 @@ export default function VehicleDetail() {
     <div className="min-h-screen bg-slate-50">
       <PublicNavbar />
 
-      <div className="pt-24 lg:pt-28 pb-16">
+      <div className="pt-28 lg:pt-36 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Fil d'Ariane */}
           <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-5 flex-wrap">
