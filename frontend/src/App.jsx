@@ -34,6 +34,15 @@ import NotFound from './pages/NotFound';
 import VehicleDetail from './pages/VehicleDetail';
 import Favorites from './pages/client/Favorites';
 import BookingDetail from './pages/client/BookingDetail';
+import Wallet from './pages/client/Wallet';
+import Messaging from './pages/Messaging';
+import Notifications from './pages/Notifications';
+import Revenue from './pages/Revenue';
+import RentalRequests from './pages/owner/RentalRequests';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminOwners from './pages/admin/AdminOwners';
+import PlatformSettings from './pages/admin/PlatformSettings';
+import MaintenanceBanner from './components/MaintenanceBanner';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -61,19 +70,26 @@ function AppRoutes() {
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
       <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><BookingDetail /></Guard>} />
       <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
+      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><Wallet /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/bookings/:id" element={<Guard roles={['OWNER']}><BookingDetail /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
       <Route path="/owner/vehicles/:id/edit" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
+      <Route path="/owner/requests" element={<Guard roles={['OWNER']}><RentalRequests /></Guard>} />
+      <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><Revenue /></Guard>} />
 
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
+      <Route path="/driver/revenue" element={<Guard roles={['DRIVER']}><Revenue /></Guard>} />
       <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
       <Route path="/driver/bookings/:id" element={<Guard roles={['DRIVER']}><BookingDetail /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
+      <Route path="/admin/bookings" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
       <Route path="/admin/bookings/:id" element={<Guard roles={['ADMIN']}><BookingDetail /></Guard>} />
+      <Route path="/admin/owners" element={<Guard roles={['ADMIN']}><AdminOwners /></Guard>} />
+      <Route path="/admin/settings" element={<Guard roles={['ADMIN']}><PlatformSettings /></Guard>} />
       <Route path="/admin/drivers" element={<Guard roles={['ADMIN']}><DriverRecruitment /></Guard>} />
       <Route path="/admin/finance" element={<Guard roles={['ADMIN']}><Finance /></Guard>} />
       <Route path="/admin/inspections" element={<Guard roles={['ADMIN', 'CONTROLLER']}><VehicleInspection /></Guard>} />
@@ -89,6 +105,8 @@ function AppRoutes() {
       {/* Pages communes à tous les rôles connectés */}
       <Route path="/profile" element={<Guard><Profile /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
+      <Route path="/messages" element={<Guard><Messaging /></Guard>} />
+      <Route path="/notifications" element={<Guard><Notifications /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -102,6 +120,7 @@ export default function App() {
       <AuthProvider>
         <Router>
           <ConfirmProvider>
+            <MaintenanceBanner />
             <AppRoutes />
           </ConfirmProvider>
         </Router>

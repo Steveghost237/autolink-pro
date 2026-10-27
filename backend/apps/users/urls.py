@@ -11,6 +11,7 @@ from .views import (
     NewsletterResendView,
     NewsletterSendView,
     NewsletterUnsubscribeView,
+    NotificationDetailView,
     NotificationListView,
     NotificationReadView,
     OTPRequestView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path('notifications/', NotificationListView.as_view(), name='notifications'),
     path('notifications/read/', NotificationReadView.as_view(), name='notifications-read-all'),
     path('notifications/<int:pk>/read/', NotificationReadView.as_view(), name='notification-read'),
+    path('notifications/<int:pk>/', NotificationDetailView.as_view(), name='notification-detail'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('', UserListView.as_view(), name='user-list'),
 ]

@@ -56,7 +56,7 @@ def _assign_internal_driver(booking):
 class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['status', 'vehicle']
+    filterset_fields = ['status', 'vehicle', 'owner_response', 'driver_type']
     search_fields = [
         'client__username', 'client__first_name', 'client__last_name',
         'client__email', 'vehicle__brand', 'vehicle__model', 'vehicle__plate',
@@ -222,6 +222,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         end = serializer.validated_data['end_date']
         driver_type = serializer.validated_data.get('driver_type', 'none')
         payment_method = request.data.get('payment_method')
+
+        from apps.users.models import PlatformSettings
+        if not PlatformSettings.current().bookings_enabled:
+            raise ValidationError({'detail': 'Les réservations sont temporairement suspendues. Réessayez plus tard.'})
 
         # Conflit de dates : une réservation confirmée/active bloque la période
         conflict = Booking.objects.filter(

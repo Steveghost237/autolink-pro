@@ -40,10 +40,28 @@ class KYCUploadSerializer(serializers.ModelSerializer):
 
 
 class PlatformSettingsSerializer(serializers.ModelSerializer):
+    tiers = serializers.SerializerMethodField()
+
     class Meta:
         model = PlatformSettings
         exclude = ['id']
         read_only_fields = ['updated_at']
+
+    def get_tiers(self, obj):
+        """Barème de classification véhicules (lecture seule, défini dans apps.vehicles)."""
+        from apps.vehicles.models import PRICE_MARGIN, TIER_BASE, TIER_DEPOSIT, TIER_KM, Vehicle
+        labels = dict(Vehicle.Tier.choices)
+        return [{
+            'tier': tier,
+            'label': labels.get(tier, tier),
+            'base_rate': base,
+            'min_rate': int(base * (1 - PRICE_MARGIN)),
+            'max_rate': int(base * (1 + PRICE_MARGIN)),
+            'deposit': TIER_DEPOSIT[tier],
+            'km_included': TIER_KM[tier][0],
+            'extra_km_rate': TIER_KM[tier][1],
+            'vehicles': Vehicle.objects.filter(tier=tier).count(),
+        } for tier, base in TIER_BASE.items()]
 
     def validate_commission_rate(self, value):
         if not 0 <= value <= 1:

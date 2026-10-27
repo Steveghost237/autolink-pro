@@ -211,7 +211,7 @@ class WithdrawalRequestViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
     http_method_names = ['get', 'post', 'head', 'options']
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'method']
+    filterset_fields = ['status', 'method', 'user']
     search_fields = ['reference', 'phone', 'user__first_name', 'user__last_name', 'user__email']
     ordering_fields = ['created_at', 'amount', 'status']
 

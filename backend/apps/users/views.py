@@ -95,6 +95,7 @@ class SiteConfigAPIView(APIView):
             'min_withdrawal_amount': platform.min_withdrawal_amount,
             'maintenance_mode': platform.maintenance_mode,
             'bookings_enabled': platform.bookings_enabled,
+            'owner_response_hours': platform.owner_response_hours,
             'hours': {
                 'weekdays': {'open': '06:00', 'close': '22:00'},
                 'saturday': {'open': '07:00', 'close': '21:00'},
@@ -663,3 +664,14 @@ class NotificationReadView(APIView):
             qs = qs.filter(pk=pk)
         qs.update(is_read=True)
         return Response({'unread': request.user.notifications.filter(is_read=False).count()})
+
+
+class NotificationDetailView(APIView):
+    """Suppression d'une notification de l'utilisateur connecté."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        deleted, _ = request.user.notifications.filter(pk=pk).delete()
+        if not deleted:
+            return Response({'detail': 'Notification introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

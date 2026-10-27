@@ -170,6 +170,27 @@ class PlatformAndKycTests(APITestCase):
         self.assertEqual(self.client.get('/api/users/platform-settings/').status_code, 403)
         self.assertEqual(PlatformSettings.objects.count(), 1)
 
+    def test_bookings_can_be_suspended(self):
+        settings = PlatformSettings.current()
+        settings.bookings_enabled = False
+        settings.save()
+        vehicle = make_vehicle(make_user('own6', 'OWNER'))
+        self.client.force_authenticate(self.user)
+        r = self.client.post('/api/bookings/', {
+            'vehicle': vehicle.pk, 'start_date': str(date.today() + timedelta(days=3)),
+            'end_date': str(date.today() + timedelta(days=5)),
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Booking.objects.exists())
+
+    def test_notification_delete_is_scoped_to_owner(self):
+        mine = Notification.objects.create(user=self.user, title='A', message='B')
+        other = Notification.objects.create(user=self.admin, title='C', message='D')
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.delete(f'/api/users/notifications/{other.pk}/').status_code, 404)
+        self.assertEqual(self.client.delete(f'/api/users/notifications/{mine.pk}/').status_code, 204)
+        self.assertTrue(Notification.objects.filter(pk=other.pk).exists())
+
     def test_kyc_submission_and_admin_validation(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         self.client.force_authenticate(self.user)
