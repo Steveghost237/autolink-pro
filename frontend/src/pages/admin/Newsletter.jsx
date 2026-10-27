@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, Eye, Send } from 'lucide-react';
+import { CheckCircle, Eye, Send, Edit2, RefreshCw } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
@@ -33,6 +33,7 @@ export default function Newsletter() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingCampaign, setEditingCampaign] = useState(null);
 
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
@@ -93,6 +94,47 @@ export default function Newsletter() {
   };
 
   const previewDocument = htmlBody || `<pre style="font:14px/1.6 sans-serif;white-space:pre-wrap">${escapeHtml(textBody)}</pre>`;
+
+  const editCampaign = (campaign) => {
+    setEditingCampaign(campaign);
+    setSubject(campaign.subject);
+    if (campaign.body.includes('<')) {
+      setHtmlBody(campaign.body);
+      setTextBody('');
+    } else {
+      setHtmlBody('');
+      setTextBody(campaign.body);
+    }
+    setPreview(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingCampaign(null);
+    setSubject('');
+    setHtmlBody('');
+    setTextBody('');
+    setPreview(false);
+  };
+
+  const resendCampaign = async (campaign) => {
+    const confirmed = await confirm({
+      title: uiText("pages.admin.Newsletter", "Renvoyer cette campagne ?"),
+      message: uiText("pages.admin.Newsletter", "Le message sera envoyé à nouveau à tous les utilisateurs actifs."),
+      confirmLabel: uiText("pages.admin.Newsletter", "Renvoyer"),
+    });
+    if (!confirmed) return;
+
+    setSending(true);
+    try {
+      await newsletterAPI.resend(campaign.id);
+      setSuccess('Campagne renvoyée avec succès.');
+      await loadCampaigns();
+    } catch (err) {
+      setError(err.response?.data?.detail || uiText("pages.admin.Newsletter", "Impossible de renvoyer."));
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <DashboardLayout title={uiText("pages.admin.Newsletter", "Newsletter")}>

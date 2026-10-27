@@ -136,12 +136,83 @@ class NewsletterUnsubscribeView(APIView):
         return Response({'detail': 'Votre désinscription est prise en compte.'})
 
 
-class NewsletterCampaignListView(generics.ListAPIView):
+class NewsletterCampaignListView(generics.ListCreateAPIView):
     queryset = NewsletterCampaign.objects.select_related('sent_by')
     serializer_class = NewsletterCampaignSerializer
     permission_classes = [IsAdminRole]
     search_fields = ['subject', 'body']
     ordering_fields = ['subject', 'sent_at', 'recipients_count']
+
+    def get_serializer_class(self):
+        return NewsletterCampaignSerializer if self.request.method == 'GET' else NewsletterSendSerializer
+
+
+class NewsletterCampaignDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = NewsletterCampaign.objects.select_related('sent_by')
+    serializer_class = NewsletterCampaignSerializer
+    permission_classes = [IsAdminRole]
+
+
+class NewsletterResendView(APIView):
+    permission_classes = [IsAdminRole]
+
+    def post(self, request, pk):
+        try:
+            campaign = NewsletterCampaign.objects.get(pk=pk)
+        except NewsletterCampaign.DoesNotExist:
+            return Response({'detail': 'Campagne introuvable.'}, status=404)
+
+        # Extract subject and body from the campaign
+        subject = campaign.subject
+        html_body = campaign.body if '<' in campaign.body else ''
+        text_body = campaign.body if '<' not in campaign.body else ''
+
+        # Send the newsletter
+        from .email_utils import get_request_language
+        from django.core.mail import EmailMultiAlternatives
+
+        subscribers = User.objects.filter(
+            is_active=True,
+            newsletter_opt_in=True,
+            role__in=['CLIENT', 'OWNER', 'DRIVER']
+        )
+
+        sent_count = 0
+        for subscriber in subscribers:
+            if not subscriber.email:
+                continue
+
+            language = get_user_language(subscriber)
+            unsubscribe_token = signer.sign(str(subscriber.pk))
+            unsubscribe_url = f"{settings.FRONTEND_URL}/newsletter/unsubscribe?token={unsubscribe_token}"
+
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[subscriber.email],
+            )
+
+            if html_body:
+                # Add unsubscribe link to HTML
+                html_with_unsubscribe = f"{html_body}<br><br><small><a href='{unsubscribe_url}'>Se désinscrire</a></small>"
+                email.attach_alternative(html_with_unsubscribe, 'text/html')
+
+            try:
+                email.send()
+                sent_count += 1
+            except Exception:
+                continue
+
+        # Update the campaign
+        campaign.sent_at = timezone.now()
+        campaign.recipients_count = sent_count
+        campaign.save(update_fields=['sent_at', 'recipients_count'])
+
+        return Response({
+            'detail': 'Campagne renvoyée avec succès.',
+            'recipients_count': sent_count,
+        })
 
 
 class NewsletterSendView(APIView):

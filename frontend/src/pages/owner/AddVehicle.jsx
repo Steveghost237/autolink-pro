@@ -347,7 +347,7 @@ export default function AddVehicle() {
 
               <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }} className={`border-2 border-dashed rounded-xl p-5 hover:border-primary-400 transition-colors ${dragging ? 'border-primary-500 bg-primary-50' : 'border-slate-300'}`}>
                 <label className="block p-3 text-center cursor-pointer">
-                  <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e => addFiles(e.target.files)} />
+                  <input type="file" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
                   <Upload size={32} className="text-slate-400 mx-auto mb-3" />
                   <p className="font-medium text-slate-600">{uiText("pages.owner.AddVehicle", "Photos et vidéos du véhicule")}</p>
                   <p className="text-xs text-slate-400 mt-1">{uiText("pages.owner.AddVehicle", "Min. 4 photos : avant, arrière, côtés, intérieur. Vidéos facultatives.")}</p>

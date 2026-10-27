@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Check, Edit3, Trash2, X } from 'lucide-react';
+import { Check, Edit3, Trash2, X, Download } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
@@ -89,6 +89,43 @@ export default function CatalogManager() {
   }, [page, search, status, sortField, sortOrder]);
   useEffect(() => { load(); }, [load]);
 
+  const exportToExcel = async () => {
+    try {
+      const { data } = await adminVehiclesAPI.list({
+        page_size: 1000, search: search.trim(), status: status || undefined,
+        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
+      });
+      const rows = data.results || [];
+      const headers = ['Marque', 'Modèle', 'Année', 'Immatriculation', 'Catégorie', 'Carburant', 'Places', 'Couleur', 'Tarif', 'Statut', 'Propriétaire', 'Ville'];
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(v => [
+          v.brand || '',
+          v.model || '',
+          v.year || '',
+          v.plate || '',
+          v.category || '',
+          v.fuel || '',
+          v.seats || '',
+          v.color || '',
+          v.daily_rate || '',
+          v.status || '',
+          v.owner_name || '',
+          v.city || '',
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `vehicules_autolink_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      setError(uiText("pages.admin.CatalogManager", "L'export a échoué."));
+    }
+  };
+
   const setVehicleStatus = async (vehicle, nextStatus) => {
     const label = nextStatus === 'approved' ? uiText("pages.admin.CatalogManager", "approuver") : vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "rejeter") : uiText("pages.admin.CatalogManager", "suspendre");
     if (!(await confirm({
@@ -131,6 +168,9 @@ export default function CatalogManager() {
             <option value="">{uiText("pages.admin.CatalogManager", "Tous les statuts")}</option>
             {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
+          <button onClick={exportToExcel} className="btn-outline flex items-center gap-2 text-sm">
+            <Download size={16} />{uiText("pages.admin.CatalogManager", "Exporter Excel")}
+          </button>
         </div>
         <div className="card overflow-x-auto p-0">
           <table className="w-full min-w-[850px] text-sm">

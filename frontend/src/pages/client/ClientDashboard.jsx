@@ -23,8 +23,10 @@ function TopUpModal({ onClose, onDone }) {
   const [done, setDone] = useState(null);
   const [error, setError] = useState('');
   const [methods, setMethods] = useState([]);
+  const [configuredMethods, setConfiguredMethods] = useState([]);
   useEffect(() => { walletAPI.methods().then(({ data }) => {
     setMethods(data.methods || []);
+    setConfiguredMethods(data.configured_methods || []);
     if (data.methods?.length) setMethod(data.methods[0]);
   }).catch(() => {}); }, []);
 
@@ -99,13 +101,15 @@ function TopUpModal({ onClose, onDone }) {
             <div>
               <label className="label">{uiText("pages.client.ClientDashboard", "Moyen de paiement")}</label>
               <div className="grid grid-cols-3 gap-2">
-                {TOPUP_METHODS.filter(m => methods.includes(m.id)).map(m => (
+                {TOPUP_METHODS.map(m => (
                   <button key={m.id} onClick={() => setMethod(m.id)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${method === m.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
+                    disabled={!configuredMethods.includes(m.id)}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${method === m.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'} ${!configuredMethods.includes(m.id) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <div className={`w-8 h-8 ${m.color} rounded-lg flex items-center justify-center`}>
                       <span className={`text-[10px] font-black ${m.text}`}>{m.label.slice(0, 2).toUpperCase()}</span>
                     </div>
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">{m.label}</span>
+                    {!configuredMethods.includes(m.id) && <span className="text-[10px] text-slate-400">{uiText("pages.client.ClientDashboard", "Bientôt")}</span>}
                   </button>
                 ))}
               </div>
@@ -118,7 +122,8 @@ function TopUpModal({ onClose, onDone }) {
               </div>
             )}
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <button onClick={submit} disabled={loading || !method || !methods.includes(method) || amount < 500}
+            {!configuredMethods.includes(method) && <p className="text-sm text-amber-600">{uiText("pages.client.ClientDashboard", "Ce moyen de paiement n'est pas encore configuré. Veuillez en choisir un autre.")}</p>}
+            <button onClick={submit} disabled={loading || !method || !configuredMethods.includes(method) || amount < 500}
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 font-bold">
               {loading ? <Loader size={16} className="animate-spin" /> : <Plus size={16} />}
               {loading ? uiText("pages.client.ClientDashboard", "Traitement...") : `Recharger ${formatNumber(amount)} FCFA`}

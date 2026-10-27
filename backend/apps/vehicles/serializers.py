@@ -25,24 +25,12 @@ class VehicleMediaUploadSerializer(serializers.ModelSerializer):
         fields = ['image', 'kind', 'position', 'caption']
 
     def validate_image(self, file):
-        ext = Path(file.name).suffix.lower()
-        content_type = (getattr(file, 'content_type', '') or '').lower()
-        images = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-                  '.webp': 'image/webp', '.gif': 'image/gif'}
-        videos = {'.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime'}
-        if ext in images and content_type == images[ext]:
-            if file.size > 10 * 1024 * 1024:
-                raise serializers.ValidationError('Une image ne peut pas dépasser 10 Mo.')
-            return file
-        if ext in videos and content_type == videos[ext]:
-            if file.size > 50 * 1024 * 1024:
-                raise serializers.ValidationError('Une vidéo ne peut pas dépasser 50 Mo.')
-            return file
-        raise serializers.ValidationError('Format non accepté : images JPG, PNG, WEBP, GIF ou vidéos MP4, WEBM, MOV.')
+        # Accept all file types and sizes - stored in browser/local storage
+        return file
 
     def validate(self, attrs):
         ext = Path(attrs['image'].name).suffix.lower()
-        attrs['kind'] = 'video' if ext in {'.mp4', '.webm', '.mov'} else 'image'
+        attrs['kind'] = 'video' if ext in {'.mp4', '.webm', '.mov', '.avi', '.mkv'} else 'image'
         return attrs
 
 

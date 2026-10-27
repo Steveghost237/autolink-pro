@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Ban, CheckCircle, Plus, Trash2, Users } from 'lucide-react';
+import { Ban, CheckCircle, Plus, Trash2, Users, Download } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
@@ -66,6 +66,42 @@ export default function ManageUsers() {
     }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const { data } = await usersAPI.list({
+        page_size: 1000, search: search.trim(), role: role || undefined,
+        is_active: active || undefined,
+        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
+      });
+      const rows = data.results || [];
+      const headers = ['Utilisateur', 'Email', 'Téléphone', 'Rôle', 'Statut', 'Vérifié', 'Inscription', 'Réservations', 'Véhicules', 'Courses'];
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(user => [
+          `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+          user.email || '',
+          user.phone || '',
+          user.role || '',
+          user.is_active ? 'Actif' : 'Suspendu',
+          user.is_verified ? 'Oui' : 'Non',
+          user.created_at ? formatDate(new Date(user.created_at)) : '',
+          user.bookings_count || 0,
+          user.vehicles_count || 0,
+          user.trips_count || 0,
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `utilisateurs_autolink_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      setError(uiText("pages.admin.ManageUsers", "L'export a échoué."));
+    }
+  };
+
   const toggleActive = async (user) => {
     if (user.is_active && !(await confirm({
       title: uiText("pages.admin.ManageUsers", "Suspendre ce compte ?"),
@@ -127,6 +163,9 @@ export default function ManageUsers() {
             <option value="true">{uiText("pages.admin.ManageUsers", "Actifs")}</option>
             <option value="false">{uiText("pages.admin.ManageUsers", "Suspendus")}</option>
           </select>
+          <button onClick={exportToExcel} className="btn-outline flex items-center gap-2 text-sm">
+            <Download size={16} />{uiText("pages.admin.ManageUsers", "Exporter Excel")}
+          </button>
         </div>
         <div className="card overflow-x-auto p-0">
           <table className="w-full min-w-[900px] text-sm">

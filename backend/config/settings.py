@@ -44,7 +44,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'apps' / 'users' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -155,6 +155,9 @@ ORANGE_CLIENT_SECRET = config('ORANGE_CLIENT_SECRET', default='')
 ORANGE_MERCHANT_KEY = config('ORANGE_MERCHANT_KEY', default='')
 ORANGE_OM_BASE_URL = config('ORANGE_OM_BASE_URL', default='https://api.orange.com/orange-money-webpay/dev/v1')
 ORANGE_OM_CURRENCY = config('ORANGE_OM_CURRENCY', default='OUV')
+
+# ─── Site URL (for email templates and links) ───────────────────────────────────
+SITE_URL = config('SITE_URL', default='https://autolink-pro.worldwide-international.business')
 
 # ─── Email (codes de connexion OTP, notifications) ────────────────────────────
 # Dev : console (le code s'affiche dans les logs). Prod : configurez le SMTP

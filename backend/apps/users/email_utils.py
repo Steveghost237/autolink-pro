@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 
 SUPPORTED_LANGUAGES = {'fr', 'en'}
@@ -35,32 +36,37 @@ def contact_acknowledgement(first_name, language='fr'):
     )
 
 
+def render_email_template(template_name, context):
+    """Render HTML email template with professional design"""
+    html_content = render_to_string(f'emails/{template_name}.html', context)
+    return html_content
+
+
 def send_welcome_email(user):
     if not user.email:
         return
 
-    if get_user_language(user) == 'en':
+    language = get_user_language(user)
+    context = {
+        'user': user,
+        'first_name': user.first_name or user.username,
+        'language': language,
+        'logo_url': getattr(settings, 'SITE_URL', 'https://autolink-pro.worldwide-international.business') + '/static/logo.png',
+    }
+
+    if language == 'en':
         subject = 'Welcome to AutoLink Pro'
-        message = (
-            f"Hello {user.first_name or user.username},\n\n"
-            "Welcome to AutoLink Pro. Your account is ready: explore vehicles "
-            "and manage your bookings from your account.\n\n"
-            "See you soon,\nThe AutoLink Pro team"
-        )
     else:
         subject = 'Bienvenue chez AutoLink Pro'
-        message = (
-            f"Bonjour {user.first_name or user.username},\n\n"
-            "Bienvenue chez AutoLink Pro. Votre compte est prêt : vous pouvez "
-            "découvrir les véhicules et gérer vos réservations depuis votre espace.\n\n"
-            "À bientôt,\nL'équipe AutoLink Pro"
-        )
+
+    html_message = render_email_template('welcome', context)
 
     send_mail(
         subject=subject,
-        message=message,
+        message=f"Hello {context['first_name']},\n\nWelcome to AutoLink Pro.",
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
+        html_message=html_message,
         fail_silently=True,
     )
 
@@ -69,28 +75,26 @@ def send_login_notification(user):
     if not user.email:
         return
 
-    if get_user_language(user) == 'en':
+    language = get_user_language(user)
+    context = {
+        'user': user,
+        'first_name': user.first_name or user.username,
+        'language': language,
+        'logo_url': getattr(settings, 'SITE_URL', 'https://autolink-pro.worldwide-international.business') + '/static/logo.png',
+    }
+
+    if language == 'en':
         subject = 'New sign-in to your AutoLink Pro account'
-        message = (
-            f"Hello {user.first_name or user.username},\n\n"
-            "A sign-in to your AutoLink Pro account has just taken place. "
-            "If you did not sign in, please contact our team as soon as possible.\n\n"
-            "The AutoLink Pro team"
-        )
     else:
         subject = 'Nouvelle connexion à votre compte AutoLink Pro'
-        message = (
-            f"Bonjour {user.first_name or user.username},\n\n"
-            "Une connexion à votre compte AutoLink Pro vient d'être effectuée. "
-            "Si vous n'êtes pas à l'origine de cette connexion, contactez notre "
-            "équipe dès que possible.\n\n"
-            "L'équipe AutoLink Pro"
-        )
+
+    html_message = render_email_template('login_notification', context)
 
     send_mail(
         subject=subject,
-        message=message,
+        message=f"Hello {context['first_name']},\n\nA sign-in to your AutoLink Pro account has just taken place.",
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
+        html_message=html_message,
         fail_silently=True,
     )

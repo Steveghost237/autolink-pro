@@ -75,7 +75,11 @@ function BookingModal({ vehicle, onClose }) {
   const [rentalType, setRentalType] = useState(() => RENTAL_TYPES.find(item => item.id === requestedType) || RENTAL_TYPES[2]);
   const [form, setForm] = useState({ date: '', time: '08:00', pickup: '', destination: '', days: requestedDays, driverType: 'none', paymentMethod: 'wallet', phone: '' });
   const [configuredMethods, setConfiguredMethods] = useState(['wallet']);
-  useEffect(() => { paymentsAPI.methods().then(({ data }) => setConfiguredMethods(data.booking_methods || ['wallet'])).catch(() => {}); }, []);
+  const [allMethods, setAllMethods] = useState(['wallet']);
+  useEffect(() => { paymentsAPI.methods().then(({ data }) => {
+    setConfiguredMethods(data.booking_methods || ['wallet']);
+    setAllMethods(data.booking_methods || ['wallet']);
+  }).catch(() => {}); }, []);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -330,11 +334,12 @@ function BookingModal({ vehicle, onClose }) {
                   value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {PAYMENT_METHODS.filter(pm => configuredMethods.includes(pm.value) || pm.value === 'wallet').map(pm => (
-                  <label key={pm.value} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === pm.value ? `${pm.border} bg-slate-50 dark:bg-slate-700` : 'border-slate-200 dark:border-slate-600'}`}>
-                    <input type="radio" name="payment" className="sr-only" onChange={() => setForm(f => ({ ...f, paymentMethod: pm.value }))} />
+                {PAYMENT_METHODS.map(pm => (
+                  <label key={pm.value} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === pm.value ? `${pm.border} bg-slate-50 dark:bg-slate-700` : 'border-slate-200 dark:border-slate-600'} ${!configuredMethods.includes(pm.value) && pm.value !== 'wallet' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <input type="radio" name="payment" className="sr-only" onChange={() => configuredMethods.includes(pm.value) || pm.value === 'wallet' ? setForm(f => ({ ...f, paymentMethod: pm.value })) : null} disabled={!configuredMethods.includes(pm.value) && pm.value !== 'wallet'} />
                     <div className={`w-7 h-7 ${pm.color} rounded-lg`} />
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center leading-snug">{pm.label}</span>
+                    {!configuredMethods.includes(pm.value) && pm.value !== 'wallet' && <span className="text-[10px] text-slate-400">{uiText("pages.client.SearchVehicles", "Bientôt")}</span>}
                   </label>
                 ))}
               </div>
@@ -343,9 +348,14 @@ function BookingModal({ vehicle, onClose }) {
                   <AlertCircle size={16} /> {apiError}
                 </div>
               )}
+              {!configuredMethods.includes(form.paymentMethod) && form.paymentMethod !== 'wallet' && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                  <AlertCircle size={16} /> {uiText("pages.client.SearchVehicles", "Ce moyen de paiement n'est pas encore configuré. Veuillez en choisir un autre.")}
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="btn-outline px-5 py-3">{uiText("pages.client.SearchVehicles", "Retour")}</button>
-                <button onClick={submitBooking} disabled={!form.phone || submitting}
+                <button onClick={submitBooking} disabled={!form.phone || submitting || !configuredMethods.includes(form.paymentMethod) && form.paymentMethod !== 'wallet'}
                   className="btn-primary flex-1 py-3 disabled:opacity-50 flex items-center justify-center gap-2 font-bold">
                   {submitting && <Loader size={16} className="animate-spin" />}
                   {submitting ? uiText("pages.client.SearchVehicles", "Envoi en cours...") : `${uiText("pages.client.SearchVehicles", "Confirmer et payer —")} ${formatNumber(basePrice)} FCFA`}

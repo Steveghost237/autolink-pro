@@ -137,7 +137,7 @@ class FinanceTransactionExportView(FinanceTransactionListView):
 
     def get(self, request, *args, **kwargs):
         rows = self.filter_queryset(self.get_queryset())
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
         writer = csv.writer(response)
         writer.writerow([
@@ -400,16 +400,23 @@ class PaymentMethodsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        methods = []
-        if providers.mtn_configured():
-            methods.append('mtn')
-        if providers.orange_configured():
-            methods.append('orange')
-        if providers.stripe_configured():
-            methods.append('stripe')
-        if providers.paypal_configured():
-            methods.append('paypal')
-        return Response({'methods': methods, 'booking_methods': ['wallet', *methods]})
+        # Return all payment methods, with configuration status
+        all_methods = ['mtn', 'orange', 'stripe', 'paypal']
+        configured_methods = []
+        for method in all_methods:
+            if method == 'mtn' and providers.mtn_configured():
+                configured_methods.append(method)
+            elif method == 'orange' and providers.orange_configured():
+                configured_methods.append(method)
+            elif method == 'stripe' and providers.stripe_configured():
+                configured_methods.append(method)
+            elif method == 'paypal' and providers.paypal_configured():
+                configured_methods.append(method)
+        return Response({
+            'methods': all_methods,
+            'configured_methods': configured_methods,
+            'booking_methods': ['wallet', *all_methods]
+        })
 
 
 class OrangeNotificationView(APIView):

@@ -121,6 +121,9 @@ export const contactMessagesAPI = {
 export const newsletterAPI = {
   campaigns: (params) => api.get('/users/newsletter/campaigns/', { params }),
   send: (payload) => api.post('/users/newsletter/send/', payload),
+  resend: (id) => api.post(`/users/newsletter/campaigns/${id}/resend/`),
+  update: (id, payload) => api.patch(`/users/newsletter/campaigns/${id}/`, payload),
+  delete: (id) => api.delete(`/users/newsletter/campaigns/${id}/`),
 };
 
 export const usersAPI = {
