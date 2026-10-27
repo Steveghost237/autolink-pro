@@ -53,6 +53,13 @@ export default function Steps() {
             Réserver maintenant
           </button>
         </div>
+
+        <div className="text-center mt-8">
+          <button onClick={() => navigate('/comment-ca-marche')}
+            className="text-teal-400 hover:text-teal-300 font-bold text-sm transition-colors">
+            Découvrir le fonctionnement complet → caution, portefeuille, documents
+          </button>
+        </div>
       </div>
     </section>
   );

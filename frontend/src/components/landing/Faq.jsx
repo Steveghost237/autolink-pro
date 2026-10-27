@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { FAQS } from './data';
 
@@ -37,6 +38,12 @@ export default function Faq() {
               )}
             </div>
           ))}
+        </div>
+
+        <div className="text-center mt-10">
+          <Link to="/aide" className="text-teal-600 hover:text-teal-700 font-bold text-sm transition-colors">
+            Consulter le centre d'aide complet →
+          </Link>
         </div>
       </div>
     </section>

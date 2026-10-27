@@ -8,10 +8,10 @@ import { NAV_LINKS } from './data';
 const PUBLIC_LINKS = [
   { label: 'Accuiel',           href: '/' },
   { label: 'Catalogue',           href: '/catalogue' },
-  { label: 'Comment ça marche',   href: '/#etapes' },
-  { label: 'Tarifs',              href: '/#tarifs' },
-  { label: 'Devenir propriétaire',href: '/register?role=owner' },
-  { label: 'Aide',                href: '/#faq' },
+  { label: 'Comment ça marche',   href: '/comment-ca-marche' },
+  { label: 'Tarifs',              href: '/tarifs' },
+  { label: 'Devenir propriétaire',href: '/devenir-proprietaire' },
+  { label: 'Aide',                href: '/aide' },
 ];
 
 /* Navbar publique partagée — landing (ancres) & pages publiques (liens router) */
@@ -30,7 +30,7 @@ export default function PublicNavbar() {
 
   const onHome = pathname === '/';
   const links = onHome ? NAV_LINKS : PUBLIC_LINKS;
-  const renderLink = (l) => onHome
+  const renderLink = (l) => l.href.startsWith('#')
     ? <a key={l.href} href={l.href}
         className="text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors">{l.label}</a>
     : <Link key={l.href} to={l.href}
@@ -92,8 +92,8 @@ export default function PublicNavbar() {
       {open && (
         <div className="lg:hidden bg-white border-t border-slate-100 shadow-lg px-4 py-4">
           {links.map(l => (
-            <Link key={l.href} to={onHome ? '/' : l.href}
-              onClick={(e) => { if (onHome) { e.preventDefault(); document.querySelector(l.href)?.scrollIntoView({ behavior: 'smooth' }); } setOpen(false); }}
+            <Link key={l.href} to={l.href.startsWith('#') ? '/' : l.href}
+              onClick={(e) => { if (l.href.startsWith('#')) { e.preventDefault(); document.querySelector(l.href)?.scrollIntoView({ behavior: 'smooth' }); } setOpen(false); }}
               className="block py-3 px-2 text-slate-700 font-medium border-b border-slate-50 hover:text-teal-600 transition-colors text-sm">
               {l.label}
             </Link>

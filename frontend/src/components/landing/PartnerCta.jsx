@@ -30,7 +30,7 @@ export default function PartnerCta() {
                 </li>
               ))}
             </ul>
-            <button onClick={() => navigate('/register?role=owner')}
+            <button onClick={() => navigate('/devenir-proprietaire')}
               className="inline-flex items-center gap-2 bg-teal-500 hover:bg-teal-400 text-white font-bold py-3.5 px-8 rounded-xl transition-colors shadow-lg text-sm">
               Devenir partenaire <ArrowRight size={16} />
             </button>

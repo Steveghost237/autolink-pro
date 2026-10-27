@@ -56,6 +56,13 @@ export default function Formules() {
             </div>
           ))}
         </div>
+
+        <div className="text-center mt-10">
+          <button onClick={() => navigate('/tarifs')}
+            className="text-teal-600 hover:text-teal-700 font-bold text-sm transition-colors">
+            Voir toutes nos gammes et le détail des tarifs →
+          </button>
+        </div>
       </div>
     </section>
   );

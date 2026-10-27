@@ -42,14 +42,11 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">Liens rapides</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/" className="hover:text-teal-400 transition-colors">Accueil</Link></li>
-              <li><Link to="/catalogue" className="hover:text-teal-400 transition-colors">Catalogue</Link></li>
-              {NAV_LINKS.slice(2).map(l => (
+              {NAV_LINKS.map(l => (
                 <li key={l.href}>
-                  <Link to={`/${l.href}`} className="hover:text-teal-400 transition-colors">{l.label}</Link>
+                  <Link to={l.href.startsWith('#') ? `/${l.href}` : l.href} className="hover:text-teal-400 transition-colors">{l.label}</Link>
                 </li>
               ))}
-              <li><Link to="/register?role=owner" className="hover:text-teal-400 transition-colors">Devenir partenaire</Link></li>
             </ul>
           </div>
 
@@ -80,7 +77,7 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wide">Aide</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/#faq" className="hover:text-teal-400 transition-colors">Centre d'aide / FAQ</Link></li>
+              <li><Link to="/aide" className="hover:text-teal-400 transition-colors">Centre d'aide / FAQ</Link></li>
               <li><Link to="/" className="hover:text-teal-400 transition-colors">Conditions générales</Link></li>
               <li><Link to="/" className="hover:text-teal-400 transition-colors">Politique de confidentialité</Link></li>
               <li><Link to="/" className="hover:text-teal-400 transition-colors">Politique d'annulation</Link></li>
