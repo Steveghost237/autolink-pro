@@ -171,6 +171,10 @@ export const driversAPI = {
   availability: (is_online) => api.patch('/drivers/profiles/availability/', { is_online }),
   earnings: () => api.get('/drivers/profiles/earnings/'),
   earningLedger: (params) => api.get('/drivers/earnings/', { params }),
+  // Service recrutement/formation de chauffeurs (propriétaires + admin)
+  serviceRequests: () => api.get('/drivers/service-requests/'),
+  requestService: (payload) => api.post('/drivers/service-requests/', payload),
+  updateServiceRequest: (id, payload) => api.patch(`/drivers/service-requests/${id}/`, payload),
 };
 
 export const inspectionsAPI = {
@@ -192,13 +196,6 @@ export const affiliatesAPI = {
   updateAgent: (id, payload) => api.patch(`/affiliates/agents/${id}/`, payload),
   payouts: (params) => api.get('/affiliates/payouts/', { params }),
   createPayout: (payload) => api.post('/affiliates/payouts/', payload),
-};
-
-// Service recrutement/formation de chauffeurs (propriétaires + admin)
-export const driversAPI = {
-  serviceRequests: () => api.get('/drivers/service-requests/'),
-  requestService: (payload) => api.post('/drivers/service-requests/', payload),
-  updateServiceRequest: (id, payload) => api.patch(`/drivers/service-requests/${id}/`, payload),
 };
 
 // Messagerie interne — ?peer=<user_id> ou ?peer=support

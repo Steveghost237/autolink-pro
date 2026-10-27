@@ -45,7 +45,6 @@ import Maintenance from './pages/owner/Maintenance';
 import AdminMaintenance from './pages/admin/AdminMaintenance';
 import PlatformSettings from './pages/admin/PlatformSettings';
 import NotFound from './pages/NotFound';
-import VehicleDetail from './pages/VehicleDetail';
 import Favorites from './pages/client/Favorites';
 import BookingDetail from './pages/client/BookingDetail';
 

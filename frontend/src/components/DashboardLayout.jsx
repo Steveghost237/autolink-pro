@@ -11,7 +11,7 @@ import {
   Car, LogOut, Menu, X, Bell, User, ChevronDown, Sun, Moon, CheckCheck, Heart,
   LayoutDashboard, Search, FileText, Settings,
   Users, DollarSign, UserCheck, ClipboardList, PlusCircle, Tag, Home, Mail, AlertTriangle,
-  MessageSquare, Wrench, SlidersHorizontal, BarChart3, Wallet,
+  MessageSquare, Wrench, SlidersHorizontal, BarChart3, Wallet, Plus,
 } from 'lucide-react';
 import { formatDate,  uiText } from '../i18n';
 
