@@ -141,11 +141,11 @@ export default function Newsletter() {
       <div className="mx-auto max-w-6xl space-y-6">
         <form onSubmit={sendCampaign} className="card space-y-5">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{uiText("pages.admin.Newsletter", "Composer une campagne")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{uiText("pages.admin.Newsletter", "L’envoi est réservé aux utilisateurs actifs qui ont accepté la newsletter.") + " "}</p>
+            <h2 className="text-lg font-bold text-on-surface dark:text-white">{uiText("pages.admin.Newsletter", "Composer une campagne")}</h2>
+            <p className="mt-1 text-sm text-on-surface-variant">{uiText("pages.admin.Newsletter", "L’envoi est réservé aux utilisateurs actifs qui ont accepté la newsletter.") + " "}</p>
           </div>
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Objet")}</span>
+            <span className="text-sm font-semibold text-on-surface dark:text-white">{uiText("pages.admin.Newsletter", "Objet")}</span>
             <input
               value={subject}
               onChange={event => setSubject(event.target.value)}
@@ -157,7 +157,7 @@ export default function Newsletter() {
           </label>
           <div className="grid gap-5 lg:grid-cols-2">
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Message HTML")}</span>
+              <span className="text-sm font-semibold text-on-surface dark:text-white">{uiText("pages.admin.Newsletter", "Message HTML")}</span>
               <textarea
                 value={htmlBody}
                 onChange={event => setHtmlBody(event.target.value)}
@@ -167,7 +167,7 @@ export default function Newsletter() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-slate-700">{uiText("pages.admin.Newsletter", "Version texte")}</span>
+              <span className="text-sm font-semibold text-on-surface dark:text-white">{uiText("pages.admin.Newsletter", "Version texte")}</span>
               <textarea
                 value={textBody}
                 onChange={event => setTextBody(event.target.value)}
@@ -181,7 +181,7 @@ export default function Newsletter() {
             <button
               type="button"
               onClick={() => setPreview(value => !value)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/40 px-4 py-2 text-sm font-semibold text-on-surface dark:text-white hover:bg-surface-container-low dark:bg-slate-900"
             >
               <Eye size={16} /> {preview ? uiText("pages.admin.Newsletter", "Masquer l’aperçu") : uiText("pages.admin.Newsletter", "Aperçu")}
             </button>
@@ -198,12 +198,12 @@ export default function Newsletter() {
               title={uiText("pages.admin.Newsletter", "Aperçu de la newsletter")}
               sandbox=""
               srcDoc={previewDocument}
-              className="h-72 w-full rounded-xl border border-slate-200 bg-white"
+              className="h-72 w-full rounded-xl border border-outline-variant/40 bg-white"
             />
           )}
-          {error && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-error-container/50 px-4 py-3 text-sm text-error">{error}</p>}
           {success && (
-            <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <p role="status" className="flex items-center gap-2 rounded-lg bg-primary-fixed/30 px-4 py-3 text-sm text-primary">
               <CheckCircle size={16} /> {success}
             </p>
           )}
@@ -211,8 +211,8 @@ export default function Newsletter() {
 
         <section className="card space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{uiText("pages.admin.Newsletter", "Campagnes envoyées")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Historique des envois et nombre de destinataires.")}</p>
+            <h2 className="text-lg font-bold text-on-surface dark:text-white">{uiText("pages.admin.Newsletter", "Campagnes envoyées")}</h2>
+            <p className="mt-1 text-sm text-on-surface-variant">{uiText("pages.admin.Newsletter", "Historique des envois et nombre de destinataires.")}</p>
           </div>
           <ListToolbar
             search={search}
@@ -225,16 +225,16 @@ export default function Newsletter() {
             placeholder={uiText("pages.admin.Newsletter", "Rechercher une campagne")}
           />
           {loading ? (
-            <p className="py-8 text-center text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Chargement des campagnes…")}</p>
+            <p className="py-8 text-center text-sm text-on-surface-variant">{uiText("pages.admin.Newsletter", "Chargement des campagnes…")}</p>
           ) : campaigns.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">{uiText("pages.admin.Newsletter", "Aucune campagne trouvée.")}</p>
+            <p className="py-8 text-center text-sm text-on-surface-variant">{uiText("pages.admin.Newsletter", "Aucune campagne trouvée.")}</p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-outline-variant/30">
               {campaigns.map(campaign => (
                 <article key={campaign.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
                   <div>
-                    <h3 className="font-semibold text-slate-800">{campaign.subject}</h3>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <h3 className="font-semibold text-on-surface dark:text-white">{campaign.subject}</h3>
+                    <p className="mt-1 text-xs text-on-surface-variant">
                       {formatDateTime(new Date(campaign.sent_at))}
                     </p>
                   </div>

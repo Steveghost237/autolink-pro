@@ -10,9 +10,11 @@ class BookingSerializer(serializers.ModelSerializer):
     vehicle_name = serializers.SerializerMethodField()
     vehicle_plate = serializers.CharField(source='vehicle.plate', read_only=True)
     vehicle_tier = serializers.CharField(source='vehicle.tier', read_only=True)
-    vehicle_image = serializers.CharField(source='vehicle.image_url', read_only=True)
+    vehicle_city = serializers.CharField(source='vehicle.city', read_only=True)
+    vehicle_image = serializers.SerializerMethodField()
     owner_id = serializers.IntegerField(source='vehicle.owner_id', read_only=True)
-    owner_name = serializers.CharField(source='vehicle.owner.get_full_name', read_only=True)
+    owner_name = serializers.SerializerMethodField()
+    owner_phone = serializers.CharField(source='vehicle.owner.phone', read_only=True)
     driver_name = serializers.SerializerMethodField()
     driver_phone = serializers.CharField(source='driver.phone', read_only=True)
     payment_method = serializers.CharField(source='payment.method', read_only=True)
@@ -37,12 +39,23 @@ class BookingSerializer(serializers.ModelSerializer):
                             'subtotal', 'commission_amount', 'owner_amount',
                             'discount_percent', 'deposit_amount',
                             'dispute_reason', 'dispute_opened_at', 'driver_response',
+                            'owner_response', 'owner_responded_at',
                             'created_at', 'updated_at']
 
     def get_client_name(self, obj): return obj.client.get_full_name()
     def get_vehicle_name(self, obj): return str(obj.vehicle)
     def get_driver_name(self, obj): return obj.driver.get_full_name() if obj.driver else None
     def get_intermediary_name(self, obj): return obj.intermediary.get_full_name() if obj.intermediary else None
+
+    def get_owner_name(self, obj): return obj.vehicle.owner.get_full_name()
+
+    def get_vehicle_image(self, obj):
+        vehicle = obj.vehicle
+        photo = vehicle.photos.filter(kind='image').order_by('uploaded_at').first()
+        if photo and photo.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(photo.image.url) if request else photo.image.url
+        return getattr(vehicle, 'image_url', '') or None
 
     def create(self, validated_data):
         validated_data.pop('agent_code', None)      # résolu dans perform_create

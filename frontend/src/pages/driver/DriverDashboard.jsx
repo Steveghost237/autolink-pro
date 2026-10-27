@@ -125,13 +125,13 @@ export default function DriverDashboard() {
   return (
     <DashboardLayout title={uiText("pages.driver.DriverDashboard", "Espace chauffeur")}>
       <div className="mx-auto max-w-6xl space-y-5">
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <section className="card flex flex-wrap items-center justify-between gap-4 bg-gradient-to-br from-slate-900 to-primary-900 text-white">
           <div>
             <h2 className="text-2xl font-bold">{uiText("pages.driver.DriverDashboard", "Bonjour,") + " "}{user?.first_name || user?.username}</h2>
             <p className="text-sm text-white/70">{uiText("pages.driver.DriverDashboard", "Gérez votre disponibilité et les courses qui vous sont attribuées.")}</p>
           </div>
-          {profile && <button onClick={setAvailability} className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold ${profile.is_online ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+          {profile && <button onClick={setAvailability} className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold ${profile.is_online ? 'bg-primary' : 'bg-slate-600'}`}>
             {profile.is_online ? <Wifi size={17} /> : <WifiOff size={17} />}
             {profile.is_online ? uiText("pages.driver.DriverDashboard", "En ligne") : uiText("pages.driver.DriverDashboard", "Hors ligne")}
           </button>}
@@ -144,14 +144,14 @@ export default function DriverDashboard() {
             [uiText("pages.driver.DriverDashboard", "Gains enregistrés"), earnings ? `${formatNumber(Number(earnings.total_earned))} FCFA` : '—', Car],
             [uiText("pages.driver.DriverDashboard", "Véhicule attribué"), vehicle ? `${vehicle.brand} ${vehicle.model}` : profile?.assigned_vehicle ? uiText("pages.driver.DriverDashboard", "Véhicule #{{id}}", { id: profile.assigned_vehicle }) : uiText("pages.driver.DriverDashboard", "Aucun"), Car],
           ].map(([label, value, Icon]) => <div key={label} className="card flex items-center gap-3">
-            <Icon size={20} className="text-primary-600" /><div><div className="font-bold">{value}</div><div className="text-xs text-slate-500">{label}</div></div>
+            <Icon size={20} className="text-primary-600" /><div><div className="font-bold">{value}</div><div className="text-xs text-on-surface-variant">{label}</div></div>
           </div>)}
         </div>
 
         <section className="card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="font-bold">{uiText("pages.driver.DriverDashboard", "Mes courses")}</h2><p className="text-sm text-slate-500">{count}{" " + uiText("pages.driver.DriverDashboard", "course(s)")}</p></div>
-            {vehicle && <p className="text-sm text-slate-500">{uiText("pages.driver.DriverDashboard", "Véhicule attribué :") + " "}{vehicle.brand} {vehicle.model}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{vehicle.plate}</p>}
+            <div><h2 className="font-bold">{uiText("pages.driver.DriverDashboard", "Mes courses")}</h2><p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.driver.DriverDashboard", "course(s)")}</p></div>
+            {vehicle && <p className="text-sm text-on-surface-variant">{uiText("pages.driver.DriverDashboard", "Véhicule attribué :") + " "}{vehicle.brand} {vehicle.model}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{vehicle.plate}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
@@ -169,15 +169,15 @@ export default function DriverDashboard() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="font-semibold">{booking.client_name}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{booking.vehicle_name}</h3>
-                    <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><Clock size={14} />{booking.start_date}{" " + uiText("pages.driver.DriverDashboard", "→") + " "}{booking.end_date}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{STATUS[booking.status] || booking.status}</p>
+                    <p className="mt-1 flex items-center gap-1 text-sm text-on-surface-variant"><Clock size={14} />{booking.start_date}{" " + uiText("pages.driver.DriverDashboard", "→") + " "}{booking.end_date}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{STATUS[booking.status] || booking.status}</p>
                     {booking.client_phone && <a href={`tel:${booking.client_phone}`} className="mt-1 inline-flex items-center gap-1 text-sm text-primary-600"><Phone size={14} />{booking.client_phone}</a>}
-                    {booking.pickup_address && <a className="mt-1 flex items-center gap-1 text-sm text-slate-600" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.pickup_address)}`}><MapPin size={14} />{uiText("pages.driver.DriverDashboard", "Départ :") + " "}{booking.pickup_address}</a>}
-                    {booking.dropoff_address && <a className="mt-1 flex items-center gap-1 text-sm text-slate-600" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.dropoff_address)}`}><MapPin size={14} />{uiText("pages.driver.DriverDashboard", "Arrivée :") + " "}{booking.dropoff_address}</a>}
+                    {booking.pickup_address && <a className="mt-1 flex items-center gap-1 text-sm text-on-surface-variant" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.pickup_address)}`}><MapPin size={14} />{uiText("pages.driver.DriverDashboard", "Départ :") + " "}{booking.pickup_address}</a>}
+                    {booking.dropoff_address && <a className="mt-1 flex items-center gap-1 text-sm text-on-surface-variant" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.dropoff_address)}`}><MapPin size={14} />{uiText("pages.driver.DriverDashboard", "Arrivée :") + " "}{booking.dropoff_address}</a>}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {booking.status === 'confirmed' && booking.driver_response === 'offered' && <>
                       <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'accept')}>{uiText("pages.driver.DriverDashboard", "Accepter")}</button>
-                      <button disabled={busy === booking.id} className="btn-outline text-red-600" onClick={() => actOnRide(booking, 'refuse')}>{uiText("pages.driver.DriverDashboard", "Refuser")}</button>
+                      <button disabled={busy === booking.id} className="btn-outline text-error" onClick={() => actOnRide(booking, 'refuse')}>{uiText("pages.driver.DriverDashboard", "Refuser")}</button>
                     </>}
                     {booking.status === 'confirmed' && booking.driver_response === 'accepted' && <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'start')}>{uiText("pages.driver.DriverDashboard", "Démarrer")}</button>}
                     {booking.status === 'active' && <button disabled={busy === booking.id} className="btn-primary" onClick={() => actOnRide(booking, 'finish')}>{uiText("pages.driver.DriverDashboard", "Terminer la course")}</button>}
@@ -185,7 +185,7 @@ export default function DriverDashboard() {
                 </div>
               </article>
             ))}
-            {bookings.length === 0 && <p className="py-8 text-center text-slate-500">{uiText("pages.driver.DriverDashboard", "Aucune course ne correspond à votre recherche.")}</p>}
+            {bookings.length === 0 && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.driver.DriverDashboard", "Aucune course ne correspond à votre recherche.")}</p>}
           </div>
           <div className="flex items-center justify-between border-t pt-3 text-sm">
             <span>{uiText("pages.driver.DriverDashboard", "Page") + " "}{page}{" " + uiText("pages.driver.DriverDashboard", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
@@ -198,18 +198,18 @@ export default function DriverDashboard() {
 
         <section className="card">
           <h2 className="mb-3 font-bold">{uiText("pages.driver.DriverDashboard", "Gains mensuels")}</h2>
-          {(earnings?.monthly_earnings || []).every(item => !Number(item.earnings)) && <p className="text-sm text-slate-500">{uiText("pages.driver.DriverDashboard", "Aucun gain enregistré.")}</p>}
+          {(earnings?.monthly_earnings || []).every(item => !Number(item.earnings)) && <p className="text-sm text-on-surface-variant">{uiText("pages.driver.DriverDashboard", "Aucun gain enregistré.")}</p>}
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {(earnings?.monthly_earnings || []).map(item => (
-              <div key={item.month} className="rounded-lg bg-slate-50 p-3 text-sm">
+              <div key={item.month} className="rounded-lg bg-surface-container-low dark:bg-slate-900 p-3 text-sm">
                 <div className="font-semibold">{monthLabel(`${item.month}-01`)}</div>
-                <div className="text-slate-600">{Number(item.trips || 0)}{" " + uiText("pages.driver.DriverDashboard", "course(s) ·") + " "}{formatNumber(Number(item.earnings || 0))}{" " + uiText("pages.driver.DriverDashboard", "F")}</div>
+                <div className="text-on-surface-variant">{Number(item.trips || 0)}{" " + uiText("pages.driver.DriverDashboard", "course(s) ·") + " "}{formatNumber(Number(item.earnings || 0))}{" " + uiText("pages.driver.DriverDashboard", "F")}</div>
               </div>
             ))}
           </div>
         </section>
         <section className="card space-y-4">
-          <div><h2 className="font-bold">{uiText("pages.driver.DriverDashboard", "Historique des gains")}</h2><p className="text-sm text-slate-500">{ledgerCount}{" " + uiText("pages.driver.DriverDashboard", "écriture(s)")}</p></div>
+          <div><h2 className="font-bold">{uiText("pages.driver.DriverDashboard", "Historique des gains")}</h2><p className="text-sm text-on-surface-variant">{ledgerCount}{" " + uiText("pages.driver.DriverDashboard", "écriture(s)")}</p></div>
           <ListToolbar search={ledgerSearch} onSearchChange={value => { setLedgerSearch(value); setLedgerPage(1); }}
             sortField={ledgerSortField} onSortFieldChange={value => { setLedgerSortField(value); setLedgerPage(1); }}
             sortOrder={ledgerSortOrder} onSortOrderChange={value => { setLedgerSortOrder(value); setLedgerPage(1); }}
@@ -217,11 +217,11 @@ export default function DriverDashboard() {
           <div className="divide-y">
             {ledger.map(entry => (
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-                <div><div className="font-semibold">{entry.booking_reference}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{entry.vehicle_name}</div><div className="text-slate-500">{formatDate(new Date(entry.created_at))}</div></div>
-                <strong className="text-emerald-700">{uiText("pages.driver.DriverDashboard", "+")}{formatNumber(Number(entry.amount))}{" " + uiText("pages.driver.DriverDashboard", "F")}</strong>
+                <div><div className="font-semibold">{entry.booking_reference}{" " + uiText("pages.driver.DriverDashboard", "·") + " "}{entry.vehicle_name}</div><div className="text-on-surface-variant">{formatDate(new Date(entry.created_at))}</div></div>
+                <strong className="text-primary">{uiText("pages.driver.DriverDashboard", "+")}{formatNumber(Number(entry.amount))}{" " + uiText("pages.driver.DriverDashboard", "F")}</strong>
               </div>
             ))}
-            {ledger.length === 0 && <p className="py-6 text-center text-sm text-slate-500">{uiText("pages.driver.DriverDashboard", "Aucun gain correspondant à votre recherche.")}</p>}
+            {ledger.length === 0 && <p className="py-6 text-center text-sm text-on-surface-variant">{uiText("pages.driver.DriverDashboard", "Aucun gain correspondant à votre recherche.")}</p>}
           </div>
           <div className="flex items-center justify-between border-t pt-3 text-sm">
             <span>{uiText("pages.driver.DriverDashboard", "Page") + " "}{ledgerPage}{" " + uiText("pages.driver.DriverDashboard", "/") + " "}{Math.max(1, Math.ceil(ledgerCount / 20))}</span>

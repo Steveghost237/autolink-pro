@@ -14,14 +14,18 @@ from django.http import HttpResponseRedirect
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from config.pagination import StandardPagination
-from .models import Payment, Payout, WalletTransaction
+from .models import Payment, Payout, WalletTransaction, WithdrawalRequest
 from apps.bookings.models import Booking
 from apps.drivers.models import DriverEarning
-from .serializers import FinanceTransactionSerializer, PaymentSerializer, PayoutSerializer, WalletTransactionSerializer, TopUpSerializer
+from .serializers import (
+    FinanceTransactionSerializer, PaymentSerializer, PayoutSerializer, WalletTransactionSerializer,
+    TopUpSerializer, WithdrawalRequestSerializer,
+)
 from . import providers
 
 
@@ -195,6 +199,84 @@ class PayoutViewSet(viewsets.ReadOnlyModelViewSet):
         return Payout.objects.filter(recipient=user)
 
 
+def _notify(user, title, message):
+    from apps.users.models import Notification
+    Notification.objects.create(user=user, title=title, message=message)
+
+
+class WithdrawalRequestViewSet(viewsets.ModelViewSet):
+    """Retraits vers Mobile Money : demande (propriétaire/chauffeur), traitement (admin)."""
+    serializer_class = WithdrawalRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardPagination
+    http_method_names = ['get', 'post', 'head', 'options']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'method', 'user']
+    search_fields = ['reference', 'phone', 'user__first_name', 'user__last_name', 'user__email']
+    ordering_fields = ['created_at', 'amount', 'status']
+
+    def get_queryset(self):
+        qs = WithdrawalRequest.objects.select_related('user')
+        if self.request.user.role == 'ADMIN':
+            return qs
+        return qs.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        from apps.users.models import User
+        if self.request.user.role not in ('OWNER', 'DRIVER'):
+            raise PermissionDenied('Les retraits sont réservés aux propriétaires et chauffeurs.')
+        amount = serializer.validated_data['amount']
+        with db_transaction.atomic():
+            user = User.objects.select_for_update().get(pk=self.request.user.pk)
+            if (user.balance or 0) < amount:
+                raise ValidationError({'amount': 'Solde insuffisant pour ce retrait.'})
+            user.balance -= amount
+            user.save(update_fields=['balance', 'updated_at'])
+            reference = f'WD-{uuid.uuid4().hex[:10].upper()}'
+            serializer.save(user=user, reference=reference)
+            WalletTransaction.objects.create(
+                user=user, kind='debit', method=serializer.validated_data['method'], amount=amount,
+                balance_after=user.balance, reference=reference,
+                note=f'Retrait vers {serializer.validated_data["phone"]} (en attente)')
+        for admin in User.objects.filter(role='ADMIN', is_active=True):
+            _notify(admin, 'Demande de retrait',
+                    f'{user.get_full_name()} demande un retrait de {amount:.0f} FCFA ({reference}).')
+
+    def _process(self, request, pk, approve):
+        from apps.users.models import User
+        if request.user.role != 'ADMIN':
+            raise PermissionDenied('Traitement réservé à l’administration.')
+        with db_transaction.atomic():
+            withdrawal = WithdrawalRequest.objects.select_for_update().get(pk=pk)
+            if withdrawal.status != 'pending':
+                raise ValidationError({'detail': 'Cette demande a déjà été traitée.'})
+            withdrawal.status = 'paid' if approve else 'rejected'
+            withdrawal.admin_note = (request.data.get('note') or '')[:255]
+            withdrawal.processed_by = request.user
+            withdrawal.processed_at = timezone.now()
+            withdrawal.save()
+            if not approve:
+                user = User.objects.select_for_update().get(pk=withdrawal.user_id)
+                user.balance = (user.balance or 0) + withdrawal.amount
+                user.save(update_fields=['balance', 'updated_at'])
+                WalletTransaction.objects.create(
+                    user=user, kind='refund', amount=withdrawal.amount, balance_after=user.balance,
+                    reference=withdrawal.reference, note='Retrait refusé — montant recrédité')
+        _notify(withdrawal.user, 'Retrait effectué' if approve else 'Retrait refusé',
+                f'Votre retrait {withdrawal.reference} de {withdrawal.amount:.0f} FCFA '
+                + ('a été viré sur votre compte Mobile Money.' if approve
+                   else f'a été refusé et recrédité sur votre solde. {withdrawal.admin_note}'))
+        return Response(self.get_serializer(withdrawal).data)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        return self._process(request, pk, True)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        return self._process(request, pk, False)
+
+
 class WalletViewSet(viewsets.ViewSet):
     """Solde AutoLink — rechargement et historique."""
     permission_classes = [permissions.IsAuthenticated]
@@ -206,8 +288,23 @@ class WalletViewSet(viewsets.ViewSet):
         transactions = request.user.wallet_transactions.all()
         for backend in self.filter_backends:
             transactions = backend().filter_queryset(request, transactions, self)
+        held = Payment.objects.filter(
+            payer=request.user, status='completed', deposit_status='held',
+        ).exclude(booking__status__in=('completed', 'cancelled'))
         return Response({
             'balance': request.user.balance,
+            'held_deposit': held.aggregate(v=Coalesce(Sum('deposit_amount'), Decimal('0.00')))['v'],
+            'held_deposits': [{
+                'booking': p.booking_id,
+                'vehicle': str(p.booking.vehicle),
+                'amount': p.deposit_amount,
+                'start_date': p.booking.start_date,
+                'end_date': p.booking.end_date,
+                'status': p.booking.status,
+            } for p in held.select_related('booking__vehicle')],
+            'pending_withdrawals': WithdrawalRequest.objects.filter(
+                user=request.user, status='pending',
+            ).aggregate(v=Coalesce(Sum('amount'), Decimal('0.00')))['v'],
             'transactions': WalletTransactionSerializer(
                 transactions[:50], many=True
             ).data,
@@ -413,8 +510,9 @@ class PaymentMethodsView(APIView):
             elif method == 'paypal' and providers.paypal_configured():
                 configured_methods.append(method)
         return Response({
-            'methods': all_methods,
+            'methods': configured_methods,
             'configured_methods': configured_methods,
+            'all_methods': all_methods,
             'booking_methods': ['wallet', *all_methods]
         })
 

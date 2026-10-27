@@ -68,6 +68,8 @@ export const vehiclesAPI = {
   uploadMedia: (id, payload) => api.post(`/vehicles/${id}/media/`, payload),
   media: (id) => api.get(`/vehicles/${id}/media/`),
   deleteMedia: (id, mediaId) => api.delete(`/vehicles/${id}/media/${mediaId}/`),
+  availability: (id) => api.get(`/vehicles/${id}/availability/`),
+  blockDates: (id, start_date, end_date, reason) => api.post(`/vehicles/${id}/availability/`, { start_date, end_date, reason }),
   facets: () => api.get('/vehicles/facets/'),
   favorites: () => api.get('/vehicles/favorites/'),
   addFavorite: (vehicle) => api.post('/vehicles/favorites/', { vehicle }),
@@ -96,12 +98,46 @@ export const bookingsAPI = {
   clientStats: () => api.get('/bookings/client-stats/'),
   receipt: (id) => api.get(`/bookings/${id}/receipt/`, { responseType: 'blob' }),
   emailReceipt: (id) => api.post(`/bookings/${id}/receipt/email/`),
+  rate: (id, rating, review) => api.post(`/bookings/${id}/rate/`, { rating, review }),
+  ownerRequests: (params) => api.get('/bookings/owner-requests/', { params }),
+  ownerAccept: (id) => api.post(`/bookings/${id}/owner-accept/`),
+  ownerRefuse: (id, reason) => api.post(`/bookings/${id}/owner-refuse/`, { reason }),
+  ownerStats: () => api.get('/bookings/owner-stats/'),
+};
+
+export const messagingAPI = {
+  conversations: (params) => api.get('/messaging/conversations/', { params }),
+  open: (payload) => api.post('/messaging/conversations/', payload),
+  messages: (id) => api.get(`/messaging/conversations/${id}/messages/`),
+  send: (id, payload) => api.post(`/messaging/conversations/${id}/messages/`, payload,
+    payload instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
+  unread: () => api.get('/messaging/unread/'),
+};
+
+export const withdrawalsAPI = {
+  list: (params) => api.get('/payments/withdrawals/', { params }),
+  create: (payload) => api.post('/payments/withdrawals/', payload),
+  approve: (id, note) => api.post(`/payments/withdrawals/${id}/approve/`, { note }),
+  reject: (id, note) => api.post(`/payments/withdrawals/${id}/reject/`, { note }),
+};
+
+export const platformAPI = {
+  get: () => api.get('/users/platform-settings/'),
+  update: (payload) => api.patch('/users/platform-settings/', payload),
+  activity: () => api.get('/users/admin/activity/'),
+};
+
+export const kycAPI = {
+  upload: (formData) => api.post('/users/me/kyc/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 export const notificationsAPI = {
   list: (params) => api.get('/users/notifications/', { params }),
   readAll: () => api.post('/users/notifications/read/'),
   read: (id) => api.post(`/users/notifications/${id}/read/`),
+  remove: (id) => api.delete(`/users/notifications/${id}/`),
 };
 
 export const siteAPI = {

@@ -88,7 +88,7 @@ function InspectionForm({ booking, onClose, onSaved }) {
         <div className="sticky top-0 z-10 flex items-start justify-between rounded-t-2xl border-b bg-white p-5">
           <div>
             <h2 className="font-bold">{uiText("pages.admin.VehicleInspection", "Fiche d’inspection —") + " "}{booking.inspection_type === 'entry' ? uiText("pages.admin.VehicleInspection", "entrée") : uiText("pages.admin.VehicleInspection", "sortie")}</h2>
-            <p className="text-sm text-slate-500">{booking.vehicle}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.plate}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
+            <p className="text-sm text-on-surface-variant">{booking.vehicle}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.plate}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
           </div>
           <button type="button" aria-label={uiText("pages.admin.VehicleInspection", "Fermer")} onClick={onClose}><X size={20} /></button>
         </div>
@@ -99,7 +99,7 @@ function InspectionForm({ booking, onClose, onSaved }) {
             <label className="label">{uiText("pages.admin.VehicleInspection", "Carburant (")}{fuel}{uiText("pages.admin.VehicleInspection", "%)") + " "}<input type="range" min="0" max="100" className="mt-3 w-full" value={fuel} onChange={event => setFuel(Number(event.target.value))} />
             </label>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl bg-surface-container-low dark:bg-slate-900 p-4">
             <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">{uiText("pages.admin.VehicleInspection", "État général")}</h3><strong>{score}{uiText("pages.admin.VehicleInspection", "/100")}</strong></div>
             <div className="space-y-5">
               {Object.entries(INSPECTION_ITEMS).map(([key, category]) => (
@@ -123,7 +123,7 @@ function InspectionForm({ booking, onClose, onSaved }) {
           </label>
           <label className="label">{uiText("pages.admin.VehicleInspection", "Notes") + " "}<textarea className="input-field mt-1" rows="3" value={notes} onChange={event => setNotes(event.target.value)} />
           </label>
-          {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         </div>
         <div className="flex gap-3 border-t p-5">
           <button type="button" onClick={onClose} className="btn-outline flex-1">{uiText("pages.admin.VehicleInspection", "Annuler")}</button>
@@ -195,7 +195,7 @@ export default function VehicleInspection() {
             <button key={value} onClick={() => changeTab(value)} className={tab === value ? uiText("pages.admin.VehicleInspection", "btn-primary") : uiText("pages.admin.VehicleInspection", "btn-outline")}>{label}</button>
           ))}
         </div>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <div className="card">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
@@ -208,8 +208,8 @@ export default function VehicleInspection() {
             <article key={booking.id} className="card flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="font-semibold"><Car size={16} className="mr-2 inline" />{booking.vehicle}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.plate}</h2>
-                <p className="text-sm text-slate-500">{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
-                <p className="text-xs text-slate-500">{formatDateTime(booking.start_date)}{" " + uiText("pages.admin.VehicleInspection", "—") + " "}{formatDateTime(booking.end_date)}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{formatNumber(booking.mileage)}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{booking.fuel_level}{uiText("pages.admin.VehicleInspection", "%")}</p>
+                <p className="text-sm text-on-surface-variant">{booking.client}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{booking.booking_reference}</p>
+                <p className="text-xs text-on-surface-variant">{formatDateTime(booking.start_date)}{" " + uiText("pages.admin.VehicleInspection", "—") + " "}{formatDateTime(booking.end_date)}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{formatNumber(booking.mileage)}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{booking.fuel_level}{uiText("pages.admin.VehicleInspection", "%")}</p>
               </div>
               <button className="btn-primary flex items-center gap-2" onClick={() => setSelected(booking)}><ClipboardList size={16} />{" " + uiText("pages.admin.VehicleInspection", "Inspecter")}</button>
             </article>
@@ -218,8 +218,8 @@ export default function VehicleInspection() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="font-semibold">{inspection.inspection_type === 'entry' ? uiText("pages.admin.VehicleInspection", "Entrée") : uiText("pages.admin.VehicleInspection", "Sortie")}{" " + uiText("pages.admin.VehicleInspection", "·") + " "}{inspection.vehicle_name}{" " + uiText("pages.admin.VehicleInspection", "(")}{inspection.vehicle_plate}{uiText("pages.admin.VehicleInspection", ")")}</h2>
-                  <p className="text-sm text-slate-500">{formatDateTime(new Date(inspection.inspection_date))}{" " + uiText("pages.admin.VehicleInspection", "· Contrôleur :") + " "}{inspection.controller_name || uiText("pages.admin.VehicleInspection", "—")}</p>
-                  <p className="text-sm text-slate-500">{inspection.mileage_at_inspection}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{inspection.fuel_level}{uiText("pages.admin.VehicleInspection", "% ·") + " "}{inspection.issues?.length || 0}{" " + uiText("pages.admin.VehicleInspection", "remarque(s)")}</p>
+                  <p className="text-sm text-on-surface-variant">{formatDateTime(new Date(inspection.inspection_date))}{" " + uiText("pages.admin.VehicleInspection", "· Contrôleur :") + " "}{inspection.controller_name || uiText("pages.admin.VehicleInspection", "—")}</p>
+                  <p className="text-sm text-on-surface-variant">{inspection.mileage_at_inspection}{" " + uiText("pages.admin.VehicleInspection", "km · Carburant") + " "}{inspection.fuel_level}{uiText("pages.admin.VehicleInspection", "% ·") + " "}{inspection.issues?.length || 0}{" " + uiText("pages.admin.VehicleInspection", "remarque(s)")}</p>
                 </div>
                 <strong>{inspection.condition_score}{uiText("pages.admin.VehicleInspection", "/100")}</strong>
               </div>
@@ -227,7 +227,7 @@ export default function VehicleInspection() {
               {inspection.photos?.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{inspection.photos.map(photo => <a key={photo.id} href={photo.image} target="_blank" rel="noreferrer" className="text-sm text-primary-700"><Camera size={14} className="mr-1 inline" />{photo.caption}</a>)}</div>}
             </article>
           ))}
-          {items.length === 0 && <div className="card py-12 text-center text-slate-500">{uiText("pages.admin.VehicleInspection", "Aucune inspection à afficher.")}</div>}
+          {items.length === 0 && <div className="card py-12 text-center text-on-surface-variant">{uiText("pages.admin.VehicleInspection", "Aucune inspection à afficher.")}</div>}
         </div>
         <Pagination page={page} count={count} onPageChange={setPage} />
       </div>

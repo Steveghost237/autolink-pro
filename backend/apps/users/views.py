@@ -24,12 +24,13 @@ from .email_utils import (
     send_login_notification,
     send_welcome_email,
 )
-from .models import ContactMessage, Message, NewsletterCampaign, PlatformSettings, User, Notification, LoginCode
+from rest_framework.parsers import FormParser, MultiPartParser
+from .models import ContactMessage, NewsletterCampaign, PlatformSettings, User, Notification, LoginCode
 from .serializers import (ContactMessageAdminSerializer, ContactMessageSerializer,
                           NewsletterCampaignSerializer, NewsletterSendSerializer,
                           UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer,
                           AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer,
-                          MessageSerializer, MiniUserSerializer, PlatformSettingsSerializer)
+                          KYCUploadSerializer, PlatformSettingsSerializer)
 
 
 logger = logging.getLogger(__name__)
@@ -90,10 +91,38 @@ class SiteConfigAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from django.db.models import Avg
+        from apps.bookings.models import Booking
+        from apps.vehicles.models import Vehicle
+        platform = PlatformSettings.current()
+        approved = Vehicle.objects.filter(status__in=('approved', 'rented'))
+        rated = Booking.objects.exclude(client_rating__isnull=True)
         return Response({
-            'contact_email': settings.CONTACT_EMAIL,
-            'phones': ['+237 656 789 000', '+237 699 456 000'],
-            'addresses': ['Akwa, Rue Joss, Douala', 'Centre-ville, Yaoundé'],
+            'tiers': PlatformSettingsSerializer().get_tiers(platform),
+            'stats': {
+                'vehicles': approved.count(),
+                'completed_bookings': Booking.objects.filter(status='completed').count(),
+                'average_rating': round(rated.aggregate(v=Avg('client_rating'))['v'] or 0, 1),
+                'reviews': rated.count(),
+                'cities': approved.exclude(city='').values('city').distinct().count(),
+            },
+            'reviews': [{
+                'rating': b.client_rating,
+                'text': b.client_review,
+                'author': f'{b.client.first_name} {b.client.last_name[:1]}.'.strip(),
+                'city': b.vehicle.city,
+                'vehicle': f'{b.vehicle.brand} {b.vehicle.model}',
+                'days': b.days,
+            } for b in rated.exclude(client_review='').filter(client_rating__gte=4)
+                .select_related('client', 'vehicle').order_by('-updated_at')[:3]],
+            'contact_email': platform.contact_email or settings.CONTACT_EMAIL,
+            'phones': [p.strip() for p in platform.phones.split(',') if p.strip()],
+            'addresses': [a.strip() for a in platform.addresses.split('|') if a.strip()],
+            'commission_rate': platform.commission_rate,
+            'min_withdrawal_amount': platform.min_withdrawal_amount,
+            'maintenance_mode': platform.maintenance_mode,
+            'bookings_enabled': platform.bookings_enabled,
+            'owner_response_hours': platform.owner_response_hours,
             'hours': {
                 'weekdays': {'open': '06:00', 'close': '22:00'},
                 'saturday': {'open': '07:00', 'close': '21:00'},
@@ -105,6 +134,92 @@ class SiteConfigAPIView(APIView):
 class IsAdminRole(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+class AdminActivityView(APIView):
+    """Journal d'activité opérationnelle (tableau de bord admin) + compteurs de file."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        from apps.bookings.models import Booking
+        from apps.payments.models import Payment, WithdrawalRequest
+        from apps.vehicles.models import Vehicle
+        events = []
+        for booking in Booking.objects.select_related('client', 'vehicle').order_by('-created_at')[:10]:
+            events.append({
+                'at': booking.created_at, 'kind': 'booking', 'status': booking.status,
+                'title': f'Réservation BK-{booking.pk:04d} · {booking.vehicle}',
+                'detail': f'{booking.client.get_full_name()} — {booking.start_date} → {booking.end_date}',
+                'link': f'/admin/bookings/{booking.pk}',
+            })
+        for payment in Payment.objects.select_related('payer').exclude(paid_at=None).order_by('-paid_at')[:10]:
+            events.append({
+                'at': payment.paid_at, 'kind': 'payment', 'status': payment.status,
+                'title': f'Paiement {payment.amount:.0f} FCFA ({payment.get_method_display()})',
+                'detail': f'{payment.payer.get_full_name()} — caution {payment.get_escrow_status_display().lower()}',
+                'link': '/admin/finance',
+            })
+        for vehicle in Vehicle.objects.select_related('owner').order_by('-created_at')[:10]:
+            events.append({
+                'at': vehicle.created_at, 'kind': 'vehicle', 'status': vehicle.status,
+                'title': f'Véhicule soumis : {vehicle}',
+                'detail': f'Propriétaire {vehicle.owner.get_full_name()} — {vehicle.plate}',
+                'link': '/admin/catalog',
+            })
+        for withdrawal in WithdrawalRequest.objects.select_related('user').order_by('-created_at')[:10]:
+            events.append({
+                'at': withdrawal.created_at, 'kind': 'withdrawal', 'status': withdrawal.status,
+                'title': f'Retrait {withdrawal.amount:.0f} FCFA ({withdrawal.get_method_display()})',
+                'detail': f'{withdrawal.user.get_full_name()} — {withdrawal.reference}',
+                'link': '/admin/owners',
+            })
+        for user in User.objects.exclude(kyc_submitted_at=None).order_by('-kyc_submitted_at')[:10]:
+            events.append({
+                'at': user.kyc_submitted_at, 'kind': 'kyc', 'status': user.kyc_status,
+                'title': f'Dossier KYC : {user.get_full_name() or user.username}',
+                'detail': user.email, 'link': '/admin/users',
+            })
+        events.sort(key=lambda e: e['at'], reverse=True)
+        return Response({
+            'queue': {
+                'vehicles_pending': Vehicle.objects.filter(status='pending').count(),
+                'kyc_pending': User.objects.filter(kyc_status='pending').count(),
+                'disputes_open': Booking.objects.filter(status='disputed').count(),
+                'withdrawals_pending': WithdrawalRequest.objects.filter(status='pending').count(),
+                'withdrawals_pending_amount': sum(
+                    w.amount for w in WithdrawalRequest.objects.filter(status='pending')),
+                'owner_requests_pending': Booking.objects.filter(
+                    owner_response='pending', status__in=('pending', 'confirmed')).count(),
+                'contact_unhandled': ContactMessage.objects.filter(is_handled=False).count(),
+            },
+            'events': events[:25],
+        })
+
+
+class KYCUploadView(generics.UpdateAPIView):
+    """Dépôt de la CNI / du permis par l'utilisateur → dossier KYC en vérification."""
+    serializer_class = KYCUploadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ['post', 'patch', 'options']
+
+    def get_object(self):
+        return self.request.user
+
+    def post(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        user = serializer.save(kyc_status='pending', kyc_note='', kyc_submitted_at=timezone.now(),
+                               id_document_verified=False)
+        for admin in User.objects.filter(role='ADMIN', is_active=True):
+            Notification.objects.create(
+                user=admin, title='Dossier KYC à vérifier',
+                message=f'{user.get_full_name() or user.username} a déposé ses pièces justificatives.')
+
+    def update(self, request, *args, **kwargs):
+        super().update(request, *args, **kwargs)
+        return Response(UserSerializer(request.user, context={'request': request}).data)
 
 
 class ContactMessageViewSet(ModelViewSet):
@@ -483,7 +598,7 @@ class OTPVerifyView(APIView):
 
 class UserListView(generics.ListCreateAPIView):
     permission_classes = [IsAdminRole]
-    filterset_fields = ['role', 'is_verified', 'is_active']
+    filterset_fields = ['role', 'is_verified', 'is_active', 'kyc_status', 'id_document_verified']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'referral_code']
     ordering_fields = ['created_at', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_verified']
 
@@ -513,7 +628,16 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         if serializer.instance == self.request.user and serializer.validated_data.get('is_active') is False:
             raise serializers.ValidationError({'is_active': 'Vous ne pouvez pas suspendre votre propre compte.'})
-        serializer.save()
+        previous_kyc = serializer.instance.kyc_status
+        kyc_status = serializer.validated_data.get('kyc_status')
+        extra = {'id_document_verified': kyc_status == 'approved'} if kyc_status else {}
+        user = serializer.save(**extra)
+        if kyc_status and kyc_status != previous_kyc and kyc_status in ('approved', 'rejected'):
+            Notification.objects.create(
+                user=user,
+                title='Documents validés' if kyc_status == 'approved' else 'Documents refusés',
+                message=('Vos pièces justificatives ont été validées.' if kyc_status == 'approved'
+                         else f'Vos pièces justificatives ont été refusées. {user.kyc_note}'.strip()))
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
@@ -560,129 +684,7 @@ class NotificationReadView(APIView):
         return Response({'unread': request.user.notifications.filter(is_read=False).count()})
 
 
-# ─── Messagerie interne (client ↔ propriétaire ↔ support) ────────────────────
 
-def _my_messages(user):
-    """Tous les messages visibles par l'utilisateur.
-    recipient=None = message pour le support → visible par les admins."""
-    qs = Message.objects.select_related('sender', 'recipient')
-    if user.role == 'ADMIN':
-        return qs.filter(Q(sender=user) | Q(recipient=user) | Q(recipient__isnull=True))
-    return qs.filter(Q(sender=user) | Q(recipient=user))
-
-
-def _contact_ids(user):
-    """Utilisateurs avec qui user peut discuter (hors support)."""
-    if user.role == 'ADMIN':
-        return User.objects.exclude(pk=user.pk).values_list('id', flat=True)
-    if user.role == 'OWNER':
-        return User.objects.filter(bookings__vehicle__owner=user).values_list('id', flat=True).distinct()
-    if user.role == 'INTERMEDIARY':
-        return User.objects.filter(bookings__intermediary=user).values_list('id', flat=True).distinct()
-    # CLIENT / autres : propriétaires des véhicules réservés
-    return User.objects.filter(vehicles__bookings__client=user).values_list('id', flat=True).distinct()
-
-
-class MessageListView(generics.ListCreateAPIView):
-    """GET : conversation filtrée par ?peer=<user_id> ou ?peer=support.
-    POST : envoie un message (recipient vide = équipe support)."""
-    serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        u = self.request.user
-        qs = _my_messages(u)
-        peer = self.request.query_params.get('peer')
-        if peer == 'support' and u.role != 'ADMIN':
-            qs = qs.filter(Q(sender=u, recipient__isnull=True)
-                           | Q(sender=u, recipient__role='ADMIN')
-                           | Q(recipient=u, sender__role='ADMIN'))
-        elif peer and str(peer).isdigit():
-            p = int(peer)
-            if u.role == 'ADMIN':
-                qs = qs.filter(Q(sender=u, recipient_id=p)
-                               | Q(recipient=u, sender_id=p)
-                               | Q(sender_id=p, recipient__isnull=True))
-            else:
-                qs = qs.filter(Q(sender=u, recipient_id=p) | Q(recipient=u, sender_id=p))
-        return qs
-
-    def perform_create(self, serializer):
-        u = self.request.user
-        recipient_id = self.request.data.get('recipient')
-        if recipient_id:
-            allowed = set(_contact_ids(u)) | set(
-                User.objects.filter(role='ADMIN', is_active=True).values_list('id', flat=True))
-            if u.role != 'ADMIN' and int(recipient_id) not in allowed:
-                raise PermissionDenied('Vous ne pouvez écrire qu\'à vos contacts ou au support.')
-            recipient = User.objects.filter(pk=recipient_id, is_active=True).first()
-            if recipient is None:
-                raise ValidationError({'recipient': 'Destinataire introuvable.'})
-            serializer.save(sender=u, recipient=recipient)
-        else:
-            serializer.save(sender=u, recipient=None)
-
-
-class MessageThreadsView(APIView):
-    """Liste des conversations : {key, peer_id, peer_name, peer_role,
-    last_body, last_at, unread}."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        u = request.user
-        threads = {}
-        for m in _my_messages(u):
-            other = m.recipient if m.sender_id == u.id else m.sender
-            if u.role != 'ADMIN' and (other is None or other.role == 'ADMIN'):
-                key, peer_id, name, role = 'support', 'support', 'Support AutoLink', 'ADMIN'
-            else:
-                key = f'user-{other.id}'
-                peer_id, name, role = other.id, other.get_full_name() or other.email, other.role
-            t = threads.setdefault(key, {
-                'key': key, 'peer_id': peer_id, 'peer_name': name, 'peer_role': role,
-                'last_body': '', 'last_at': None, 'unread': 0})
-            t['last_body'] = m.body
-            t['last_at'] = m.created_at
-            incoming = (m.recipient_id == u.id) or (u.role == 'ADMIN' and m.sender_id != u.id and m.recipient_id is None)
-            if incoming and not m.is_read:
-                t['unread'] += 1
-        data = sorted(threads.values(), key=lambda t: t['last_at'] or '', reverse=True)
-        return Response({'results': data})
-
-
-class MessageContactsView(APIView):
-    """Contacts avec qui démarrer une conversation (+ support pour non-admins)."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        u = request.user
-        users = User.objects.filter(pk__in=_contact_ids(u), is_active=True).order_by('first_name')[:100]
-        return Response({'results': MiniUserSerializer(users, many=True).data})
-
-
-class MessageReadView(APIView):
-    """Marque comme lus tous les messages reçus d'un interlocuteur."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        u = request.user
-        peer = request.query_params.get('peer')
-        qs = Message.objects.filter(is_read=False)
-        if u.role == 'ADMIN':
-            if not (peer and str(peer).isdigit()):
-                return Response({'detail': 'peer requis.'}, status=400)
-            qs = qs.filter(sender_id=int(peer)).filter(Q(recipient=u) | Q(recipient__isnull=True))
-        elif peer == 'support':
-            qs = qs.filter(recipient=u, sender__role='ADMIN')
-        elif peer and str(peer).isdigit():
-            qs = qs.filter(recipient=u, sender_id=int(peer))
-        else:
-            return Response({'detail': 'peer requis.'}, status=400)
-        qs.update(is_read=True)
-        return Response({'ok': True})
-
-
-# ─── Paramètres de la plateforme ─────────────────────────────────────────────
 
 class PlatformSettingsView(generics.RetrieveUpdateAPIView):
     """GET/PATCH des paramètres globaux — réservé à l'admin."""
@@ -708,3 +710,12 @@ class PublicConfigView(APIView):
             'support_email': s.support_email,
             'support_phone': s.support_phone,
         })
+class NotificationDetailView(APIView):
+    """Suppression d'une notification de l'utilisateur connecté."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        deleted, _ = request.user.notifications.filter(pk=pk).delete()
+        if not deleted:
+            return Response({'detail': 'Notification introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

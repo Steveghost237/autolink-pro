@@ -87,32 +87,32 @@ export default function ControllerDashboard() {
           <button onClick={() => navigate('/admin/inspections')} className="rounded-xl bg-white px-5 py-2.5 font-semibold text-primary-700">
             <ClipboardList size={18} className="mr-2 inline" />{" " + uiText("pages.controller.ControllerDashboard", "Voir les inspections") + " "}</button>
         </header>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map(({ label, value, icon: Icon }) => (
             <div className="card" key={label}>
               <Icon size={20} className="mb-3 text-primary-600" />
               <div className="text-xl font-bold">{value}</div>
-              <div className="text-sm text-slate-500">{label}</div>
+              <div className="text-sm text-on-surface-variant">{label}</div>
             </div>
           ))}
         </div>
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-bold">{uiText("pages.controller.ControllerDashboard", "Réservations à inspecter")}</h3>
-            <span className="text-sm text-slate-500">{uiText("pages.controller.ControllerDashboard", "Score moyen récent :") + " "}{stats ? `${Number(stats.average_score_week).toFixed(0)}/100` : uiText("pages.controller.ControllerDashboard", "—")}</span>
+            <span className="text-sm text-on-surface-variant">{uiText("pages.controller.ControllerDashboard", "Score moyen récent :") + " "}{stats ? `${Number(stats.average_score_week).toFixed(0)}/100` : uiText("pages.controller.ControllerDashboard", "—")}</span>
           </div>
           <div className="space-y-3">
             {tasks.map(task => (
               <article key={`${task.type}-${task.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
                 <div>
                   <p className="font-semibold">{task.type}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.vehicle}{" " + uiText("pages.controller.ControllerDashboard", "(")}{task.plate}{uiText("pages.controller.ControllerDashboard", ")")}</p>
-                  <p className="text-sm text-slate-500">{task.client}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.booking_reference}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.start_date}{" " + uiText("pages.controller.ControllerDashboard", "—") + " "}{task.end_date}</p>
+                  <p className="text-sm text-on-surface-variant">{task.client}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.booking_reference}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{task.start_date}{" " + uiText("pages.controller.ControllerDashboard", "—") + " "}{task.end_date}</p>
                 </div>
                 <button className="btn-outline" onClick={() => navigate('/admin/inspections')}>{uiText("pages.controller.ControllerDashboard", "Ouvrir la file")}</button>
               </article>
             ))}
-            {tasks.length === 0 && <p className="py-8 text-center text-slate-500">{uiText("pages.controller.ControllerDashboard", "Aucune inspection en attente.")}</p>}
+            {tasks.length === 0 && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.controller.ControllerDashboard", "Aucune inspection en attente.")}</p>}
           </div>
         </div>
         <section className="space-y-4">
@@ -130,11 +130,11 @@ export default function ControllerDashboard() {
           </div>
           {vehicles.map(vehicle => (
             <article key={vehicle.id} className="card flex flex-wrap items-center justify-between gap-3">
-              <div><p className="font-semibold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.controller.ControllerDashboard", "(")}{vehicle.plate}{uiText("pages.controller.ControllerDashboard", ")")}</p><p className="text-sm text-slate-500">{vehicle.owner_name}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{vehicle.year}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.controller.ControllerDashboard", "FCFA/jour")}</p></div>
-              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>{uiText("pages.controller.ControllerDashboard", "Approuver")}</button><button className="btn-outline text-red-700" onClick={() => decideVehicle(vehicle, 'suspended')}>{uiText("pages.controller.ControllerDashboard", "Mettre en suspension")}</button></div>
+              <div><p className="font-semibold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.controller.ControllerDashboard", "(")}{vehicle.plate}{uiText("pages.controller.ControllerDashboard", ")")}</p><p className="text-sm text-on-surface-variant">{vehicle.owner_name}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{vehicle.year}{" " + uiText("pages.controller.ControllerDashboard", "·") + " "}{formatNumber(Number(vehicle.daily_rate))}{" " + uiText("pages.controller.ControllerDashboard", "FCFA/jour")}</p></div>
+              <div className="flex gap-2"><button className="btn-primary" onClick={() => decideVehicle(vehicle, 'approved')}>{uiText("pages.controller.ControllerDashboard", "Approuver")}</button><button className="btn-outline text-error" onClick={() => decideVehicle(vehicle, 'suspended')}>{uiText("pages.controller.ControllerDashboard", "Mettre en suspension")}</button></div>
             </article>
           ))}
-          {vehicles.length === 0 && <div className="card py-8 text-center text-slate-500">{uiText("pages.controller.ControllerDashboard", "Aucun véhicule en attente de validation.")}</div>}
+          {vehicles.length === 0 && <div className="card py-8 text-center text-on-surface-variant">{uiText("pages.controller.ControllerDashboard", "Aucun véhicule en attente de validation.")}</div>}
           <div className="flex items-center justify-between text-sm"><span>{uiText("pages.controller.ControllerDashboard", "Page") + " "}{vehiclePage}{" " + uiText("pages.controller.ControllerDashboard", "/") + " "}{Math.max(1, Math.ceil(vehicleCount / 20))}</span><div className="flex gap-2"><button className="btn-outline" disabled={vehiclePage <= 1} onClick={() => setVehiclePage(value => value - 1)}>{uiText("pages.controller.ControllerDashboard", "Précédent")}</button><button className="btn-outline" disabled={vehiclePage * 20 >= vehicleCount} onClick={() => setVehiclePage(value => value + 1)}>{uiText("pages.controller.ControllerDashboard", "Suivant")}</button></div></div>
         </section>
       </div>

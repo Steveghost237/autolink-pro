@@ -125,7 +125,7 @@ export default function AgentsManager() {
           <button className={tab === 'payouts' ? uiText("pages.admin.AgentsManager", "btn-primary") : uiText("pages.admin.AgentsManager", "btn-outline")} onClick={() => switchTab('payouts')}>{uiText("pages.admin.AgentsManager", "Versements enregistrés")}</button>
           {tab === 'agents' && <button className="btn-outline flex items-center gap-2" onClick={() => setShowCreate(true)}><Plus size={16} />{" " + uiText("pages.admin.AgentsManager", "Créer un code agent")}</button>}
         </div>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <div className="card">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
@@ -136,12 +136,12 @@ export default function AgentsManager() {
         {tab === 'agents' ? (
           <div className="card overflow-x-auto p-0">
             <table className="w-full min-w-[900px]">
-              <thead><tr>{["Code", "Agent", "Conversions", "CA généré", "Commission acquise", "Versé", "Dû", "Taux", "Statut", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-xs uppercase text-slate-500">{uiText("pages.admin.AgentsManager", label)}</th>)}</tr></thead>
+              <thead><tr>{["Code", "Agent", "Conversions", "CA généré", "Commission acquise", "Versé", "Dû", "Taux", "Statut", "Actions"].map(label => <th key={label} className="px-4 py-3 text-left text-xs uppercase text-on-surface-variant">{uiText("pages.admin.AgentsManager", label)}</th>)}</tr></thead>
               <tbody className="divide-y">
                 {rows.map(agent => (
                   <tr key={agent.id}>
                     <td className="px-4 py-3"><code>{agent.code}</code><button className="ml-2 text-primary-600" title={uiText("pages.admin.AgentsManager", "Copier le code")} onClick={() => copyCode(agent.code)}>{copied === agent.code ? <CheckCircle size={14} /> : <Copy size={14} />}</button></td>
-                    <td className="px-4 py-3"><div className="font-semibold">{agent.name}</div><div className="text-xs text-slate-500">{agent.city}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.agent_type}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.phone}</div></td>
+                    <td className="px-4 py-3"><div className="font-semibold">{agent.name}</div><div className="text-xs text-on-surface-variant">{agent.city}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.agent_type}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{agent.phone}</div></td>
                     <td className="px-4 py-3">{agent.conversions}</td>
                     <td className="px-4 py-3">{formatNumber(Number(agent.generated_revenue))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
                     <td className="px-4 py-3">{formatNumber(Number(agent.commission_earned))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</td>
@@ -150,24 +150,24 @@ export default function AgentsManager() {
                     <td className="px-4 py-3">{formatNumber(Number(agent.commission_rate) * 100)}{" " + uiText("pages.admin.AgentsManager", "%")}</td>
                     <td className="px-4 py-3">{agent.is_active ? uiText("pages.admin.AgentsManager", "Actif") : uiText("pages.admin.AgentsManager", "Désactivé")}</td>
                     <td className="px-4 py-3"><div className="flex gap-2">
-                      <button title={agent.is_active ? uiText("pages.admin.AgentsManager", "Désactiver") : uiText("pages.admin.AgentsManager", "Activer")} onClick={() => toggleAgent(agent)}>{agent.is_active ? <ToggleRight className="text-emerald-600" /> : <ToggleLeft />}</button>
+                      <button title={agent.is_active ? uiText("pages.admin.AgentsManager", "Désactiver") : uiText("pages.admin.AgentsManager", "Activer")} onClick={() => toggleAgent(agent)}>{agent.is_active ? <ToggleRight className="text-primary" /> : <ToggleLeft />}</button>
                       <button disabled={!agent.is_active || Number(agent.commission_due) <= 0} className="btn-primary px-2 py-1 text-xs disabled:opacity-40" onClick={() => setPayoutAgent(agent)}>{uiText("pages.admin.AgentsManager", "Marquer comme versé")}</button>
                     </div></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {rows.length === 0 && <p className="py-12 text-center text-slate-500">{uiText("pages.admin.AgentsManager", "Aucun agent à afficher.")}</p>}
+            {rows.length === 0 && <p className="py-12 text-center text-on-surface-variant">{uiText("pages.admin.AgentsManager", "Aucun agent à afficher.")}</p>}
           </div>
         ) : (
           <div className="space-y-3">
             {rows.map(payout => (
               <article key={payout.id} className="card flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="font-semibold">{payout.agent_name}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{payout.agent_code}</h2><p className="text-sm text-slate-500">{payout.note || uiText("pages.admin.AgentsManager", "Aucune note")}{" " + uiText("pages.admin.AgentsManager", "· Par") + " "}{payout.paid_by_name || uiText("pages.admin.AgentsManager", "Administrateur")}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{formatDateTime(new Date(payout.paid_at))}</p></div>
+                <div><h2 className="font-semibold">{payout.agent_name}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{payout.agent_code}</h2><p className="text-sm text-on-surface-variant">{payout.note || uiText("pages.admin.AgentsManager", "Aucune note")}{" " + uiText("pages.admin.AgentsManager", "· Par") + " "}{payout.paid_by_name || uiText("pages.admin.AgentsManager", "Administrateur")}{" " + uiText("pages.admin.AgentsManager", "·") + " "}{formatDateTime(new Date(payout.paid_at))}</p></div>
                 <strong>{formatNumber(Number(payout.amount))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</strong>
               </article>
             ))}
-            {rows.length === 0 && <div className="card py-12 text-center text-slate-500">{uiText("pages.admin.AgentsManager", "Aucun versement enregistré.")}</div>}
+            {rows.length === 0 && <div className="card py-12 text-center text-on-surface-variant">{uiText("pages.admin.AgentsManager", "Aucun versement enregistré.")}</div>}
           </div>
         )}
         <div className="flex items-center justify-between text-sm">
@@ -195,8 +195,8 @@ export default function AgentsManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <form onSubmit={submitPayout} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6">
             <h2 className="text-lg font-bold">{uiText("pages.admin.AgentsManager", "Marquer comme versé")}</h2>
-            <p className="text-sm text-slate-600">{payoutAgent.name}{" " + uiText("pages.admin.AgentsManager", "· solde dû") + " "}{formatNumber(Number(payoutAgent.commission_due))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</p>
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{uiText("pages.admin.AgentsManager", "Enregistrement comptable uniquement : aucun transfert de fonds n’est effectué.")}</p>
+            <p className="text-sm text-on-surface-variant">{payoutAgent.name}{" " + uiText("pages.admin.AgentsManager", "· solde dû") + " "}{formatNumber(Number(payoutAgent.commission_due))}{" " + uiText("pages.admin.AgentsManager", "FCFA")}</p>
+            <p className="rounded-lg bg-tertiary-fixed/50 p-3 text-sm text-tertiary">{uiText("pages.admin.AgentsManager", "Enregistrement comptable uniquement : aucun transfert de fonds n’est effectué.")}</p>
             <label className="label">{uiText("pages.admin.AgentsManager", "Note")}<input className="input-field mt-1" value={payoutNote} onChange={event => setPayoutNote(event.target.value)} /></label>
             <div className="flex gap-3"><button type="button" className="btn-outline flex-1" onClick={() => setPayoutAgent(null)}>{uiText("pages.admin.AgentsManager", "Annuler")}</button><button className="btn-primary flex-1">{uiText("pages.admin.AgentsManager", "Continuer")}</button></div>
           </form>

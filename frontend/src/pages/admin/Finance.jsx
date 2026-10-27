@@ -116,20 +116,20 @@ export default function Finance() {
   return (
     <DashboardLayout title={uiText("pages.admin.Finance", "Finance & commissions")}>
       <div className="mx-auto max-w-7xl space-y-6">
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
           {[
-            { label: uiText("pages.admin.Finance", "Chiffre d’affaires du mois"), value: stats?.revenue, icon: TrendingUp, style: 'bg-blue-50 text-blue-600' },
-            { label: uiText("pages.admin.Finance", "Commission brute AutoLink"), value: stats?.commission, icon: DollarSign, style: 'bg-emerald-50 text-emerald-600' },
-            { label: uiText("pages.admin.Finance", "Gains des chauffeurs"), value: stats?.driver_earnings, icon: CreditCard, style: 'bg-amber-50 text-amber-600' },
-            { label: uiText("pages.admin.Finance", "Net plateforme"), value: stats?.platform_net, icon: TrendingUp, style: 'bg-teal-50 text-teal-600' },
-            { label: uiText("pages.admin.Finance", "Versements propriétaires"), value: stats?.owner_payouts, icon: CreditCard, style: 'bg-purple-50 text-purple-600' },
-            { label: uiText("pages.admin.Finance", "Transactions du mois"), value: stats?.transaction_count, icon: Calendar, style: 'bg-amber-50 text-amber-600', currency: false },
+            { label: uiText("pages.admin.Finance", "Chiffre d’affaires du mois"), value: stats?.revenue, icon: TrendingUp, style: 'bg-secondary-fixed/50 text-secondary' },
+            { label: uiText("pages.admin.Finance", "Commission brute AutoLink"), value: stats?.commission, icon: DollarSign, style: 'bg-primary-fixed/30 text-primary' },
+            { label: uiText("pages.admin.Finance", "Gains des chauffeurs"), value: stats?.driver_earnings, icon: CreditCard, style: 'bg-tertiary-fixed/50 text-tertiary' },
+            { label: uiText("pages.admin.Finance", "Net plateforme"), value: stats?.platform_net, icon: TrendingUp, style: 'bg-primary-fixed/30 text-primary' },
+            { label: uiText("pages.admin.Finance", "Versements propriétaires"), value: stats?.owner_payouts, icon: CreditCard, style: 'bg-secondary-fixed/50 text-secondary' },
+            { label: uiText("pages.admin.Finance", "Transactions du mois"), value: stats?.transaction_count, icon: Calendar, style: 'bg-tertiary-fixed/50 text-tertiary', currency: false },
           ].map(({ label, value, icon: Icon, style, currency = true }) => (
             <div key={label} className="card">
               <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${style}`}><Icon size={20} /></div>
-              <div className="text-xl font-black text-slate-900">{value === undefined ? uiText("pages.admin.Finance", "—") : `${currency ? `${amount(value)} FCFA` : amount(value)}`}</div>
-              <div className="mt-1 text-sm text-slate-500">{label}</div>
+              <div className="text-xl font-black text-on-surface dark:text-white">{value === undefined ? uiText("pages.admin.Finance", "—") : `${currency ? `${amount(value)} FCFA` : amount(value)}`}</div>
+              <div className="mt-1 text-sm text-on-surface-variant">{label}</div>
             </div>
           ))}
         </div>
@@ -150,7 +150,7 @@ export default function Finance() {
                   <Bar dataKey="owner_payouts" name="Versements" fill="#10b981" />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="py-20 text-center text-slate-500">{uiText("pages.admin.Finance", "Aucune donnée financière disponible.")}</p>}
+            ) : <p className="py-20 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucune donnée financière disponible.")}</p>}
           </section>
           <section className="card">
             <h2 className="mb-4 font-bold">{uiText("pages.admin.Finance", "Moyens de paiement")}</h2>
@@ -167,13 +167,13 @@ export default function Finance() {
                   </li>
                 ))}</ul>
               </>
-            ) : <p className="py-16 text-center text-slate-500">{uiText("pages.admin.Finance", "Aucun paiement ce mois.")}</p>}
+            ) : <p className="py-16 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucun paiement ce mois.")}</p>}
           </section>
         </div>
 
         <section className="card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Transactions")}</h2><p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.Finance", "transaction(s)")}</p></div>
+            <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Transactions")}</h2><p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.Finance", "transaction(s)")}</p></div>
             <button onClick={exportCsv} className="btn-outline flex items-center gap-2"><Download size={16} />{" " + uiText("pages.admin.Finance", "Exporter CSV")}</button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -192,14 +192,14 @@ export default function Finance() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
                 <tr>{["Référence", "Client", "Véhicule", "Montant", "Commission", "Part propriétaire", "Méthode", "Date", "Statut"].map(label => <th key={label} className="px-3 py-3">{uiText("pages.admin.Finance", label)}</th>)}</tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-outline-variant/30">
                 {transactions.map(transaction => (
                   <tr key={transaction.id}>
                     <td className="px-3 py-3 font-mono text-xs">{transaction.reference}</td>
-                    <td className="px-3 py-3">{transaction.client_name}<div className="text-xs text-slate-500">{transaction.client_email}</div></td>
+                    <td className="px-3 py-3">{transaction.client_name}<div className="text-xs text-on-surface-variant">{transaction.client_email}</div></td>
                     <td className="px-3 py-3">{transaction.vehicle}</td>
                     <td className="px-3 py-3 font-semibold">{amount(transaction.amount)} FCFA</td>
                     <td className="px-3 py-3">{amount(transaction.commission)} FCFA</td>
@@ -211,8 +211,8 @@ export default function Finance() {
                 ))}
               </tbody>
             </table>
-            {!loading && transactions.length === 0 && <p className="py-10 text-center text-slate-500">{uiText("pages.admin.Finance", "Aucune transaction trouvée.")}</p>}
-            {loading && <p className="py-8 text-center text-slate-500">{uiText("pages.admin.Finance", "Chargement…")}</p>}
+            {!loading && transactions.length === 0 && <p className="py-10 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucune transaction trouvée.")}</p>}
+            {loading && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Chargement…")}</p>}
           </div>
           <div className="flex items-center justify-between border-t pt-3 text-sm">
             <span>{uiText("pages.admin.Finance", "Page") + " "}{page}{" " + uiText("pages.admin.Finance", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
@@ -224,7 +224,7 @@ export default function Finance() {
         </section>
 
         <section className="card space-y-4">
-          <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Versements propriétaires")}</h2><p className="text-sm text-slate-500">{payoutCount}{" " + uiText("pages.admin.Finance", "versement(s)")}</p></div>
+          <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Versements propriétaires")}</h2><p className="text-sm text-on-surface-variant">{payoutCount}{" " + uiText("pages.admin.Finance", "versement(s)")}</p></div>
           <div className="flex flex-wrap items-center gap-3">
             <ListToolbar search={payoutSearch} onSearchChange={value => { setPayoutSearch(value); setPayoutPage(1); }}
               sortField={payoutSortField} onSortFieldChange={value => { setPayoutSortField(value); setPayoutPage(1); }}
@@ -241,14 +241,14 @@ export default function Finance() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
                 <tr>{['Référence', 'Bénéficiaire', 'Montant', 'Méthode', 'Statut', 'Date'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}</tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-outline-variant/30">
                 {payouts.map(payout => (
                   <tr key={payout.id}>
                     <td className="px-3 py-3">{payout.transaction_ref || `VERSEMENT-${payout.id}`}</td>
-                    <td className="px-3 py-3">{payout.recipient_name}<div className="text-xs text-slate-500">{payout.recipient_email}</div></td>
+                    <td className="px-3 py-3">{payout.recipient_name}<div className="text-xs text-on-surface-variant">{payout.recipient_email}</div></td>
                     <td className="px-3 py-3 font-semibold">{amount(payout.amount)}{" " + uiText("pages.admin.Finance", "F")}</td>
                     <td className="px-3 py-3">{METHODS.find(([key]) => key === payout.method)?.[1] || payout.method}</td>
                     <td className="px-3 py-3">{STATUS_LABELS[payout.status] || payout.status}</td>
@@ -257,7 +257,7 @@ export default function Finance() {
                 ))}
               </tbody>
             </table>
-            {payouts.length === 0 && <p className="py-8 text-center text-slate-500">{uiText("pages.admin.Finance", "Aucun versement trouvé.")}</p>}
+            {payouts.length === 0 && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucun versement trouvé.")}</p>}
           </div>
           <div className="flex items-center justify-between border-t pt-3 text-sm">
             <span>{uiText("pages.admin.Finance", "Page") + " "}{payoutPage}{" " + uiText("pages.admin.Finance", "/") + " "}{Math.max(1, Math.ceil(payoutCount / 20))}</span>

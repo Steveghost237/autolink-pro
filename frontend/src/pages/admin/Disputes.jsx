@@ -75,7 +75,7 @@ export default function Disputes() {
           <button className={state === 'open' ? uiText("pages.admin.Disputes", "btn-primary") : uiText("pages.admin.Disputes", "btn-outline")} onClick={() => switchState('open')}>{uiText("pages.admin.Disputes", "À arbitrer")}</button>
           <button className={state === 'resolved' ? uiText("pages.admin.Disputes", "btn-primary") : uiText("pages.admin.Disputes", "btn-outline")} onClick={() => switchState('resolved')}>{uiText("pages.admin.Disputes", "Résolus")}</button>
         </div>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <section className="card">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
@@ -88,27 +88,27 @@ export default function Disputes() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="font-bold">{uiText("pages.admin.Disputes", "Réservation #")}{booking.id}{" " + uiText("pages.admin.Disputes", "·") + " "}{booking.client_name}</h2>
-                  <p className="text-sm text-slate-500">{booking.vehicle_name}{" " + uiText("pages.admin.Disputes", "·") + " "}{booking.vehicle_plate}{" " + uiText("pages.admin.Disputes", "·") + " "}{booking.start_date}{" " + uiText("pages.admin.Disputes", "—") + " "}{booking.end_date}</p>
+                  <p className="text-sm text-on-surface-variant">{booking.vehicle_name}{" " + uiText("pages.admin.Disputes", "·") + " "}{booking.vehicle_plate}{" " + uiText("pages.admin.Disputes", "·") + " "}{booking.start_date}{" " + uiText("pages.admin.Disputes", "—") + " "}{booking.end_date}</p>
                   <p className="mt-1 text-sm">{uiText("pages.admin.Disputes", "Ouvert le") + " "}{booking.dispute_opened_at ? formatDateTime(new Date(booking.dispute_opened_at)) : uiText("pages.admin.Disputes", "date non renseignée")}</p>
                 </div>
                 {state === 'open'
-                  ? <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">{uiText("pages.admin.Disputes", "À arbitrer")}</span>
-                  : <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">{booking.status === 'cancelled' ? uiText("pages.admin.Disputes", "Client remboursé") : uiText("pages.admin.Disputes", "Propriétaire payé")}</span>}
+                  ? <span className="rounded-full bg-error-container px-3 py-1 text-sm font-semibold text-error">{uiText("pages.admin.Disputes", "À arbitrer")}</span>
+                  : <span className="rounded-full bg-primary-fixed/40 px-3 py-1 text-sm font-semibold text-primary">{booking.status === 'cancelled' ? uiText("pages.admin.Disputes", "Client remboursé") : uiText("pages.admin.Disputes", "Propriétaire payé")}</span>}
               </div>
-              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{booking.dispute_reason || uiText("pages.admin.Disputes", "Aucun motif précisé.")}</p>
+              <p className="rounded-lg bg-surface-container-low dark:bg-slate-900 p-3 text-sm text-on-surface dark:text-white">{booking.dispute_reason || uiText("pages.admin.Disputes", "Aucun motif précisé.")}</p>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <strong>{formatNumber(Number(booking.subtotal))}{" " + uiText("pages.admin.Disputes", "FCFA")}</strong>
                 <div className="flex gap-2">
                   <Link className="btn-outline px-3 py-2" to={`/admin/bookings/${booking.id}`}>{uiText("pages.admin.Disputes", "Voir la réservation")}</Link>
                   {state === 'open' && <>
-                    <button disabled={busy === booking.id} className="btn-outline text-red-700" onClick={() => resolve(booking, 'refund')}>{uiText("pages.admin.Disputes", "Rembourser le client")}</button>
+                    <button disabled={busy === booking.id} className="btn-outline text-error" onClick={() => resolve(booking, 'refund')}>{uiText("pages.admin.Disputes", "Rembourser le client")}</button>
                     <button disabled={busy === booking.id} className="btn-primary" onClick={() => resolve(booking, 'release')}>{uiText("pages.admin.Disputes", "Payer le propriétaire")}</button>
                   </>}
                 </div>
               </div>
             </article>
           ))}
-          {rows.length === 0 && <div className="card py-12 text-center text-slate-500"><AlertTriangle className="mx-auto mb-2" />{state === 'open' ? uiText("pages.admin.Disputes", "Aucun litige à arbitrer.") : uiText("pages.admin.Disputes", "Aucun litige résolu.")}</div>}
+          {rows.length === 0 && <div className="card py-12 text-center text-on-surface-variant"><AlertTriangle className="mx-auto mb-2" />{state === 'open' ? uiText("pages.admin.Disputes", "Aucun litige à arbitrer.") : uiText("pages.admin.Disputes", "Aucun litige résolu.")}</div>}
         </div>
         <div className="flex items-center justify-between text-sm">
           <span>{uiText("pages.admin.Disputes", "Page") + " "}{page}{" " + uiText("pages.admin.Disputes", "/") + " "}{Math.max(1, Math.ceil(count / 20))}{" " + uiText("pages.admin.Disputes", "·") + " "}{count}{" " + uiText("pages.admin.Disputes", "litige(s)")}</span>

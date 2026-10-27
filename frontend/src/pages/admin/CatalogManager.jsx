@@ -55,7 +55,7 @@ function VehicleEditor({ vehicle, onClose, onSaved }) {
             </select>
           </label>
         </div>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-sm text-error">{error}</p>}
         <div className="flex gap-2"><button type="button" className="btn-outline flex-1" onClick={onClose}>{uiText("pages.admin.CatalogManager", "Annuler")}</button><button className="btn-primary flex-1">{uiText("pages.admin.CatalogManager", "Enregistrer")}</button></div>
       </form>
     </div>
@@ -157,8 +157,8 @@ export default function CatalogManager() {
   return (
     <DashboardLayout title={uiText("pages.admin.CatalogManager", "Gestion des véhicules")}>
       <div className="mx-auto max-w-7xl space-y-5">
-        <p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.CatalogManager", "véhicule(s) dans le catalogue")}</p>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.CatalogManager", "véhicule(s) dans le catalogue")}</p>
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
         <div className="card flex flex-wrap items-center gap-3">
           <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
             sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
@@ -174,15 +174,15 @@ export default function CatalogManager() {
         </div>
         <div className="card overflow-x-auto p-0">
           <table className="w-full min-w-[850px] text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
               <tr>{["Véhicule", "Propriétaire", "Catégorie", "Tarif/jour", "Statut", "Actions"].map(label => <th key={label} className="px-4 py-3">{uiText("pages.admin.CatalogManager", label)}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-outline-variant/30">
               {vehicles.map(vehicle => (
                 <tr key={vehicle.id}>
                   <td className="px-4 py-3">
                     <div className="font-semibold">{vehicle.brand} {vehicle.model}{" " + uiText("pages.admin.CatalogManager", "(")}{vehicle.year}{uiText("pages.admin.CatalogManager", ")")}</div>
-                    <div className="text-xs text-slate-500">{vehicle.plate}</div>
+                    <div className="text-xs text-on-surface-variant">{vehicle.plate}</div>
                   </td>
                   <td className="px-4 py-3">{vehicle.owner_name || vehicle.owner}</td>
                   <td className="px-4 py-3">{vehicleLabel(vehicle.category, 'category')}</td>
@@ -190,17 +190,17 @@ export default function CatalogManager() {
                   <td className="px-4 py-3">{vehicleLabel(vehicle.status, 'status')}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      <button title={uiText("pages.admin.CatalogManager", "Modifier")} className="rounded-lg p-2 text-blue-600" onClick={() => setEditing(vehicle)}><Edit3 size={16} /></button>
-                      {vehicle.status === 'pending' && <button title={uiText("pages.admin.CatalogManager", "Approuver")} className="rounded-lg p-2 text-emerald-600" onClick={() => setVehicleStatus(vehicle, 'approved')}><Check size={16} /></button>}
-                      {vehicle.status !== 'suspended' && <button title={vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")} className="rounded-lg p-2 text-amber-600" onClick={() => setVehicleStatus(vehicle, 'suspended')}>{vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")}</button>}
-                      <button title={uiText("pages.admin.CatalogManager", "Supprimer")} className="rounded-lg p-2 text-red-600" onClick={() => deleteVehicle(vehicle)}><Trash2 size={16} /></button>
+                      <button title={uiText("pages.admin.CatalogManager", "Modifier")} className="rounded-lg p-2 text-secondary" onClick={() => setEditing(vehicle)}><Edit3 size={16} /></button>
+                      {vehicle.status === 'pending' && <button title={uiText("pages.admin.CatalogManager", "Approuver")} className="rounded-lg p-2 text-primary" onClick={() => setVehicleStatus(vehicle, 'approved')}><Check size={16} /></button>}
+                      {vehicle.status !== 'suspended' && <button title={vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")} className="rounded-lg p-2 text-tertiary" onClick={() => setVehicleStatus(vehicle, 'suspended')}>{vehicle.status === 'pending' ? uiText("pages.admin.CatalogManager", "Rejeter") : uiText("pages.admin.CatalogManager", "Suspendre")}</button>}
+                      <button title={uiText("pages.admin.CatalogManager", "Supprimer")} className="rounded-lg p-2 text-error" onClick={() => deleteVehicle(vehicle)}><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {vehicles.length === 0 && <p className="p-10 text-center text-slate-500">{uiText("pages.admin.CatalogManager", "Aucun véhicule trouvé.")}</p>}
+          {vehicles.length === 0 && <p className="p-10 text-center text-on-surface-variant">{uiText("pages.admin.CatalogManager", "Aucun véhicule trouvé.")}</p>}
           <div className="flex items-center justify-between border-t p-4 text-sm">
             <span>{uiText("pages.admin.CatalogManager", "Page") + " "}{page}{" " + uiText("pages.admin.CatalogManager", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
             <div className="flex gap-2">

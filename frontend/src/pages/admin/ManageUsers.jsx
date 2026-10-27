@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Ban, CheckCircle, Plus, Trash2, Users, Download } from 'lucide-react';
+import { Ban, CheckCircle, Plus, Trash2, Users, Download, FileCheck, XCircle, FileText, Clock } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListToolbar from '../../components/ListToolbar';
 import { useConfirm } from '../../contexts/ConfirmContext';
@@ -37,6 +37,8 @@ export default function ManageUsers() {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [kycQueue, setKycQueue] = useState([]);
+  const [kycBusy, setKycBusy] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,30 @@ export default function ManageUsers() {
   }, [page, search, role, active, sortField, sortOrder]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadKyc = useCallback(async () => {
+    try {
+      const { data } = await usersAPI.list({ kyc_status: 'pending', page_size: 50, ordering: 'kyc_submitted_at' });
+      setKycQueue(data.results || []);
+    } catch (_) { setKycQueue([]); }
+  }, []);
+  useEffect(() => { loadKyc(); }, [loadKyc]);
+
+  const reviewKyc = async (user, approved) => {
+    let note = '';
+    if (!approved) {
+      note = window.prompt(uiText("pages.admin.ManageUsers", "Motif du refus (affiché au client) :"), '') || '';
+      if (note === null) return;
+    }
+    setKycBusy(user.id);
+    try {
+      await usersAPI.update(user.id, { kyc_status: approved ? 'approved' : 'rejected', kyc_note: note });
+      await Promise.all([loadKyc(), load()]);
+    } catch (e) {
+      setError(e.response?.data?.detail || uiText("pages.admin.ManageUsers", "La revue a échoué."));
+    }
+    setKycBusy(null);
+  };
 
   const saveUser = async (id, changes) => {
     try {
@@ -143,11 +169,36 @@ export default function ManageUsers() {
     <DashboardLayout title={uiText("pages.admin.ManageUsers", "Gestion des utilisateurs")}>
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-500">{count}{" " + uiText("pages.admin.ManageUsers", "compte(s)")}</p>
+          <p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.ManageUsers", "compte(s)")}</p>
           <button onClick={() => setCreating(true)} className="btn-primary flex items-center gap-2">
             <Plus size={17} />{" " + uiText("pages.admin.ManageUsers", "Créer un utilisateur") + " "}</button>
         </div>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
+
+        {kycQueue.length > 0 && (
+          <section className="card border-2 border-tertiary-container/40 bg-tertiary-fixed/50/40">
+            <h2 className="font-bold text-tertiary flex items-center gap-2 mb-3"><FileCheck size={18} />{uiText("pages.admin.ManageUsers", "Dossiers KYC à vérifier ({{n}})", { n: kycQueue.length })}</h2>
+            <div className="space-y-3">
+              {kycQueue.map(user => (
+                <article key={user.id} className="bg-white rounded-xl border border-tertiary-container/40 p-4 flex flex-wrap items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-on-surface dark:text-white">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username} <span className="badge badge-info ml-1">{user.role}</span></div>
+                    <div className="text-xs text-on-surface-variant">{user.email} · {user.phone || '—'} · {uiText("pages.admin.ManageUsers", "déposé le") + " "}{user.kyc_submitted_at ? formatDate(new Date(user.kyc_submitted_at)) : '—'}</div>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                      {user.id_document ? <a href={user.id_document} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary-700 underline"><FileText size={13} />{uiText("pages.admin.ManageUsers", "Pièce d'identité")}</a> : <span className="text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Pas de CNI")}</span>}
+                      {user.driving_license ? <a href={user.driving_license} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary-700 underline"><FileText size={13} />{uiText("pages.admin.ManageUsers", "Permis de conduire")}{user.driving_license_expires_at ? ` (${uiText("pages.admin.ManageUsers", "exp.")} ${formatDate(new Date(user.driving_license_expires_at))})` : ''}</a> : <span className="text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Pas de permis")}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button disabled={kycBusy === user.id} onClick={() => reviewKyc(user, false)} className="btn-outline text-error flex items-center gap-1 text-sm"><XCircle size={15} />{uiText("pages.admin.ManageUsers", "Refuser")}</button>
+                    <button disabled={kycBusy === user.id} onClick={() => reviewKyc(user, true)} className="btn-primary flex items-center gap-1 text-sm"><CheckCircle size={15} />{uiText("pages.admin.ManageUsers", "Valider")}</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="card flex flex-wrap items-center gap-3">
           <ListToolbar
             search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
@@ -170,15 +221,15 @@ export default function ManageUsers() {
         </div>
         <div className="card overflow-x-auto p-0">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
               <tr>{["Utilisateur", "Rôle", "Statut", "Vérifié", "Inscription", "Activité", "Actions"].map(label => <th key={label} className="px-4 py-3">{uiText("pages.admin.ManageUsers", label)}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-outline-variant/30">
               {users.map(user => (
                 <tr key={user.id}>
                   <td className="px-4 py-3">
                     <div className="font-semibold">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</div>
-                    <div className="text-xs text-slate-500">{user.email}{" " + uiText("pages.admin.ManageUsers", "·") + " "}{user.phone || uiText("pages.admin.ManageUsers", "—")}</div>
+                    <div className="text-xs text-on-surface-variant">{user.email}{" " + uiText("pages.admin.ManageUsers", "·") + " "}{user.phone || uiText("pages.admin.ManageUsers", "—")}</div>
                   </td>
                   <td className="px-4 py-3">
                     <select aria-label={`Rôle de ${user.username}`} className="input-field w-auto py-1"
@@ -192,15 +243,15 @@ export default function ManageUsers() {
                       onChange={event => saveUser(user.id, { is_verified: event.target.checked })} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{formatDate(new Date(user.created_at))}</td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
+                  <td className="px-4 py-3 text-xs text-on-surface-variant">
                     {user.bookings_count || 0}{" " + uiText("pages.admin.ManageUsers", "réservation(s) ·") + " "}{user.vehicles_count || 0}{" " + uiText("pages.admin.ManageUsers", "véhicule(s) ·") + " "}{user.trips_count || 0}{" " + uiText("pages.admin.ManageUsers", "course(s)") + " "}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button title={user.is_active ? uiText("pages.admin.ManageUsers", "Suspendre") : uiText("pages.admin.ManageUsers", "Réactiver")} onClick={() => toggleActive(user)}
-                        className={`rounded-lg p-2 ${user.is_active ? 'text-red-600' : 'text-emerald-600'}`}>
+                        className={`rounded-lg p-2 ${user.is_active ? 'text-error' : 'text-primary'}`}>
                         {user.is_active ? <Ban size={16} /> : <CheckCircle size={16} />}
                       </button>
-                      <button title={uiText("pages.admin.ManageUsers", "Supprimer")} onClick={() => deleteUser(user)} className="rounded-lg p-2 text-red-600">
+                      <button title={uiText("pages.admin.ManageUsers", "Supprimer")} onClick={() => deleteUser(user)} className="rounded-lg p-2 text-error">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -209,8 +260,8 @@ export default function ManageUsers() {
               ))}
             </tbody>
           </table>
-          {!loading && users.length === 0 && <div className="py-12 text-center text-slate-500"><Users className="mx-auto mb-2" />{uiText("pages.admin.ManageUsers", "Aucun utilisateur trouvé.")}</div>}
-          {loading && <p className="p-6 text-center text-slate-500">{uiText("pages.admin.ManageUsers", "Chargement…")}</p>}
+          {!loading && users.length === 0 && <div className="py-12 text-center text-on-surface-variant"><Users className="mx-auto mb-2" />{uiText("pages.admin.ManageUsers", "Aucun utilisateur trouvé.")}</div>}
+          {loading && <p className="p-6 text-center text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Chargement…")}</p>}
           <div className="flex items-center justify-between border-t p-4 text-sm">
             <span>{uiText("pages.admin.ManageUsers", "Page") + " "}{page}{" " + uiText("pages.admin.ManageUsers", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
             <div className="flex gap-2">

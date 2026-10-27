@@ -30,4 +30,5 @@ urlpatterns = [
     path('api/drivers/', include('apps.drivers.urls')),
     path('api/inspections/', include('apps.inspections.urls')),
     path('api/affiliates/', include('apps.affiliates.urls')),
+    path('api/messaging/', include('apps.messaging.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,357 +1,261 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import {
-  MapPin, CalendarRange, UserCheck, RefreshCw, X, Car,
-  ChevronDown, ChevronLeft, ChevronRight, ShieldCheck, CreditCard, Loader, Filter,
-} from 'lucide-react';
-import { PublicNavbar, Footer } from '../components/landing';
-import CatalogCard from '../components/catalog/CatalogCard';
-import FiltersSidebar, { GAMMES, FORMULE_OPTS, matchCategory, PRICE_MAX } from '../components/catalog/FiltersSidebar';
-import { CATALOG_VEHICLES, getVehicleImage } from '../utils/carImages';
-import { normalizeVehicle, vehicleBrand } from '../utils/vehicleMeta';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import PublicLayout from '../components/PublicLayout';
+import Icon from '../components/Icon';
+import VehicleCard from '../components/VehicleCard';
+import { useAuth } from '../contexts/AuthContext';
 import { vehiclesAPI } from '../services/api';
+import { RENTAL_TYPES, TIERS } from '../utils/carImages';
+import { reservePath } from '../utils/vehicles';
+import useFavorites from '../utils/useFavorites';
+import { formatDate, formatNumber, uiText, vehicleLabel } from '../i18n';
 
-const CITIES = ['Douala', 'Yaoundé'];
-const SERVICES = [
-  { id: 'internal', label: 'Avec chauffeur' },
-  { id: 'none',     label: 'Sans chauffeur' },
-  { id: 'owner',    label: 'Chauffeur du proprio' },
-];
-const SORTS = [
-  { id: 'reco',   label: 'Recommandés' },
-  { id: 'asc',    label: 'Prix croissant' },
-  { id: 'desc',   label: 'Prix décroissant' },
-  { id: 'rating', label: 'Mieux notés' },
-];
-const PAGE_SIZE = 6;
+const t = (text, options) => uiText('pages.Catalog', text, options);
 
-/* Mappe un véhicule API vers le format carte catalogue */
-const mapApiVehicle = (v) => normalizeVehicle({
-  id: v.id,
-  name: `${v.brand} ${v.model} ${v.year}`,
-  category: v.category,
-  tier: v.tier || 'standard',
-  image: v.image_url || getVehicleImage(v.category),
-  price: Number(v.daily_rate || v.computed_rate) || 25000,
-  kmIncluded: v.km_included_per_day || 200,
-  kmRate: v.extra_km_rate || 150,
-  deposit: Number(v.deposit_amount) || 0,
-  city: v.city,
-  rating: Number(v.rating) || 4.7,
-  reviews: v.rating_count || 0,
-  available: v.status === 'approved',
-  plate: v.plate,
-  seats: v.seats || 5,
-  fuel: v.fuel || 'Essence',
-  year: v.year,
-  fromApi: true,
-});
+const ORDERINGS = [
+  { value: '-rating', label: 'Recommandés' },
+  { value: 'daily_rate', label: 'Prix croissant' },
+  { value: '-daily_rate', label: 'Prix décroissant' },
+  { value: '-year', label: 'Plus récents' },
+];
+
+const PAGE_SIZE = 9;
+const today = () => new Date().toISOString().slice(0, 10);
+
+function FilterGroup({ title, children }) {
+  return (
+    <div className="flex flex-col gap-2 py-4 border-t border-outline-variant/30 dark:border-slate-700 first:border-t-0">
+      <span className="overline">{t(title)}</span>
+      {children}
+    </div>
+  );
+}
+
+function Radio({ checked, onChange, label }) {
+  return (
+    <label className="flex items-center gap-2 font-body-md text-body-md text-on-surface dark:text-slate-200 cursor-pointer">
+      <input type="radio" checked={checked} onChange={onChange} className="w-4 h-4 accent-primary" />{label}
+    </label>
+  );
+}
 
 export default function Catalog() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const favorites = useFavorites();
   const [params, setParams] = useSearchParams();
+  const [facets, setFacets] = useState({ brands: [], categories: [], fuels: [], cities: [], max_rate: 200000 });
   const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState('reco');
-  const [filtersOpen, setFiltersOpen] = useState(true);
-  const [toolbar, setToolbar] = useState({
-    ville:    params.get('ville') || 'Douala',
-    formule:  'urban_day',
-    debut:    params.get('debut') || '',
-    fin:      params.get('fin') || '',
-    service:  'internal',
-  });
-  const [filters, setFilters] = useState({
-    onlyAvailable: true,
-    gammes:    params.get('gamme') ? [params.get('gamme')] : [],
-    formule:   'urban_day',
-    priceMax:  PRICE_MAX,
-    categories: [],
-    marques:   [],
-    transmissions: [],
-    energies:  [],
-    equipements: [],
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState(params.get('q') || '');
 
-  // Chargement : API en priorité, catalogue local en secours
+  const filters = useMemo(() => Object.fromEntries(params.entries()), [params]);
+  const setFilter = (key, value) => {
+    const next = new URLSearchParams(params);
+    if (value === '' || value === undefined || value === null || value === false) next.delete(key); else next.set(key, value);
+    if (next.toString() === params.toString()) return;
+    setPage(1);
+    setParams(next, { replace: true });
+  };
+  const resetFilters = () => { setSearch(''); setPage(1); setParams({}, { replace: true }); };
+  const maxRate = Math.max(20000, Number(facets.max_rate) || 200000);
+
+  useEffect(() => { vehiclesAPI.facets().then(({ data }) => setFacets(data)).catch(() => {}); }, []);
+  useEffect(() => { const timer = setTimeout(() => setFilter('q', search.trim()), 350); return () => clearTimeout(timer); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     let mounted = true;
-    vehiclesAPI.getAll()
-      .then(res => {
+    setLoading(true);
+    const query = {
+      status: 'approved', page, page_size: PAGE_SIZE, ordering: filters.ordering || '-rating',
+      search: filters.q || undefined, city: filters.city, tier: filters.tier, category: filters.category,
+      fuel: filters.fuel, brand: filters.brand, max_rate: filters.max_rate,
+      driver_available: filters.driver ? 'true' : undefined,
+      ...(filters.only !== '0' && filters.start ? { available: 1, start: filters.start, end: filters.end || filters.start } : {}),
+    };
+    vehiclesAPI.list(query)
+      .then(({ data }) => {
         if (!mounted) return;
-        const list = (res.data.results || res.data || []).map(mapApiVehicle);
-        setVehicles(list.length ? list : CATALOG_VEHICLES.map(normalizeVehicle));
-        setLoading(false);
+        const results = data.results || data || [];
+        setVehicles((list) => (page === 1 ? results : [...list, ...results]));
+        setCount(data.count ?? results.length);
+        setError('');
       })
-      .catch(() => {
-        if (!mounted) return;
-        setVehicles(CATALOG_VEHICLES.map(normalizeVehicle));
-        setLoading(false);
-      });
+      .catch(() => mounted && setError(t('API injoignable — catalogue indisponible.')))
+      .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
-  }, []);
+  }, [filters, page]);
 
-  const filtered = useMemo(() => {
-    const list = vehicles.filter(v =>
-      (!filters.onlyAvailable || v.available) &&
-      (filters.gammes.length === 0 || filters.gammes.includes(v.tier)) &&
-      v.price <= filters.priceMax &&
-      (filters.categories.length === 0 || filters.categories.some(c => matchCategory(v, c))) &&
-      (filters.marques.length === 0 || filters.marques.includes(vehicleBrand(v))) &&
-      (filters.transmissions.length === 0 || filters.transmissions.includes(v.gear)) &&
-      (filters.energies.length === 0 || filters.energies.includes(v.fuel)) &&
-      (filters.equipements.length === 0 || filters.equipements.every(e => v.equipments.includes(e)))
-    );
-    const sorted = [...list];
-    if (sort === 'asc')    sorted.sort((a, b) => a.price - b.price);
-    if (sort === 'desc')   sorted.sort((a, b) => b.price - a.price);
-    if (sort === 'rating') sorted.sort((a, b) => b.rating - a.rating);
-    if (sort === 'reco')   sorted.sort((a, b) => (b.rating * b.reviews) - (a.rating * a.reviews));
-    return sorted;
-  }, [vehicles, filters, sort]);
-
-  // Retour à la page 1 à chaque changement de filtres / tri
-  useEffect(() => { setPage(1); }, [filters, sort]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const goTo = (p) => {
-    setPage(Math.min(Math.max(1, p), totalPages));
-    document.getElementById('resultats')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  // Fenêtre de pages : 1 … courante±1 … dernière
-  const pageNums = (() => {
-    if (totalPages <= 7) return [...Array(totalPages)].map((_, i) => i + 1);
-    const nums = [1];
-    if (page > 3) nums.push('…');
-    for (let p = Math.max(2, page - 1); p <= Math.min(totalPages - 1, page + 1); p++) nums.push(p);
-    if (page < totalPages - 2) nums.push('…');
-    nums.push(totalPages);
-    return nums;
-  })();
-
-  const activeChips = [
-    { key: 'ville', label: toolbar.ville },
-    ...filters.gammes.map(g => ({ key: `gamme-${g}`, label: GAMMES.find(x => x.id === g)?.label, clear: () => setFilters(f => ({ ...f, gammes: f.gammes.filter(x => x !== g) })) })),
-    ...filters.categories.map(c => ({ key: `cat-${c}`, label: c, clear: () => setFilters(f => ({ ...f, categories: f.categories.filter(x => x !== c) })) })),
-    ...filters.marques.map(m => ({ key: `marque-${m}`, label: m, clear: () => setFilters(f => ({ ...f, marques: f.marques.filter(x => x !== m) })) })),
-    ...filters.transmissions.map(t => ({ key: `tr-${t}`, label: t, clear: () => setFilters(f => ({ ...f, transmissions: f.transmissions.filter(x => x !== t) })) })),
-    ...filters.energies.map(e => ({ key: `en-${e}`, label: e, clear: () => setFilters(f => ({ ...f, energies: f.energies.filter(x => x !== e) })) })),
-    ...filters.equipements.map(e => ({ key: `eq-${e}`, label: e, clear: () => setFilters(f => ({ ...f, equipements: f.equipements.filter(x => x !== e) })) })),
-    ...(filters.priceMax < PRICE_MAX ? [{ key: 'prix', label: `≤ ${filters.priceMax.toLocaleString('fr-FR')} F`, clear: () => setFilters(f => ({ ...f, priceMax: PRICE_MAX })) }] : []),
-  ];
-
-  const activeCount = activeChips.length - 1; // hors chip ville
-  const clearAll = () => {
-    setFilters(f => ({
-      ...f, gammes: [], categories: [], marques: [], transmissions: [],
-      energies: [], equipements: [], priceMax: PRICE_MAX, onlyAvailable: true,
-    }));
+  const reserve = (vehicle) => {
+    const extra = `${filters.type ? `&type=${filters.type}` : ''}${filters.start ? `&start=${filters.start}` : ''}`;
+    const path = reservePath(vehicle.id, user, extra);
+    navigate(path || `/vehicles/${vehicle.id}`);
   };
 
-  const applyToolbar = () => {
-    setFilters(f => ({ ...f, formule: toolbar.formule }));
-    setParams({ ville: toolbar.ville, ...(toolbar.debut && { debut: toolbar.debut }), ...(toolbar.fin && { fin: toolbar.fin }) });
-  };
+  const chips = [
+    filters.city && { key: 'city', label: filters.city },
+    filters.tier && { key: 'tier', label: vehicleLabel(filters.tier, 'tier') },
+    filters.category && { key: 'category', label: vehicleLabel(filters.category, 'category') },
+    filters.fuel && { key: 'fuel', label: vehicleLabel(filters.fuel, 'fuel') },
+    filters.brand && { key: 'brand', label: filters.brand },
+    filters.max_rate && { key: 'max_rate', label: t('≤ {{n}} FCFA', { n: formatNumber(filters.max_rate) }) },
+    filters.driver && { key: 'driver', label: t('Avec chauffeur') },
+  ].filter(Boolean);
 
-  const formuleLabel = FORMULE_OPTS.find(f => f.id === filters.formule)?.label.replace(' heures', 'h').replace(' heure', 'h') || '24h';
+  const formula = RENTAL_TYPES.find((type) => type.id === filters.type);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <PublicNavbar />
-
-      <div className="pt-28 lg:pt-36 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          {/* Barre de recherche — ville / formule / période / service */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sm:p-6 mb-10">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-5 items-end">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Ville</label>
-                <div className="relative">
-                  <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-600" />
-                  <select value={toolbar.ville} onChange={e => setToolbar(t => ({ ...t, ville: e.target.value }))}
-                    className="w-full pl-9 pr-8 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none">
-                    {CITIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Formule</label>
-                <div className="relative">
-                  <RefreshCw size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-600" />
-                  <select value={toolbar.formule} onChange={e => setToolbar(t => ({ ...t, formule: e.target.value }))}
-                    className="w-full pl-9 pr-8 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none">
-                    {FORMULE_OPTS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Période de réservation</label>
-                <div className="relative flex items-center gap-1.5">
-                  <CalendarRange size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-600 pointer-events-none" />
-                  <input type="date" value={toolbar.debut} onChange={e => setToolbar(t => ({ ...t, debut: e.target.value }))}
-                    className="w-full pl-9 pr-2 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                  <input type="date" value={toolbar.fin} onChange={e => setToolbar(t => ({ ...t, fin: e.target.value }))}
-                    className="w-full px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Service</label>
-                <div className="relative">
-                  <UserCheck size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-600" />
-                  <select value={toolbar.service} onChange={e => setToolbar(t => ({ ...t, service: e.target.value }))}
-                    className="w-full pl-9 pr-8 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none">
-                    {SERVICES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-              <button onClick={applyToolbar} title="Actualiser la recherche"
-                className="flex items-center justify-center w-11 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-colors shadow-sm">
-                <RefreshCw size={16} />
-              </button>
-            </div>
+    <PublicLayout>
+      <section className="bg-surface-container-low dark:bg-slate-900 border-b border-outline-variant/30 dark:border-slate-800">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-3">
+          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+            <Icon name="location_on" className="text-primary" />
+            <span className="flex flex-col flex-1"><span className="overline">{t('Ville')}</span>
+              <select value={filters.city || ''} onChange={(e) => setFilter('city', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+                <option value="">{t('Toutes les villes')}</option>{(facets.cities || []).map((city) => <option key={city}>{city}</option>)}
+              </select></span>
+          </label>
+          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+            <Icon name="schedule" className="text-primary" />
+            <span className="flex flex-col flex-1"><span className="overline">{t('Formule')}</span>
+              <select value={filters.type || ''} onChange={(e) => setFilter('type', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+                <option value="">{t('Toutes les formules')}</option>{RENTAL_TYPES.map((type) => <option key={type.id} value={type.id}>{t(type.label)}</option>)}
+              </select></span>
+          </label>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+            <Icon name="date_range" className="text-primary" />
+            <span className="flex flex-col flex-1"><span className="overline">{t('Période de réservation')}</span>
+              <span className="flex items-center gap-2">
+                <input type="date" min={today()} value={filters.start || ''} onChange={(e) => setFilter('start', e.target.value)} className="bg-transparent font-label-md text-label-md focus:outline-none dark:text-white w-full" />
+                <Icon name="arrow_forward" size={16} className="text-on-surface-variant" />
+                <input type="date" min={filters.start || today()} value={filters.end || ''} onChange={(e) => setFilter('end', e.target.value)} className="bg-transparent font-label-md text-label-md focus:outline-none dark:text-white w-full" />
+              </span></span>
           </div>
-
-          <div className={`grid gap-6 items-start ${filtersOpen ? 'lg:grid-cols-[260px_1fr]' : 'lg:grid-cols-1'}`}>
-            {/* Sidebar filtres — repliable via le bouton du panneau */}
-            {filtersOpen && (
-              <FiltersSidebar vehicles={vehicles} filters={filters} setFilters={setFilters}
-                activeCount={Math.max(activeCount, 0)} onClose={() => setFiltersOpen(false)} />
-            )}
-
-            {/* Résultats */}
-            <div id="resultats" className="scroll-mt-32">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  {!filtersOpen && (
-                    <button onClick={() => setFiltersOpen(true)}
-                      className="flex items-center gap-2 bg-white border border-slate-200 hover:border-teal-500 hover:text-teal-700 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors shadow-sm">
-                      <Filter size={14} />
-                      Filtres
-                      {activeCount > 0 && (
-                        <span className="bg-teal-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{activeCount}</span>
-                      )}
-                    </button>
-                  )}
-                  <h1 className="text-xl md:text-2xl text-slate-900">
-                    {filtered.length} véhicule{filtered.length > 1 ? 's' : ''} disponible{filtered.length > 1 ? 's' : ''}
-                    <span className="text-slate-900"> à {toolbar.ville}</span>
-                  </h1>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Trier par</span>
-                  <div className="relative">
-                    <select value={sort} onChange={e => setSort(e.target.value)}
-                      className="pl-3 pr-8 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none">
-                      {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Chips filtres actifs */}
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtres :</span>
-                {activeChips.map(c => (
-                  <span key={c.key}
-                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    {c.label}
-                    {c.clear && (
-                      <button onClick={c.clear} aria-label={`Retirer ${c.label}`}
-                        className="text-slate-400 hover:text-red-500 transition-colors">
-                        <X size={12} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {activeChips.length > 1 && (
-                  <button onClick={clearAll}
-                    className="text-xs font-bold text-teal-600 hover:text-teal-700 underline underline-offset-2">
-                    Effacer tout
-                  </button>
-                )}
-              </div>
-
-              {/* Grille véhicules */}
-              {loading ? (
-                <div className="text-center py-24 text-slate-400 text-sm flex items-center justify-center gap-2">
-                  <Loader size={18} className="animate-spin" /> Chargement des véhicules…
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-center py-24 bg-white rounded-2xl border border-slate-100">
-                  <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Car size={28} className="text-slate-400" />
-                  </div>
-                  <h3 className="font-bold text-slate-900 mb-2">Aucun véhicule trouvé</h3>
-                  <p className="text-slate-500 text-sm mb-5">Modifiez vos filtres pour élargir la recherche.</p>
-                  <button onClick={clearAll} className="text-sm font-bold text-teal-600 hover:text-teal-700">
-                    Réinitialiser les filtres
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className={`grid sm:grid-cols-2 gap-6 ${filtersOpen ? 'xl:grid-cols-2' : 'xl:grid-cols-3'}`}>
-                    {pageItems.map(v => (
-                      <CatalogCard key={`${v.fromApi ? 'api' : 'cat'}-${v.id}`} v={v} formuleLabel={formuleLabel} wide={!filtersOpen} />
-                    ))}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
-                      <button onClick={() => goTo(page - 1)} disabled={page === 1} aria-label="Page précédente"
-                        className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                        <ChevronLeft size={16} />
-                      </button>
-                      {pageNums.map((p, i) => p === '…' ? (
-                        <span key={`e${i}`} className="w-10 h-10 flex items-center justify-center text-slate-400 text-sm">…</span>
-                      ) : (
-                        <button key={p} onClick={() => goTo(p)}
-                          className={`w-10 h-10 rounded-xl text-sm font-bold transition-colors ${p === page ? 'bg-teal-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-teal-500 hover:text-teal-700'}`}>
-                          {p}
-                        </button>
-                      ))}
-                      <button onClick={() => goTo(page + 1)} disabled={page === totalPages} aria-label="Page suivante"
-                        className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Bande paiement sécurisé */}
-              <div className="mt-10 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
-                    <ShieldCheck size={22} className="text-teal-600" />
-                  </div>
-                  <div>
-                    <div className="font-black text-slate-900 text-sm">Paiement &amp; Caution Sécurisés</div>
-                    <div className="text-xs text-slate-500">
-                      Pré-autorisation Mobile Money (Orange Money / MTN MoMo) — sans débit du compte avant prise en charge.
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <span className="bg-yellow-400 text-slate-900 text-[10px] font-black px-2.5 py-1.5 rounded-lg">MTN MoMo</span>
-                  <span className="bg-orange-500 text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg">Orange Money</span>
-                  <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1">
-                    <CreditCard size={11} /> Carte
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+            <Icon name="badge" className="text-primary" />
+            <span className="flex flex-col flex-1"><span className="overline">{t('Service')}</span>
+              <select value={filters.driver ? '1' : ''} onChange={(e) => setFilter('driver', e.target.value)} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">
+                <option value="">{t('Avec ou sans chauffeur')}</option><option value="1">{t('Chauffeur du propriétaire disponible')}</option>
+              </select></span>
+          </label>
+          <label className="flex items-center gap-2 px-4 rounded-xl bg-surface-container-lowest dark:bg-slate-800">
+            <Icon name="search" className="text-outline" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Marque, modèle…')} className="w-full xl:w-40 bg-transparent py-3 font-body-md text-body-md focus:outline-none dark:text-white" />
+          </label>
         </div>
-      </div>
+      </section>
 
-      <Footer />
-    </div>
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-20">
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex items-center gap-2 font-headline-sm text-headline-sm text-on-surface dark:text-white"><Icon name="tune" />{t('Filtres')}</span>
+              {chips.length > 0 && <span className="badge-primary">{t('{{n}} actif(s)', { n: chips.length })}</span>}
+            </div>
+            <label className="flex items-start gap-2 p-3 my-2 rounded-xl bg-secondary-fixed/40 dark:bg-slate-900 font-body-sm text-body-sm cursor-pointer">
+              <input type="checkbox" checked={filters.only !== '0'} onChange={(e) => setFilter('only', e.target.checked ? '' : '0')} className="mt-0.5 w-4 h-4 accent-primary" />
+              {t('Seulement disponibles sur mes dates sélectionnées')}
+            </label>
+            <FilterGroup title="Gamme AutoLink">
+              <Radio checked={!filters.tier} onChange={() => setFilter('tier', '')} label={t('Toutes les gammes')} />
+              {TIERS.map((tier) => <Radio key={tier.id} checked={filters.tier === tier.id} onChange={() => setFilter('tier', tier.id)} label={vehicleLabel(tier.id, 'tier')} />)}
+            </FilterGroup>
+            <FilterGroup title="Formule">
+              <div className="grid grid-cols-2 gap-2">
+                {RENTAL_TYPES.slice(0, 4).map((type) => (
+                  <button key={type.id} onClick={() => setFilter('type', filters.type === type.id ? '' : type.id)}
+                    className={`py-2 rounded-lg font-label-md text-label-md ${filters.type === type.id ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant dark:bg-slate-900'}`}>{t(type.label)}</button>
+                ))}
+              </div>
+            </FilterGroup>
+            <FilterGroup title="Prix journalier">
+              <div className="flex justify-between font-body-sm text-body-sm text-on-surface-variant"><span>20 000 FCFA</span><strong className="text-primary">{formatNumber(filters.max_rate || maxRate)} FCFA</strong></div>
+              <input type="range" min={20000} max={maxRate} step={5000} value={Number(filters.max_rate || maxRate)} onChange={(e) => setFilter('max_rate', Number(e.target.value) >= maxRate ? '' : e.target.value)} className="w-full accent-primary" />
+            </FilterGroup>
+            <FilterGroup title="Catégorie">
+              <Radio checked={!filters.category} onChange={() => setFilter('category', '')} label={t('Toutes')} />
+              {(facets.categories || []).map((value) => <Radio key={value} checked={filters.category === value} onChange={() => setFilter('category', value)} label={vehicleLabel(value, 'category')} />)}
+            </FilterGroup>
+            <FilterGroup title="Marque">
+              <select value={filters.brand || ''} onChange={(e) => setFilter('brand', e.target.value)} className="input-field py-2">
+                <option value="">{t('Toutes les marques')}</option>{(facets.brands || []).map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </FilterGroup>
+            <FilterGroup title="Énergie">
+              <Radio checked={!filters.fuel} onChange={() => setFilter('fuel', '')} label={t('Toutes')} />
+              {(facets.fuels || []).map((value) => <Radio key={value} checked={filters.fuel === value} onChange={() => setFilter('fuel', value)} label={vehicleLabel(value, 'fuel')} />)}
+            </FilterGroup>
+            <button onClick={resetFilters} className="btn-secondary w-full py-2 mt-2"><Icon name="restart_alt" size={18} />{t('Réinitialiser tous les filtres')}</button>
+          </div>
+          <div className="card p-5">
+            <div className="flex items-center gap-2 font-label-lg text-label-lg text-primary"><Icon name="verified_user" />{t('Garantie AutoLink')}</div>
+            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">{t('Véhicules inspectés et caution bloquée sous séquestre jusqu’à la fin de la location.')}</p>
+          </div>
+        </aside>
+
+        <section className="flex flex-col gap-5">
+          <div className="card p-4 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h1 className="font-headline-lg text-headline-lg text-on-surface dark:text-white">
+                {t('{{n}} véhicule(s) disponible(s)', { n: formatNumber(count) })}
+                {filters.city && <span className="font-body-lg text-body-lg text-primary"> {t('à {{city}}', { city: filters.city })}</span>}
+              </h1>
+              <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low dark:bg-slate-900">
+                <span className="overline">{t('Trier par')}</span>
+                <select value={filters.ordering || '-rating'} onChange={(e) => setFilter('ordering', e.target.value === '-rating' ? '' : e.target.value)} className="bg-transparent font-label-md text-label-md focus:outline-none dark:text-white">
+                  {ORDERINGS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+                </select>
+              </label>
+            </div>
+            {(chips.length > 0 || formula || filters.start) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="overline">{t('Filtres :')}</span>
+                {formula && <span className="badge-info">{t(formula.label)}</span>}
+                {filters.start && <span className="badge-info">{formatDate(filters.start)} → {formatDate(filters.end || filters.start)}</span>}
+                {chips.map((chip) => (
+                  <button key={chip.key} onClick={() => setFilter(chip.key, '')} className="badge-primary">{chip.label}<Icon name="close" size={14} /></button>
+                ))}
+                <button onClick={resetFilters} className="font-label-md text-label-md text-primary underline">{t('Effacer tout')}</button>
+              </div>
+            )}
+          </div>
+
+          {error && <div className="rounded-xl px-4 py-3 bg-error-container text-on-error-container font-label-lg text-label-lg">{error}</div>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6">
+            {vehicles.map((vehicle) => (
+              <VehicleCard key={vehicle.id} vehicle={vehicle} onReserve={reserve}
+                favorite={favorites.ids.includes(vehicle.id)} onToggleFavorite={favorites.enabled ? favorites.toggle : undefined} />
+            ))}
+            {loading && Array.from({ length: 3 }).map((_, i) => <div key={`s${i}`} className="h-96 rounded-xl bg-surface-container animate-pulse" />)}
+          </div>
+          {!loading && !vehicles.length && !error && (
+            <div className="card text-center py-14">
+              <Icon name="search_off" size={44} className="text-outline" />
+              <p className="font-body-lg text-body-lg text-on-surface-variant mt-2">{t('Aucun véhicule ne correspond à ces critères.')}</p>
+            </div>
+          )}
+
+          {vehicles.length > 0 && (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-72 h-1.5 rounded-full bg-surface-container-high overflow-hidden"><div className="h-full bg-primary" style={{ width: `${Math.min(100, (vehicles.length / Math.max(1, count)) * 100)}%` }} /></div>
+              <span className="font-body-sm text-body-sm text-on-surface-variant">{t('Affichage de {{n}} sur {{total}} véhicules certifiés', { n: vehicles.length, total: count })}</span>
+              {vehicles.length < count && <button disabled={loading} onClick={() => setPage(page + 1)} className="btn-secondary"><Icon name="expand_circle_down" size={20} />{t('Charger plus de véhicules')}</button>}
+            </div>
+          )}
+
+          <div className="rounded-xl bg-secondary-fixed/40 dark:bg-slate-900 p-5 flex items-start gap-3">
+            <span className="w-11 h-11 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center shrink-0"><Icon name="shield" /></span>
+            <div>
+              <div className="font-headline-sm text-headline-sm text-on-surface dark:text-white">{t('Paiement & caution sécurisés')}</div>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">{t('Paiement par Mobile Money (Orange Money & MTN MoMo), carte ou portefeuille AutoLink ; caution restituée en fin de location.')}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </PublicLayout>
   );
 }

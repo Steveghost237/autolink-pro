@@ -215,3 +215,37 @@ class WalletTransaction(models.Model):
 
     def __str__(self):
         return f'{self.kind.upper()} {self.amount} F — {self.user}'
+
+
+class WithdrawalRequest(models.Model):
+    """Demande de retrait du solde (propriétaire / chauffeur) vers Mobile Money.
+
+    Le montant est réservé (débité du solde) dès la demande ; un refus admin le
+    recrédite, une validation marque le virement comme effectué.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'En attente'
+        PAID = 'paid', 'Virement effectué'
+        REJECTED = 'rejected', 'Refusée'
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='withdrawals')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    method = models.CharField(max_length=20, choices=[('mtn', 'MTN Mobile Money'), ('orange', 'Orange Money')])
+    phone = models.CharField(max_length=30)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    reference = models.CharField(max_length=40, unique=True)
+    admin_note = models.CharField(max_length=255, blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='processed_withdrawals')
+    processed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Demande de retrait'
+        verbose_name_plural = 'Demandes de retrait'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.reference} — {self.amount} F ({self.status})'

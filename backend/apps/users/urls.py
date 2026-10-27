@@ -1,11 +1,11 @@
 from django.urls import path
 from .views import (
-    GoogleAuthView, LoginView, MeView,
+    AdminActivityView,
+    GoogleAuthView, KYCUploadView, LoginView, MeView,
     NewsletterCampaignListView, NewsletterCampaignDetailView, NewsletterResendView,
     NewsletterSendView, NewsletterUnsubscribeView,
-    NotificationListView, NotificationReadView,
+    NotificationDetailView, NotificationListView, NotificationReadView,
     OTPRequestView, OTPVerifyView, RegisterView, UserDetailView, UserListView,
-    MessageListView, MessageThreadsView, MessageContactsView, MessageReadView,
     PlatformSettingsView, PublicConfigView,
 )
 
@@ -21,14 +21,13 @@ urlpatterns = [
     path('newsletter/campaigns/<int:pk>/resend/', NewsletterResendView.as_view(), name='newsletter-campaign-resend'),
     path('newsletter/send/', NewsletterSendView.as_view(), name='newsletter-send'),
     path('me/', MeView.as_view(), name='me'),
+    path('me/kyc/', KYCUploadView.as_view(), name='me-kyc'),
+    path('platform-settings/', PlatformSettingsView.as_view(), name='platform-settings'),
+    path('admin/activity/', AdminActivityView.as_view(), name='admin-activity'),
     path('notifications/', NotificationListView.as_view(), name='notifications'),
     path('notifications/read/', NotificationReadView.as_view(), name='notifications-read-all'),
     path('notifications/<int:pk>/read/', NotificationReadView.as_view(), name='notification-read'),
-    # Messagerie interne + paramètres plateforme
-    path('messages/threads/', MessageThreadsView.as_view(), name='message-threads'),
-    path('messages/contacts/', MessageContactsView.as_view(), name='message-contacts'),
-    path('messages/read/', MessageReadView.as_view(), name='message-read'),
-    path('messages/', MessageListView.as_view(), name='messages'),
+    path('notifications/<int:pk>/', NotificationDetailView.as_view(), name='notification-detail'),
     path('settings/', PlatformSettingsView.as_view(), name='platform-settings'),
     path('public-config/', PublicConfigView.as_view(), name='public-config'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),

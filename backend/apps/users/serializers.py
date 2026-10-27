@@ -7,7 +7,7 @@ from .email_utils import (
     send_login_notification,
     send_welcome_email,
 )
-from .models import ContactMessage, Message, NewsletterCampaign, Notification, PlatformSettings, User
+from .models import ContactMessage, NewsletterCampaign, Notification, PlatformSettings, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -24,6 +24,60 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role != 'INTERMEDIARY':
             return 0
         return obj.referrals.count() + obj.attributed_bookings.count()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'language', 'balance',
+                  'city', 'address', 'date_of_birth', 'id_document', 'id_document_verified', 'driving_license',
+                  'driving_license_expires_at', 'kyc_status', 'kyc_note', 'kyc_submitted_at', 'created_at']
+        read_only_fields = ['id', 'is_verified', 'balance', 'id_document', 'id_document_verified', 'driving_license',
+                            'kyc_status', 'kyc_note', 'kyc_submitted_at', 'created_at']
+
+
+class KYCUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id_document', 'driving_license', 'driving_license_expires_at']
+
+    def validate(self, attrs):
+        if not attrs.get('id_document') and not attrs.get('driving_license'):
+            raise serializers.ValidationError('Ajoutez au moins une pièce justificative.')
+        for field in ('id_document', 'driving_license'):
+            document = attrs.get(field)
+            if not document:
+                continue
+            if document.size > 8 * 1024 * 1024:
+                raise serializers.ValidationError({field: 'Fichier trop volumineux (8 Mo max).'})
+            if not document.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.pdf')):
+                raise serializers.ValidationError({field: 'Formats acceptés : JPG, PNG, WEBP ou PDF.'})
+        return attrs
+
+
+class PlatformSettingsSerializer(serializers.ModelSerializer):
+    tiers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PlatformSettings
+        exclude = ['id']
+        read_only_fields = ['updated_at']
+
+    def get_tiers(self, obj):
+        """Barème de classification véhicules (lecture seule, défini dans apps.vehicles)."""
+        from apps.vehicles.models import PRICE_MARGIN, TIER_BASE, TIER_DEPOSIT, TIER_KM, Vehicle
+        labels = dict(Vehicle.Tier.choices)
+        return [{
+            'tier': tier,
+            'label': labels.get(tier, tier),
+            'base_rate': base,
+            'min_rate': int(base * (1 - PRICE_MARGIN)),
+            'max_rate': int(base * (1 + PRICE_MARGIN)),
+            'deposit': TIER_DEPOSIT[tier],
+            'km_included': TIER_KM[tier][0],
+            'extra_km_rate': TIER_KM[tier][1],
+            'vehicles': Vehicle.objects.filter(tier=tier).count(),
+        } for tier, base in TIER_BASE.items()]
+
+    def validate_commission_rate(self, value):
+        if not 0 <= value <= 1:
+            raise serializers.ValidationError('Le taux doit être compris entre 0 et 1.')
+        return value
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -33,31 +87,6 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = ['title', 'message', 'created_at']
 
 
-class MessageSerializer(serializers.ModelSerializer):
-    sender_name = serializers.SerializerMethodField()
-    sender_role = serializers.CharField(source='sender.role', read_only=True)
-    recipient_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Message
-        fields = ['id', 'sender', 'recipient', 'booking', 'body', 'is_read', 'created_at',
-                  'sender_name', 'sender_role', 'recipient_name']
-        read_only_fields = ['sender', 'is_read', 'created_at']
-
-    def get_sender_name(self, obj):
-        return obj.sender.get_full_name()
-
-    def get_recipient_name(self, obj):
-        return obj.recipient.get_full_name() if obj.recipient else 'Support AutoLink'
-
-
-class MiniUserSerializer(serializers.ModelSerializer):
-    """Contact léger pour la messagerie."""
-    name = serializers.CharField(source='get_full_name', read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['id', 'name', 'role', 'email']
 
 
 class PlatformSettingsSerializer(serializers.ModelSerializer):
@@ -109,8 +138,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone', 'balance',
                   'is_active', 'is_verified', 'id_document_verified', 'is_staff',
                   'referral_code', 'commission_rate', 'bookings_count', 'commissions_total',
-                  'vehicles_count', 'trips_count', 'created_at']
-        read_only_fields = ['id', 'created_at']
+                  'vehicles_count', 'trips_count', 'created_at',
+                  'city', 'id_document', 'driving_license', 'driving_license_expires_at',
+                  'kyc_status', 'kyc_note', 'kyc_submitted_at']
+        read_only_fields = ['id', 'created_at', 'id_document', 'driving_license', 'kyc_submitted_at']
 
     def get_bookings_count(self, obj):
         if obj.role == 'INTERMEDIARY':

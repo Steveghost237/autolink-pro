@@ -1,3 +1,5 @@
+import uuid
+from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from django.conf import settings
@@ -54,7 +56,7 @@ def _assign_internal_driver(booking):
 class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['status', 'vehicle']
+    filterset_fields = ['status', 'vehicle', 'owner_response', 'driver_type']
     search_fields = [
         'client__username', 'client__first_name', 'client__last_name',
         'client__email', 'vehicle__brand', 'vehicle__model', 'vehicle__plate',
@@ -101,6 +103,137 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=['driver_response', 'updated_at'])
         return Response(self.get_serializer(booking).data)
 
+    def _owner_booking(self, user, booking):
+        if user.role != 'OWNER' or booking.vehicle.owner_id != user.id:
+            raise PermissionDenied('Ce véhicule ne vous appartient pas.')
+        if booking.owner_response != 'pending' or booking.status not in ('pending', 'confirmed'):
+            raise ValidationError({'detail': 'Cette demande a déjà été traitée.'})
+
+    @action(detail=True, methods=['post'])
+    def rate(self, request, pk=None):
+        """Avis client sur une location terminée : met à jour la note moyenne du véhicule."""
+        booking = self.get_object()
+        if booking.client_id != request.user.id:
+            raise PermissionDenied('Cette réservation ne vous appartient pas.')
+        if booking.status != 'completed':
+            raise ValidationError({'detail': 'Seule une location terminée peut être évaluée.'})
+        if booking.client_rating:
+            raise ValidationError({'detail': 'Vous avez déjà évalué cette location.'})
+        try:
+            rating = int(request.data.get('rating'))
+        except (TypeError, ValueError):
+            rating = 0
+        if not 1 <= rating <= 5:
+            raise ValidationError({'rating': 'La note doit être comprise entre 1 et 5.'})
+        booking.client_rating = rating
+        booking.client_review = (request.data.get('review') or '').strip()[:2000]
+        booking.save(update_fields=['client_rating', 'client_review', 'updated_at'])
+        vehicle = booking.vehicle
+        ratings = Booking.objects.filter(vehicle=vehicle, client_rating__isnull=False)
+        vehicle.rating = Decimal(str(round(ratings.aggregate(v=Avg('client_rating'))['v'] or 0, 2)))
+        vehicle.rating_count = ratings.count()
+        vehicle.save(update_fields=['rating', 'rating_count', 'updated_at'])
+        _notify(vehicle.owner, 'Nouvel avis client',
+                f'{booking.client.get_full_name()} a noté votre {vehicle} {rating}/5.')
+        return Response(self.get_serializer(booking).data)
+
+    @action(detail=False, methods=['get'], url_path='owner-requests')
+    def owner_requests(self, request):
+        """Demandes de location en attente de réponse du propriétaire."""
+        if request.user.role != 'OWNER':
+            raise PermissionDenied('Réservé aux propriétaires.')
+        queryset = self.filter_queryset(self.get_queryset().filter(
+            owner_response='pending', status__in=('pending', 'confirmed'),
+        ).order_by('start_date'))
+        return Response(self.get_serializer(queryset, many=True).data)
+
+    @action(detail=True, methods=['post'], url_path='owner-accept')
+    def owner_accept(self, request, pk=None):
+        booking = self.get_object()
+        self._owner_booking(request.user, booking)
+        booking.owner_response = 'accepted'
+        booking.owner_responded_at = timezone.now()
+        booking.save(update_fields=['owner_response', 'owner_responded_at', 'updated_at'])
+        _notify(booking.client, 'Réservation acceptée',
+                f'Le propriétaire a accepté votre réservation {booking}. '
+                f'Le véhicule sera prêt le {booking.start_date}.')
+        return Response(self.get_serializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='owner-refuse')
+    def owner_refuse(self, request, pk=None):
+        booking = self.get_object()
+        self._owner_booking(request.user, booking)
+        reason = (request.data.get('reason') or '').strip()
+        with db_transaction.atomic():
+            booking.owner_response = 'refused'
+            booking.owner_responded_at = timezone.now()
+            booking.status = Booking.Status.CANCELLED
+            booking.save(update_fields=['owner_response', 'owner_responded_at', 'status', 'updated_at'])
+            booking.sync_vehicle_status()
+            self._refund_if_paid(booking)
+        _notify(booking.client, 'Réservation refusée',
+                f'Le propriétaire n’a pas pu accepter votre réservation {booking}. '
+                f'{reason + " " if reason else ""}Tout paiement effectué vous a été remboursé.')
+        return Response(self.get_serializer(booking).data)
+
+    @action(detail=False, methods=['get'], url_path='owner-stats')
+    def owner_stats(self, request):
+        """Indicateurs du tableau de bord propriétaire (P1 / P6)."""
+        if request.user.role != 'OWNER':
+            raise PermissionDenied('Réservé aux propriétaires.')
+        from apps.payments.models import Payment, Payout
+        from apps.vehicles.models import Vehicle
+        today = timezone.localdate()
+        bookings = Booking.objects.filter(vehicle__owner=request.user)
+        vehicles = Vehicle.objects.filter(owner=request.user)
+        window_start = today - timedelta(days=30)
+        booked_days = 0
+        for start, end in bookings.filter(
+            status__in=('confirmed', 'active', 'completed'),
+            start_date__lte=today, end_date__gte=window_start,
+        ).values_list('start_date', 'end_date'):
+            booked_days += (min(end, today) - max(start, window_start)).days or 1
+        fleet = vehicles.exclude(status__in=('pending', 'suspended')).count()
+        occupancy = round(min(100, booked_days * 100 / (fleet * 30)), 1) if fleet else 0
+        months = []
+        cursor = today.replace(day=1)
+        for _ in range(6):
+            months.append(cursor)
+            cursor = (cursor - timedelta(days=1)).replace(day=1)
+        months.reverse()
+        series = []
+        for start in months:
+            end = (start + timedelta(days=32)).replace(day=1)
+            total = Payout.objects.filter(
+                recipient=request.user, status='completed',
+                processed_at__date__gte=start, processed_at__date__lt=end,
+            ).aggregate(v=Sum('amount'))['v'] or Decimal('0')
+            series.append({'month': start.strftime('%Y-%m'), 'revenue': total})
+        pending_escrow = Payment.objects.filter(
+            booking__vehicle__owner=request.user, status='completed', escrow_status='held',
+        ).aggregate(v=Sum('owner_payout'))['v'] or Decimal('0')
+        completed = bookings.filter(status='completed')
+        revenue_days = completed.aggregate(v=Sum('days'))['v'] or 0
+        revenue_total = completed.aggregate(v=Sum('owner_amount'))['v'] or Decimal('0')
+        return Response({
+            'occupancy_rate': occupancy,
+            'average_rating': vehicles.aggregate(v=Avg('rating'))['v'] or 0,
+            'reviews_count': bookings.exclude(client_rating__isnull=True).count(),
+            'vehicles_total': vehicles.count(),
+            'vehicles_online': vehicles.filter(status__in=('approved', 'rented')).count(),
+            'vehicles_maintenance': vehicles.filter(status='maintenance').count(),
+            'vehicles_pending': vehicles.filter(status='pending').count(),
+            'pending_requests': bookings.filter(
+                owner_response='pending', status__in=('pending', 'confirmed')).count(),
+            'pending_escrow': pending_escrow,
+            'revenue_total': revenue_total,
+            'revenue_year': Payout.objects.filter(
+                recipient=request.user, status='completed', processed_at__year=today.year,
+            ).aggregate(v=Sum('amount'))['v'] or Decimal('0'),
+            'revenue_per_day': (revenue_total / revenue_days).quantize(Decimal('1')) if revenue_days else 0,
+            'monthly_series': series,
+        })
+
     def create(self, request, *args, **kwargs):
         # Ajoute payment_url à la réponse quand un checkout externe est créé
         resp = super().create(request, *args, **kwargs)
@@ -120,7 +253,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         driver_type = serializer.validated_data.get('driver_type', 'none')
         payment_method = request.data.get('payment_method')
 
-        from apps.users.models import User
+        from apps.users.models import User, PlatformSettings
+        if not PlatformSettings.current().bookings_enabled:
+            raise ValidationError({'detail': 'Les réservations sont temporairement suspendues. Réessayez plus tard.'})
         # ── Intermédiaire / code parrain ────────────────────────────────────
         # 1) Un intermédiaire peut réserver pour le compte d'un client existant
         #    (rôle d'apporteur d'affaires) : la réservation lui est attribuée et
@@ -150,6 +285,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     raise ValidationError({'agent_code': 'Code intermédiaire invalide.'})
             else:
                 intermediary = getattr(request.user, 'referred_by', None)
+
 
         # Conflit de dates : une réservation confirmée/active bloque la période
         conflict = Booking.objects.filter(

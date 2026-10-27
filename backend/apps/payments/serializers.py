@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import Payment, Payout, WalletTransaction
+from .models import Payment, Payout, WalletTransaction, WithdrawalRequest
 
 TOPUP_METHODS = ['mtn', 'orange', 'paypal', 'stripe']
 
@@ -67,6 +67,29 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
         model = WalletTransaction
         fields = ['id', 'kind', 'method', 'amount', 'balance_after', 'reference', 'note',
                   'status', 'provider_status', 'created_at']
+
+
+class WithdrawalRequestSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_role = serializers.CharField(source='user.role', read_only=True)
+    user_balance = serializers.DecimalField(source='user.balance', max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = WithdrawalRequest
+        fields = ['id', 'reference', 'user', 'user_name', 'user_email', 'user_role', 'user_balance',
+                  'amount', 'method', 'phone', 'status', 'admin_note', 'processed_at', 'created_at']
+        read_only_fields = ['id', 'reference', 'user', 'status', 'admin_note', 'processed_at', 'created_at']
+
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+
+    def validate_amount(self, value):
+        from apps.users.models import PlatformSettings
+        minimum = PlatformSettings.current().min_withdrawal_amount
+        if value < minimum:
+            raise serializers.ValidationError(f'Montant minimum de retrait : {minimum:.0f} FCFA.')
+        return value
 
 
 class TopUpSerializer(serializers.Serializer):

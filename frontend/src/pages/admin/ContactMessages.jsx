@@ -62,9 +62,9 @@ export default function ContactMessages() {
     <DashboardLayout title={uiText("pages.admin.ContactMessages", "Messages de contact")}>
       <div className="mx-auto max-w-5xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Demandes reçues depuis le formulaire public.")}</p>
-          <label className="flex min-w-64 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <Search size={16} className="text-slate-400" />
+          <p className="text-sm text-on-surface-variant">{uiText("pages.admin.ContactMessages", "Demandes reçues depuis le formulaire public.")}</p>
+          <label className="flex min-w-64 items-center gap-2 rounded-xl border border-outline-variant/40 bg-white px-3 py-2">
+            <Search size={16} className="text-on-surface-variant" />
             <input
               value={search}
               onChange={event => setSearch(event.target.value)}
@@ -75,7 +75,7 @@ export default function ContactMessages() {
           <select
             value={ordering}
             onChange={event => setOrdering(event.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className="rounded-xl border border-outline-variant/40 bg-white px-3 py-2 text-sm"
             aria-label={uiText("pages.admin.ContactMessages", "Trier les messages")}
           >
             <option value="-created_at">{uiText("pages.admin.ContactMessages", "Plus récents")}</option>
@@ -84,11 +84,11 @@ export default function ContactMessages() {
             <option value="-last_name">{uiText("pages.admin.ContactMessages", "Nom Z–A")}</option>
           </select>
         </div>
-        {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+        {error && <p className="rounded-lg bg-error-container/50 px-4 py-3 text-sm text-error">{error}</p>}
         {loading ? (
-          <div className="card text-center text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Chargement des messages…")}</div>
+          <div className="card text-center text-sm text-on-surface-variant">{uiText("pages.admin.ContactMessages", "Chargement des messages…")}</div>
         ) : messages.length === 0 ? (
-          <div className="card text-center text-sm text-slate-500">{uiText("pages.admin.ContactMessages", "Aucun message trouvé.")}</div>
+          <div className="card text-center text-sm text-on-surface-variant">{uiText("pages.admin.ContactMessages", "Aucun message trouvé.")}</div>
         ) : (
           <div className="space-y-4">
             {messages.map(message => (
@@ -96,39 +96,39 @@ export default function ContactMessages() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-bold text-slate-900">{message.first_name} {message.last_name}</h2>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${message.is_handled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <h2 className="font-bold text-on-surface dark:text-white">{message.first_name} {message.last_name}</h2>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${message.is_handled ? 'bg-primary-fixed/40 text-primary' : 'bg-tertiary-fixed-dim/60 text-tertiary'}`}>
                         {message.is_handled ? uiText("pages.admin.ContactMessages", "Traité") : uiText("pages.admin.ContactMessages", "À traiter")}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">{formatDateTime(new Date(message.created_at))}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">{formatDateTime(new Date(message.created_at))}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => toggleHandled(message)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/40 px-3 py-2 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low dark:bg-slate-900"
                     >
                       <Check size={14} /> {message.is_handled ? uiText("pages.admin.ContactMessages", "Marquer à traiter") : uiText("pages.admin.ContactMessages", "Marquer traité")}
                     </button>
                     <button
                       onClick={() => deleteMessage(message)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 px-3 py-2 text-xs font-semibold text-error hover:bg-error-container/50"
                     >
                       <Trash2 size={14} />{" " + uiText("pages.admin.ContactMessages", "Supprimer") + " "}</button>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
-                  <a href={`tel:${message.phone}`} className="inline-flex items-center gap-1.5 hover:text-teal-700">
+                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-on-surface-variant">
+                  <a href={`tel:${message.phone}`} className="inline-flex items-center gap-1.5 hover:text-primary">
                     <Phone size={14} /> {message.phone}
                   </a>
                   {message.email && (
-                    <a href={`mailto:${message.email}`} className="inline-flex items-center gap-1.5 hover:text-teal-700">
+                    <a href={`mailto:${message.email}`} className="inline-flex items-center gap-1.5 hover:text-primary">
                       <Mail size={14} /> {message.email}
                     </a>
                   )}
                   {message.rental_type && <span>{message.rental_type}</span>}
                 </div>
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{message.message}</p>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-on-surface dark:text-white">{message.message}</p>
               </article>
             ))}
           </div>
