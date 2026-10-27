@@ -75,14 +75,14 @@ export default function CatalogCard({ v, formuleLabel = '24h', wide = false }) {
         {v.available ? (
           <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total pour {formuleLabel}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 whitespace-nowrap">Total pour {formuleLabel}</div>
               <div className={`font-black text-slate-900 ${wide ? 'text-xl' : 'text-lg'}`}>
                 {v.price.toLocaleString('fr-FR')} <span className="text-xs font-bold text-teal-600">FCFA</span>
               </div>
             </div>
             <button onClick={() => reserve(v)}
-              className={`flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap ${wide ? 'text-sm px-5 py-3' : 'text-xs px-4 py-2.5'}`}>
-              Réserver <ArrowRight size={14} />
+              className={`flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap ${wide ? 'text-xs px-4 py-2.5' : 'text-[11px] px-3 py-2'}`}>
+              Réserver <ArrowRight size={13} />
             </button>
           </div>
         ) : (

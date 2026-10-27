@@ -1,63 +1,78 @@
-import React from 'react';
-import { ShieldCheck, Star, CheckCircle } from 'lucide-react';
-import { IMG } from './data';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle } from 'lucide-react';
+import { HERO_SLIDES, VEHICLE_IMAGES } from '../../utils/carImages';
 import SearchWidget from './SearchWidget';
 
-/* Hero de la landing : titre + visuel + barre de recherche */
+/* Visuels du carrousel — slides dédiés + photos de la flotte */
+const SLIDES = [
+  ...HERO_SLIDES.map(s => s.image),
+  VEHICLE_IMAGES.suv,
+  VEHICLE_IMAGES.luxe,
+];
+const SLIDE_MS = 8000; // changement de visuel toutes les 8 s
+
+/* Hero de la landing : image en fond pleine section + carrousel de véhicules */
 export default function Hero() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % SLIDES.length), SLIDE_MS);
+    return () => clearInterval(t);
+  }, []);
+
   return (
-    <section id="accueil" className="pt-24 lg:pt-32 pb-10 bg-gradient-to-b from-slate-50 to-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-10 items-center">
-          {/* Texte */}
+    <section id="accueil" className="relative pt-28 lg:pt-36 pb-10">
+      {/* Carrousel plein écran — couvre toute la hauteur et largeur de la section */}
+      <div className="absolute inset-0">
+        {SLIDES.map((src, i) => (
+          <img key={src} src={src} alt=""
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === idx ? 'opacity-100' : 'opacity-0'}`}
+            onError={e => { e.target.style.display = 'none'; e.target.parentElement.style.background = '#134e4a'; }} />
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/85 via-slate-900/55 to-slate-900/25" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/70 to-transparent" />
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col min-h-[72vh]">
+        <div className="grid lg:grid-cols-2 gap-10 items-center flex-1">
+          {/* Texte — titre sur 2 lignes maximum */}
           <div>
-            <span className="inline-flex items-center gap-2 bg-teal-50 border border-teal-100 text-teal-700 text-xs font-bold px-4 py-2 rounded-full mb-6">
-              <span className="w-2 h-2 bg-teal-500 rounded-full" />
+            <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full mb-6">
+              <span className="w-2 h-2 bg-teal-400 rounded-full" />
               N°1 de la location vérifiée au Cameroun
             </span>
-            <h1 className="text-4xl md:text-5xl lg:text-[3.4rem] font-black text-slate-900 leading-tight mb-6">
-              Louez un véhicule <span className="text-teal-600">vérifié</span> à Douala &amp; Yaoundé en toute sérénité
+            <h1 className="text-4xl md:text-5xl lg:text-[3.4rem] font-black text-white leading-tight mb-6">
+              Louez un véhicule <span className="text-teal-400">vérifié</span><br />
+              à Douala &amp; Yaoundé
             </h1>
-            <p className="text-lg text-slate-500 leading-relaxed mb-8 max-w-xl">
+            <p className="text-lg text-slate-200 leading-relaxed mb-8 max-w-xl">
               Berlines, SUV et véhicules de luxe inspectés, avec chauffeur certifié
-              ou en autoconduite. Paiement sécurisé par Mobile Money, assistance 24/7.
+              ou en autoconduite. Paiement sécurisé par Mobile Money, assistance 24/7 — en toute sérénité.
             </p>
-            <div className="flex flex-wrap items-center gap-5 text-sm text-slate-500">
+            <div className="flex flex-wrap items-center gap-5 text-sm text-slate-200">
               {['Annulation gratuite 24h avant', 'Chauffeurs certifiés', 'Assurance incluse'].map(t => (
                 <span key={t} className="flex items-center gap-2">
-                  <CheckCircle size={16} className="text-teal-600" />
+                  <CheckCircle size={16} className="text-teal-400" />
                   {t}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* Image */}
-          <div className="relative hidden lg:block">
-            <img src={IMG.hero} alt="Véhicule AutoLink Pro"
-              className="w-full h-[420px] object-cover rounded-3xl shadow-2xl"
-              onError={e => { e.target.style.display = 'none'; e.target.parentElement.style.background = '#134e4a'; e.target.parentElement.style.borderRadius = '1.5rem'; }} />
-            {/* Carte flottante */}
-            <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl border border-slate-100 px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center">
-                <ShieldCheck size={22} className="text-teal-600" />
-              </div>
-              <div>
-                <div className="font-black text-slate-900 text-sm">100% vérifiés</div>
-                <div className="text-xs text-slate-500">Inspection en 50 points</div>
-              </div>
-            </div>
-            <div className="absolute -top-5 -right-5 bg-white rounded-2xl shadow-xl border border-slate-100 px-5 py-4 flex items-center gap-3">
-              <div className="flex -space-x-0.5">
-                {[...Array(5)].map((_, i) => <Star key={i} size={14} className="text-amber-400 fill-amber-400" />)}
-              </div>
-              <div className="text-sm font-black text-slate-900">4,9/5</div>
+          {/* Cartes flottantes + indicateurs du carrousel */}
+          <div className="relative hidden lg:block min-h-[300px]">
+            {/* Points du carrousel */}
+            <div className="absolute bottom-4 right-0 flex items-center gap-2">
+              {SLIDES.map((_, i) => (
+                <button key={i} onClick={() => setIdx(i)} aria-label={`Visuel ${i + 1}`}
+                  className={`rounded-full transition-all duration-300 ${i === idx ? 'w-6 h-2 bg-teal-400' : 'w-2 h-2 bg-white/50 hover:bg-white'}`} />
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Barre de recherche */}
-        <div className="mt-12 lg:mt-14">
+        {/* Barre de recherche — chevauche le bord inférieur du hero */}
+        <div className="relative z-10 mt-12 -mb-14">
           <SearchWidget />
         </div>
       </div>

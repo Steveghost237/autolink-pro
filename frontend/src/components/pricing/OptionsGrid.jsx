@@ -25,7 +25,7 @@ export default function OptionsGrid() {
                 </span>
                 <span className="bg-teal-50 text-teal-700 text-xs font-black px-2.5 py-1 rounded-lg">{o.price}</span>
               </div>
-              <h3 className="font-black text-slate-900 text-sm mb-1.5">{o.name}</h3>
+              <h3 className=" text-slate-900 text-sm mb-1.5">{o.name}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">{o.desc}</p>
             </div>
           ))}

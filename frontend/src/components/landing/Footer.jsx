@@ -87,7 +87,7 @@ export default function Footer() {
         </div>
 
         {/* Moyens de paiement */}
-        <div className="border-t border-slate-800 pt-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* <div className="border-t border-slate-800 pt-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
             Moyens de paiement acceptés
           </span>
@@ -102,7 +102,7 @@ export default function Footer() {
               Carte bancaire
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* Bottom bar */}
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
