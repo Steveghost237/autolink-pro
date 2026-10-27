@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Loader } from 'lucide-react';
 
@@ -16,6 +16,9 @@ const GoogleIcon = () => (
 export default function GoogleAuthButton({ label = 'Continuer avec Google' }) {
   const { googleLogin, getDashboardPath } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // ?next=/chemin : revenir à l'action en cours après connexion Google
+  const next = params.get('next');
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -33,7 +36,7 @@ export default function GoogleAuthButton({ label = 'Continuer avec Google' }) {
       google_id: '',
     });
     setLoading(false);
-    if (res.success) { setOpen(false); navigate(getDashboardPath(res.user.role)); }
+    if (res.success) { setOpen(false); navigate(next || getDashboardPath(res.user.role)); }
     else setError(res.error);
   };
 

@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 import Landing from './pages/Landing';
+import Catalog from './pages/Catalog';
+import VehicleDetail from './pages/VehicleDetail';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ClientDashboard from './pages/client/ClientDashboard';
@@ -39,6 +41,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/catalogue" element={<Catalog />} />
+      <Route path="/vehicule/:id" element={<VehicleDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
