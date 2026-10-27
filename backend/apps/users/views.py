@@ -86,8 +86,30 @@ class SiteConfigAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from django.db.models import Avg
+        from apps.bookings.models import Booking
+        from apps.vehicles.models import Vehicle
         platform = PlatformSettings.current()
+        approved = Vehicle.objects.filter(status__in=('approved', 'rented'))
+        rated = Booking.objects.exclude(client_rating__isnull=True)
         return Response({
+            'tiers': PlatformSettingsSerializer().get_tiers(platform),
+            'stats': {
+                'vehicles': approved.count(),
+                'completed_bookings': Booking.objects.filter(status='completed').count(),
+                'average_rating': round(rated.aggregate(v=Avg('client_rating'))['v'] or 0, 1),
+                'reviews': rated.count(),
+                'cities': approved.exclude(city='').values('city').distinct().count(),
+            },
+            'reviews': [{
+                'rating': b.client_rating,
+                'text': b.client_review,
+                'author': f'{b.client.first_name} {b.client.last_name[:1]}.'.strip(),
+                'city': b.vehicle.city,
+                'vehicle': f'{b.vehicle.brand} {b.vehicle.model}',
+                'days': b.days,
+            } for b in rated.exclude(client_review='').filter(client_rating__gte=4)
+                .select_related('client', 'vehicle').order_by('-updated_at')[:3]],
             'contact_email': platform.contact_email or settings.CONTACT_EMAIL,
             'phones': [p.strip() for p in platform.phones.split(',') if p.strip()],
             'addresses': [a.strip() for a in platform.addresses.split('|') if a.strip()],

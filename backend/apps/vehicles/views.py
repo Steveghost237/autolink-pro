@@ -32,7 +32,7 @@ class VehicleFilter(django_filters.FilterSet):
 
     class Meta:
         model = Vehicle
-        fields = ['category', 'fuel', 'status', 'owner']
+        fields = ['category', 'fuel', 'status', 'owner', 'tier', 'city', 'driver_available']
 
 
 class VehicleViewSet(ModelViewSet):

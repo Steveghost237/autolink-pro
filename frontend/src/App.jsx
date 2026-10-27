@@ -43,6 +43,11 @@ import AdminBookings from './pages/admin/AdminBookings';
 import AdminOwners from './pages/admin/AdminOwners';
 import PlatformSettings from './pages/admin/PlatformSettings';
 import MaintenanceBanner from './components/MaintenanceBanner';
+import Catalog from './pages/Catalog';
+import HowItWorks from './pages/HowItWorks';
+import Pricing from './pages/Pricing';
+import BecomeOwner from './pages/BecomeOwner';
+import Help from './pages/Help';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -64,6 +69,11 @@ function AppRoutes() {
       <Route path="/terms" element={<LegalPages />} />
       <Route path="/cookies" element={<LegalPages />} />
       <Route path="/vehicles/:id" element={<VehicleDetail />} />
+      <Route path="/catalog" element={<Catalog />} />
+      <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/become-owner" element={<BecomeOwner />} />
+      <Route path="/help" element={<Help />} />
 
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
