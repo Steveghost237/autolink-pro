@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Smartphone } from 'lucide-react';
 import { HERO_SLIDES, VEHICLE_IMAGES } from '../../utils/carImages';
 import SearchWidget from './SearchWidget';
 
@@ -49,13 +49,24 @@ export default function Hero() {
               Berlines, SUV et véhicules de luxe inspectés, avec chauffeur certifié
               ou en autoconduite. Paiement sécurisé par Mobile Money, assistance 24/7 — en toute sérénité.
             </p>
-            <div className="flex flex-wrap items-center gap-5 text-sm text-slate-200">
+            <div className="flex flex-wrap items-center gap-5 text-sm text-slate-200 mb-8">
               {['Annulation gratuite 24h avant', 'Chauffeurs certifiés', 'Assurance incluse'].map(t => (
                 <span key={t} className="flex items-center gap-2">
                   <CheckCircle size={16} className="text-teal-400" />
                   {t}
                 </span>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <a href="https://github.com/WIB-New/autolink-pro/releases/download/app-v1.0.0/autolink-pro.apk"
+                className="inline-flex items-center gap-3 bg-teal-500 hover:bg-teal-400 active:bg-teal-600 text-slate-950 font-bold py-3.5 px-6 rounded-2xl transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-400/40">
+                <Smartphone size={22} />
+                <span className="text-left leading-tight">
+                  <span className="block text-[10px] uppercase tracking-wider opacity-80">Application Android</span>
+                  <span className="block text-base">Télécharger l'APK</span>
+                </span>
+              </a>
+              <span className="text-xs text-slate-300">Gratuite · Installation directe<br />Android 8.0+</span>
             </div>
           </div>
 
