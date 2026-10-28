@@ -10,21 +10,8 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     fieldsets = BaseUserAdmin.fieldsets + (
         ('AutoLink Info', {'fields': ('role', 'phone', 'avatar', 'is_verified', 'newsletter_opt_in', 'id_document', 'id_document_verified', 'driving_license', 'driving_license_expires_at', 'kyc_status', 'kyc_note', 'city', 'date_of_birth', 'address')}),
-        ('Intermédiaire', {'fields': ('referral_code', 'commission_rate', 'referred_by')}),
     )
 
-
-
-@admin.register(PlatformSettings)
-class PlatformSettingsAdmin(admin.ModelAdmin):
-    list_display = ['id', 'commission_rate', 'min_withdrawal_amount', 'maintenance_mode',
-                    'intermediary_default_rate', 'driver_service_price', 'updated_at']
-
-    def has_add_permission(self, request):
-        return not PlatformSettings.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 @admin.register(ContactMessage)
 class ContactMessageAdmin(admin.ModelAdmin):
@@ -40,3 +27,6 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
     ordering = ['-sent_at']
 
 
+@admin.register(PlatformSettings)
+class PlatformSettingsAdmin(admin.ModelAdmin):
+    list_display = ['__str__', 'commission_rate', 'min_withdrawal_amount', 'maintenance_mode', 'updated_at']

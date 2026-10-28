@@ -3,12 +3,10 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AdminVehicleViewSet, ControllerPendingVehicleListView, ControllerVehicleDecisionView,
     FavoriteViewSet, VehicleFacetsView, VehicleViewSet, VehicleAvailabilityView,
-    MaintenanceRequestViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'favorites', FavoriteViewSet, basename='vehicle-favorite')
-router.register(r'maintenance', MaintenanceRequestViewSet, basename='maintenance-request')
 router.register(r'', VehicleViewSet, basename='vehicle')
 
 urlpatterns = [

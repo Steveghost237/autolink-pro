@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI, usersAPI } from '../services/api';
-import { uiText } from '../i18n';
 
 const AuthContext = createContext(null);
 
@@ -54,10 +53,10 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       // Identifiants invalides confirmés par l'API → erreur directe
       if (err.response?.status === 400 || err.response?.status === 401) {
-        return { success: false, error: uiText('auth', 'Email ou mot de passe incorrect.') };
+        return { success: false, error: 'Email ou mot de passe incorrect.' };
       }
       // API injoignable → erreur réseau honnête (aucun mode démo)
-      return { success: false, error: uiText('auth', 'Serveur injoignable — vérifiez votre connexion puis réessayez.') };
+      return { success: false, error: 'Serveur injoignable — vérifiez votre connexion puis réessayez.' };
     }
   };
 
@@ -101,7 +100,7 @@ export const AuthProvider = ({ children }) => {
         const first = Object.values(err.response.data)[0];
         return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
       }
-        return { success: false, error: uiText('auth', 'Serveur injoignable — réessayez.') };
+      return { success: false, error: 'Serveur injoignable — réessayez.' };
     }
   };
 
@@ -114,10 +113,8 @@ export const AuthProvider = ({ children }) => {
         last_name: userData.lastName || '',
         phone: userData.phone || '',
         role: userData.role || 'CLIENT',
-        agent_code: userData.agentCode || '',
         password: userData.password,
         password2: userData.password,
-        referral_code: userData.referralCode || '',
       });
       const safeUser = normalizeUser(data.user);
       localStorage.setItem('autolink_user', JSON.stringify(safeUser));
@@ -131,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         const first = Object.values(err.response.data)[0];
         return { success: false, error: Array.isArray(first) ? first[0] : String(first) };
       }
-        return { success: false, error: uiText('auth', 'API injoignable — réessayez plus tard.') };
+      return { success: false, error: 'API injoignable — réessayez plus tard.' };
     }
   };
 
@@ -170,10 +167,9 @@ export const AuthProvider = ({ children }) => {
     const paths = {
       CLIENT: '/client/dashboard',
       OWNER: '/owner/dashboard',
-      DRIVER: '/',
+      DRIVER: '/driver/dashboard',
       ADMIN: '/admin/dashboard',
       CONTROLLER: '/controller/dashboard',
-      INTERMEDIARY: '/intermediary/dashboard',
     };
     return paths[role] || '/';
   };

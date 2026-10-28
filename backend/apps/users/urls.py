@@ -1,12 +1,24 @@
 from django.urls import path
 from .views import (
     AdminActivityView,
-    GoogleAuthView, KYCUploadView, LoginView, MeView,
-    NewsletterCampaignListView, NewsletterCampaignDetailView, NewsletterResendView,
-    NewsletterSendView, NewsletterUnsubscribeView,
-    NotificationDetailView, NotificationListView, NotificationReadView,
-    OTPRequestView, OTPVerifyView, RegisterView, UserDetailView, UserListView,
-    PlatformSettingsView, PublicConfigView,
+    GoogleAuthView,
+    KYCUploadView,
+    PlatformSettingsView,
+    LoginView,
+    MeView,
+    NewsletterCampaignListView,
+    NewsletterCampaignDetailView,
+    NewsletterResendView,
+    NewsletterSendView,
+    NewsletterUnsubscribeView,
+    NotificationDetailView,
+    NotificationListView,
+    NotificationReadView,
+    OTPRequestView,
+    OTPVerifyView,
+    RegisterView,
+    UserDetailView,
+    UserListView,
 )
 
 urlpatterns = [
@@ -28,8 +40,6 @@ urlpatterns = [
     path('notifications/read/', NotificationReadView.as_view(), name='notifications-read-all'),
     path('notifications/<int:pk>/read/', NotificationReadView.as_view(), name='notification-read'),
     path('notifications/<int:pk>/', NotificationDetailView.as_view(), name='notification-detail'),
-    path('settings/', PlatformSettingsView.as_view(), name='platform-settings'),
-    path('public-config/', PublicConfigView.as_view(), name='public-config'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('', UserListView.as_view(), name='user-list'),
 ]

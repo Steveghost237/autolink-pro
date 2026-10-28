@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Car, Shield, Zap, KeyRound, ChevronRight } from 'lucide-react';
 import GoogleAuthButton from './GoogleAuthButton';
-import { uiText } from '../i18n';
 
 // Popup d'accueil — campagne de conversion : pousse à la réservation.
 // Affiché une fois par session, ~1,2 s après le chargement de la page.
@@ -38,18 +37,23 @@ export default function PromoPopup() {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center border border-white/20">
             <Car size={34} className="text-white" />
           </div>
-          <span className="absolute top-4 left-4 bg-accent-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">{uiText("components.PromoPopup", "Offre de lancement") + " "}</span>
-          <button onClick={close} aria-label={uiText("components.PromoPopup", "Fermer")}
+          <span className="absolute top-4 left-4 bg-accent-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+            Offre de lancement
+          </span>
+          <button onClick={close} aria-label="Fermer"
             className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-7 pb-7 mt-1">
-          <h2 className="text-2xl font-black text-white leading-normal">{uiText("components.PromoPopup", "Votre véhicule vous attend.")}<br />
-            <span className="text-accent-400">{uiText("components.PromoPopup", "Réservation en 2 minutes.")}</span>
+          <h2 className="text-2xl font-black text-white leading-normal">
+            Votre véhicule vous attend.<br />
+            <span className="text-accent-400">Réservation en 2 minutes.</span>
           </h2>
-          <p className="text-primary-200 text-sm mt-2">{uiText("components.PromoPopup", "Berlines, 4×4, vans — avec ou sans chauffeur, partout au Cameroun.") + " "}</p>
+          <p className="text-primary-200 text-sm mt-2">
+            Berlines, 4×4, vans — avec ou sans chauffeur, partout au Cameroun.
+          </p>
 
           <div className="flex gap-2 mt-4">
             {[{ icon: Zap, l: 'Confirmation immédiate' }, { icon: Shield, l: 'Caution sécurisée' }, { icon: KeyRound, l: 'Sans mot de passe' }].map(f => (
@@ -62,14 +66,18 @@ export default function PromoPopup() {
 
           {/* Connexion express */}
           <div className="mt-5 space-y-2.5">
-            <GoogleAuthButton label={uiText("components.PromoPopup", "Continuer avec Google")} />
+            <GoogleAuthButton label="Continuer avec Google" />
             <button onClick={() => go('/login?otp=1')}
               className="w-full flex items-center justify-center gap-2 border border-primary-400/40 hover:border-primary-300 bg-primary-500/10 hover:bg-primary-500/20 text-primary-100 rounded-xl py-3 font-semibold text-sm transition">
-              <KeyRound size={16} />{" " + uiText("components.PromoPopup", "Recevoir un code par email") + " "}</button>
-            <button onClick={() => go('/register')}
-              className="w-full btn-primary py-3.5 flex items-center justify-center gap-1 font-bold">{uiText("components.PromoPopup", "Réserver mon véhicule") + " "}<ChevronRight size={18} />
+              <KeyRound size={16} /> Recevoir un code par email
             </button>
-            <button onClick={close} className="w-full text-center text-xs text-primary-300 hover:text-white py-1 transition">{uiText("components.PromoPopup", "Continuer sans compte") + " "}</button>
+            <button onClick={() => go('/register')}
+              className="w-full btn-primary py-3.5 flex items-center justify-center gap-1 font-bold">
+              Réserver mon véhicule <ChevronRight size={18} />
+            </button>
+            <button onClick={close} className="w-full text-center text-xs text-primary-300 hover:text-white py-1 transition">
+              Continuer sans compte
+            </button>
           </div>
         </div>
       </div>

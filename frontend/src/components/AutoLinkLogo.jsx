@@ -1,5 +1,4 @@
 import React from 'react';
-import { uiText } from '../i18n';
 
 /* ─── SVG logo (shield style — AutoLink Pro) ─── */
 export function AutoLinkShield({ size = 200 }) {
@@ -9,7 +8,7 @@ export function AutoLinkShield({ size = 200 }) {
       viewBox="0 0 400 440"
       width={size}
       height={size * 1.1}
-      aria-label={uiText("components.AutoLinkLogo", "AutoLink Pro")}
+      aria-label="AutoLink Pro"
     >
       <defs>
         <linearGradient id="alp-silver" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -83,12 +82,12 @@ export function AutoLinkShield({ size = 200 }) {
         {/* ── ALP Monogram ── */}
         {/* "A" with italic + speed stripe */}
         <text x="100" y="118" fontFamily="'Arial Black','Arial',sans-serif" fontSize="78" fontWeight="900" fontStyle="italic"
-          fill="url(#alp-blue)" filter="url(#alp-glow2)">{uiText("components.AutoLinkLogo", "A")}</text>
+          fill="url(#alp-blue)" filter="url(#alp-glow2)">A</text>
         {/* Diagonal stripe cutting through A */}
         <rect x="100" y="82" width="54" height="7" rx="3.5" fill="#060c22" transform="rotate(-18,127,85)"/>
         {/* LP */}
         <text x="175" y="118" fontFamily="'Arial Black','Arial',sans-serif" fontSize="64" fontWeight="900" fontStyle="italic"
-          fill="#8ab4d8" opacity="0.88">{uiText("components.AutoLinkLogo", "LP")}</text>
+          fill="#8ab4d8" opacity="0.88">LP</text>
 
         {/* ══════ CAR SILHOUETTE ══════ */}
 
@@ -225,21 +224,27 @@ export function AutoLinkShield({ size = 200 }) {
 
         {/* AUTO LINK PRO */}
         <text x="200" y="330" fontFamily="'Arial Black','Arial',sans-serif" fontSize="38" fontWeight="900"
-          textAnchor="middle" letterSpacing="2" fill="white">{uiText("components.AutoLinkLogo", "AUTO") + " "}<tspan fill="url(#alp-blue)">{uiText("components.AutoLinkLogo", "LINK")}</tspan>{" " + uiText("components.AutoLinkLogo", "PRO") + " "}</text>
+          textAnchor="middle" letterSpacing="2" fill="white">
+          AUTO <tspan fill="url(#alp-blue)">LINK</tspan> PRO
+        </text>
 
         {/* Thin divider */}
         <line x1="75" y1="340" x2="325" y2="340" stroke="#3b82f6" strokeWidth="0.8" opacity="0.5"/>
 
         {/* Tagline */}
         <text x="200" y="358" fontFamily="Arial,sans-serif" fontSize="11" fontWeight="600"
-          textAnchor="middle" letterSpacing="2.5" fill="#c0cde0">{uiText("components.AutoLinkLogo", "LOCATION DES VOITURES") + " "}</text>
+          textAnchor="middle" letterSpacing="2.5" fill="#c0cde0">
+          LOCATION DES VOITURES
+        </text>
         <text x="200" y="374" fontFamily="Arial,sans-serif" fontSize="11" fontWeight="600"
-          textAnchor="middle" letterSpacing="2.5" fill="#3b82f6">{uiText("components.AutoLinkLogo", "PAR EXCELLENCE") + " "}</text>
+          textAnchor="middle" letterSpacing="2.5" fill="#3b82f6">
+          PAR EXCELLENCE
+        </text>
 
         {/* Stars */}
         {[-28,-14,0,14,28].map((dx,i) => (
           <text key={i} x={200+dx} y="396" fontFamily="Arial" fontSize={i===2?16:13}
-            textAnchor="middle" fill="#3b82f6" opacity={i===2?1:0.8}>{uiText("components.AutoLinkLogo", "★")}</text>
+            textAnchor="middle" fill="#3b82f6" opacity={i===2?1:0.8}>★</text>
         ))}
       </g>
     </svg>

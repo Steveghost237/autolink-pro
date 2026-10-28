@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from .models import DriverApplication, DriverProfile, DriverServiceRequest
 from .models import DriverApplication, DriverEarning, DriverProfile
 
 
@@ -39,20 +38,6 @@ class DriverProfileSerializer(serializers.ModelSerializer):
         return obj.driver.get_full_name()
 
 
-class DriverServiceRequestSerializer(serializers.ModelSerializer):
-    owner_name = serializers.SerializerMethodField()
-    owner_phone = serializers.CharField(source='owner.phone', read_only=True)
-    owner_email = serializers.CharField(source='owner.email', read_only=True)
-    total_price = serializers.ReadOnlyField()
-
-    class Meta:
-        model = DriverServiceRequest
-        fields = '__all__'
-        read_only_fields = ['owner', 'status', 'admin_notes', 'processed_by',
-                            'created_at', 'updated_at']
-
-    def get_owner_name(self, obj):
-        return obj.owner.get_full_name()
 class DriverEarningSerializer(serializers.ModelSerializer):
     booking_reference = serializers.SerializerMethodField()
     vehicle_name = serializers.SerializerMethodField()

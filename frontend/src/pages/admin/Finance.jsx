@@ -1,272 +1,172 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, CreditCard, DollarSign, Download, TrendingUp } from 'lucide-react';
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import React, { useState } from 'react';
+import { DollarSign, TrendingUp, Download, CreditCard, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import DashboardLayout from '../../components/DashboardLayout';
-import ListToolbar from '../../components/ListToolbar';
-import { financeAPI, payoutsAPI } from '../../services/api';
-import { formatNumber, formatDate,  uiText } from '../../i18n';
 
-const SORT_OPTIONS = [
-  { value: 'created_at', label: uiText("pages.admin.Finance", "Date de création") },
-  { value: 'paid_at', label: uiText("pages.admin.Finance", "Date de paiement") },
-  { value: 'amount', label: uiText("pages.admin.Finance", "Montant") },
-  { value: 'commission', label: uiText("pages.admin.Finance", "Commission") },
-  { value: 'status', label: uiText("pages.admin.Finance", "Statut") },
-  { value: 'method', label: uiText("pages.admin.Finance", "Méthode") },
+const MONTHLY_DATA = [
+  { month: 'Fév', ca: 2800000, commission: 1400000, versements: 1400000 },
+  { month: 'Mar', ca: 3200000, commission: 1600000, versements: 1600000 },
+  { month: 'Avr', ca: 3800000, commission: 1900000, versements: 1900000 },
+  { month: 'Mai', ca: 4100000, commission: 2050000, versements: 2050000 },
+  { month: 'Juin', ca: 3700000, commission: 1850000, versements: 1850000 },
+  { month: 'Juil', ca: 4500000, commission: 2250000, versements: 2250000 },
+  { month: 'Août', ca: 4760000, commission: 2380000, versements: 2380000 },
 ];
-const METHODS = [
-  ['mtn', 'MTN Money'], ['orange', 'Orange Money'], ['paypal', 'PayPal'],
-  ['stripe', 'Carte bancaire'], ['wallet', 'Portefeuille'],
+
+const PAYMENT_METHODS = [
+  { name: 'MTN Money', value: 42, color: '#EAB308' },
+  { name: 'Orange Money', value: 31, color: '#F97316' },
+  { name: 'PayPal', value: 15, color: '#3B82F6' },
+  { name: 'Stripe', value: 12, color: '#8B5CF6' },
 ];
-const METHOD_COLORS = { mtn: '#EAB308', orange: '#F97316', paypal: '#3B82F6', stripe: '#8B5CF6', wallet: '#0D9488' };
-const STATUS_LABELS = {
-  pending: uiText("pages.admin.Finance", "En attente"),
-  completed: uiText("pages.admin.Finance", "Confirmé"),
-  failed: uiText("pages.admin.Finance", "Échoué"),
-  refunded: uiText("pages.admin.Finance", "Remboursé"),
-};
-const amount = value => formatNumber(Number(value || 0));
+
+const TRANSACTIONS = [
+  { id: 'TX001', type: 'booking', client: 'Marie Konan', vehicle: 'Toyota Corolla 2022', amount: 50000, commission: 25000, owner_share: 25000, method: 'MTN Money', date: '2025-08-20', status: 'completed' },
+  { id: 'TX002', type: 'booking', client: 'Yves Kouadio', vehicle: 'BMW Série 5', amount: 80000, commission: 40000, owner_share: 40000, method: 'Orange Money', date: '2025-08-20', status: 'completed' },
+  { id: 'TX003', type: 'booking', client: 'Awa Diallo', vehicle: 'Hyundai Tucson', amount: 135000, commission: 67500, owner_share: 67500, method: 'PayPal', date: '2025-08-19', status: 'completed' },
+  { id: 'TX004', type: 'booking', client: 'Paul Bamba', vehicle: 'Mercedes Sprinter', amount: 110000, commission: 55000, owner_share: 55000, method: 'Stripe', date: '2025-08-19', status: 'pending' },
+  { id: 'TX005', type: 'refund', client: 'Fatou Coulibaly', vehicle: 'Ford Ranger', amount: -40000, commission: 0, owner_share: 0, method: 'MTN Money', date: '2025-08-18', status: 'refunded' },
+];
+
+const fmt = (n) => n.toLocaleString();
 
 export default function Finance() {
-  const [stats, setStats] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [method, setMethod] = useState('');
-  const [sortField, setSortField] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [payouts, setPayouts] = useState([]);
-  const [payoutCount, setPayoutCount] = useState(0);
-  const [payoutPage, setPayoutPage] = useState(1);
-  const [payoutSearch, setPayoutSearch] = useState('');
-  const [payoutStatus, setPayoutStatus] = useState('');
-  const [payoutSortField, setPayoutSortField] = useState('created_at');
-  const [payoutSortOrder, setPayoutSortOrder] = useState('desc');
-
-  const filters = useMemo(() => ({
-    page, page_size: 20, search: search.trim(), status: status || undefined,
-    method: method || undefined, ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
-  }), [page, search, status, method, sortOrder, sortField]);
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [statsResponse, transactionResponse] = await Promise.all([
-        financeAPI.stats(), financeAPI.transactions(filters),
-      ]);
-      setStats(statsResponse.data);
-      setTransactions(transactionResponse.data.results || []);
-      setCount(transactionResponse.data.count ?? 0);
-      setError('');
-    } catch (_) {
-      setError(uiText("pages.admin.Finance", "Impossible de charger les données financières."));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
-  useEffect(() => { load(); }, [load]);
-
-  const loadPayouts = useCallback(async () => {
-    try {
-      const { data } = await payoutsAPI.list({
-        page: payoutPage, page_size: 20, search: payoutSearch.trim(),
-        status: payoutStatus || undefined,
-        ordering: `${payoutSortOrder === 'desc' ? '-' : ''}${payoutSortField}`,
-      });
-      setPayouts(data.results || []);
-      setPayoutCount(data.count ?? 0);
-    } catch (_) {
-      setError(uiText("pages.admin.Finance", "Impossible de charger les versements propriétaires."));
-    }
-  }, [payoutPage, payoutSearch, payoutStatus, payoutSortOrder, payoutSortField]);
-  useEffect(() => { loadPayouts(); }, [loadPayouts]);
-
-  const exportCsv = async () => {
-    try {
-      const { data } = await financeAPI.exportTransactions({
-        search: search.trim(), status: status || undefined, method: method || undefined,
-        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
-      });
-      const url = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'transactions.csv';
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (_) {
-      setError(uiText("pages.admin.Finance", "L’export des transactions a échoué."));
-    }
-  };
-
-  const methods = (stats?.payment_methods || []).map(item => ({
-    ...item,
-    name: METHODS.find(([key]) => key === item.method)?.[1] || item.method,
-    value: Number(item.amount),
-  }));
-  const series = (stats?.monthly_series || []).map(item => ({
-    ...item, revenue: Number(item.revenue), commission: Number(item.commission),
-    driver_earnings: Number(item.driver_earnings), platform_net: Number(item.platform_net),
-    owner_payouts: Number(item.owner_payouts),
-    label: formatDate(new Date(`${item.month}-01T00:00:00`), { month: 'short', year: '2-digit' }),
-  }));
+  const [period, setPeriod] = useState('month');
+  const currentMonth = MONTHLY_DATA[MONTHLY_DATA.length - 1];
+  const prevMonth = MONTHLY_DATA[MONTHLY_DATA.length - 2];
+  const growth = (((currentMonth.ca - prevMonth.ca) / prevMonth.ca) * 100).toFixed(1);
 
   return (
-    <DashboardLayout title={uiText("pages.admin.Finance", "Finance & commissions")}>
-      <div className="mx-auto max-w-7xl space-y-6">
-        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+    <DashboardLayout title="Finance & Commissions">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* KPIs */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: uiText("pages.admin.Finance", "Chiffre d’affaires du mois"), value: stats?.revenue, icon: TrendingUp, style: 'bg-secondary-fixed/50 text-secondary' },
-            { label: uiText("pages.admin.Finance", "Commission brute AutoLink"), value: stats?.commission, icon: DollarSign, style: 'bg-primary-fixed/30 text-primary' },
-            { label: uiText("pages.admin.Finance", "Gains des chauffeurs"), value: stats?.driver_earnings, icon: CreditCard, style: 'bg-tertiary-fixed/50 text-tertiary' },
-            { label: uiText("pages.admin.Finance", "Net plateforme"), value: stats?.platform_net, icon: TrendingUp, style: 'bg-primary-fixed/30 text-primary' },
-            { label: uiText("pages.admin.Finance", "Versements propriétaires"), value: stats?.owner_payouts, icon: CreditCard, style: 'bg-secondary-fixed/50 text-secondary' },
-            { label: uiText("pages.admin.Finance", "Transactions du mois"), value: stats?.transaction_count, icon: Calendar, style: 'bg-tertiary-fixed/50 text-tertiary', currency: false },
-          ].map(({ label, value, icon: Icon, style, currency = true }) => (
+            { label: 'CA ce mois', value: `${fmt(currentMonth.ca)} FCFA`, change: `+${growth}%`, up: true, icon: TrendingUp, color: 'bg-blue-50 text-blue-600' },
+            { label: 'Commission AutoLink (50%)', value: `${fmt(currentMonth.commission)} FCFA`, change: '50% du CA', up: true, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Versé propriétaires (50%)', value: `${fmt(currentMonth.versements)} FCFA`, change: '50% du CA', up: true, icon: CreditCard, color: 'bg-purple-50 text-purple-600' },
+            { label: 'Transactions ce mois', value: '1 247', change: '+18 vs hier', up: true, icon: Calendar, color: 'bg-accent-50 text-accent-600' },
+          ].map(({ label, value, change, up, icon: Icon, color }) => (
             <div key={label} className="card">
-              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${style}`}><Icon size={20} /></div>
-              <div className="text-xl font-black text-on-surface dark:text-white">{value === undefined ? uiText("pages.admin.Finance", "—") : `${currency ? `${amount(value)} FCFA` : amount(value)}`}</div>
-              <div className="mt-1 text-sm text-on-surface-variant">{label}</div>
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center`}><Icon size={20} /></div>
+                <div className={`flex items-center gap-1 text-xs font-semibold ${up ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}{change}
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 leading-snug">{value}</div>
+              <div className="text-sm text-slate-500 mt-1">{label}</div>
             </div>
           ))}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <section className="card lg:col-span-2">
-            <h2 className="mb-4 font-bold">{uiText("pages.admin.Finance", "Revenus et versements — 12 mois")}</h2>
-            {series.length ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={series}>
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={value => `${Math.round(value / 1000)}k`} />
-                  <Tooltip formatter={value => `${amount(value)} FCFA`} />
-                  <Bar dataKey="revenue" name="Chiffre d’affaires" fill="#0d9488" />
-                  <Bar dataKey="commission" name="Commission brute" fill="#f97316" />
-                  <Bar dataKey="driver_earnings" name="Gains chauffeurs" fill="#eab308" />
-                  <Bar dataKey="platform_net" name="Net plateforme" fill="#14b8a6" />
-                  <Bar dataKey="owner_payouts" name="Versements" fill="#10b981" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <p className="py-20 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucune donnée financière disponible.")}</p>}
-          </section>
-          <section className="card">
-            <h2 className="mb-4 font-bold">{uiText("pages.admin.Finance", "Moyens de paiement")}</h2>
-            {methods.length ? (
-              <>
-                <ResponsiveContainer width="100%" height={190}>
-                  <PieChart><Pie data={methods} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75}>
-                    {methods.map(item => <Cell key={item.method} fill={METHOD_COLORS[item.method] || uiText("pages.admin.Finance", "#64748b")} />)}
-                  </Pie><Tooltip formatter={value => `${amount(value)} FCFA`} /></PieChart>
-                </ResponsiveContainer>
-                <ul className="space-y-2 text-sm">{methods.map(item => (
-                  <li key={item.method} className="flex justify-between">
-                    <span>{item.name}{" " + uiText("pages.admin.Finance", "·") + " "}{item.transactions}{" " + uiText("pages.admin.Finance", "transaction(s)")}</span><strong>{amount(item.amount)}{" " + uiText("pages.admin.Finance", "F")}</strong>
-                  </li>
-                ))}</ul>
-              </>
-            ) : <p className="py-16 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucun paiement ce mois.")}</p>}
-          </section>
+        {/* Commission explainer */}
+        <div className="bg-gradient-to-r from-primary-700 to-primary-900 rounded-2xl p-6 text-white">
+          <h3 className="font-bold text-lg mb-4">Modèle de commission AutoLink — Répartition automatique</h3>
+          <div className="grid sm:grid-cols-3 gap-4 text-center">
+            <div className="bg-white/10 rounded-xl p-4">
+              <div className="text-3xl font-black">100%</div>
+              <div className="text-primary-200 text-sm mt-1">Client paie</div>
+              <div className="text-xs text-primary-300 mt-1">Montant total de la location</div>
+            </div>
+            <div className="bg-accent-500/30 rounded-xl p-4 border border-accent-400/50">
+              <div className="text-3xl font-black text-accent-300">50%</div>
+              <div className="text-accent-200 text-sm mt-1">AutoLink garde</div>
+              <div className="text-xs text-accent-300 mt-1">Commission plateforme</div>
+            </div>
+            <div className="bg-emerald-500/30 rounded-xl p-4 border border-emerald-400/50">
+              <div className="text-3xl font-black text-emerald-300">50%</div>
+              <div className="text-emerald-200 text-sm mt-1">Caution propriétaire</div>
+              <div className="text-xs text-emerald-300 mt-1">Bloquée puis versée au retour du véhicule</div>
+            </div>
+          </div>
         </div>
 
-        <section className="card space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Transactions")}</h2><p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.Finance", "transaction(s)")}</p></div>
-            <button onClick={exportCsv} className="btn-outline flex items-center gap-2"><Download size={16} />{" " + uiText("pages.admin.Finance", "Exporter CSV")}</button>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <ListToolbar search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
-              sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
-              sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
-              sortOptions={SORT_OPTIONS} placeholder={uiText("pages.admin.Finance", "Rechercher client, référence, véhicule")} />
-            <select className="input-field w-auto" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
-              <option value="">{uiText("pages.admin.Finance", "Tous les statuts")}</option>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <select className="input-field w-auto" value={method} onChange={event => { setMethod(event.target.value); setPage(1); }}>
-              <option value="">{uiText("pages.admin.Finance", "Toutes les méthodes")}</option>
-              {METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
-                <tr>{["Référence", "Client", "Véhicule", "Montant", "Commission", "Part propriétaire", "Méthode", "Date", "Statut"].map(label => <th key={label} className="px-3 py-3">{uiText("pages.admin.Finance", label)}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/30">
-                {transactions.map(transaction => (
-                  <tr key={transaction.id}>
-                    <td className="px-3 py-3 font-mono text-xs">{transaction.reference}</td>
-                    <td className="px-3 py-3">{transaction.client_name}<div className="text-xs text-on-surface-variant">{transaction.client_email}</div></td>
-                    <td className="px-3 py-3">{transaction.vehicle}</td>
-                    <td className="px-3 py-3 font-semibold">{amount(transaction.amount)} FCFA</td>
-                    <td className="px-3 py-3">{amount(transaction.commission)} FCFA</td>
-                    <td className="px-3 py-3">{amount(transaction.owner_payout)}{" " + uiText("pages.admin.Finance", "F")}</td>
-                    <td className="px-3 py-3">{METHODS.find(([key]) => key === transaction.method)?.[1] || transaction.method}</td>
-                    <td className="px-3 py-3 whitespace-nowrap">{formatDate(new Date(transaction.paid_at || transaction.created_at))}</td>
-                    <td className="px-3 py-3">{STATUS_LABELS[transaction.status] || transaction.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!loading && transactions.length === 0 && <p className="py-10 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucune transaction trouvée.")}</p>}
-            {loading && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Chargement…")}</p>}
-          </div>
-          <div className="flex items-center justify-between border-t pt-3 text-sm">
-            <span>{uiText("pages.admin.Finance", "Page") + " "}{page}{" " + uiText("pages.admin.Finance", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
-            <div className="flex gap-2">
-              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>{uiText("pages.admin.Finance", "Précédent")}</button>
-              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>{uiText("pages.admin.Finance", "Suivant")}</button>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Revenue Chart */}
+          <div className="lg:col-span-2 card">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-bold text-slate-900">Évolution des revenus (7 mois)</h3>
+              <button className="flex items-center gap-1.5 text-sm text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-colors">
+                <Download size={14} /> Export CSV
+              </button>
             </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={MONTHLY_DATA}>
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={v => `${(v/1000000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => `${fmt(v)} FCFA`} />
+                <Bar dataKey="ca" name="CA Total" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="commission" name="Commission AutoLink" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="versements" name="Versé propriétaires" fill="#10b981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </section>
 
-        <section className="card space-y-4">
-          <div><h2 className="font-bold">{uiText("pages.admin.Finance", "Versements propriétaires")}</h2><p className="text-sm text-on-surface-variant">{payoutCount}{" " + uiText("pages.admin.Finance", "versement(s)")}</p></div>
-          <div className="flex flex-wrap items-center gap-3">
-            <ListToolbar search={payoutSearch} onSearchChange={value => { setPayoutSearch(value); setPayoutPage(1); }}
-              sortField={payoutSortField} onSortFieldChange={value => { setPayoutSortField(value); setPayoutPage(1); }}
-              sortOrder={payoutSortOrder} onSortOrderChange={value => { setPayoutSortOrder(value); setPayoutPage(1); }}
-              sortOptions={[
-                { value: 'created_at', label: uiText("pages.admin.Finance", "Date de création") },
-                { value: 'processed_at', label: uiText("pages.admin.Finance", "Date de traitement") },
-                { value: 'amount', label: uiText("pages.admin.Finance", "Montant") }, { value: 'status', label: uiText("pages.admin.Finance", "Statut") },
-              ]} placeholder={uiText("pages.admin.Finance", "Rechercher bénéficiaire ou référence")} />
-            <select className="input-field w-auto" value={payoutStatus} onChange={event => { setPayoutStatus(event.target.value); setPayoutPage(1); }}>
-              <option value="">{uiText("pages.admin.Finance", "Tous les statuts")}</option>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+          {/* Payment Methods Pie */}
+          <div className="card">
+            <h3 className="font-bold text-slate-900 mb-4">Moyens de paiement</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={PAYMENT_METHODS} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                  {PAYMENT_METHODS.map((m, i) => <Cell key={i} fill={m.color} />)}
+                </Pie>
+                <Tooltip formatter={(v) => `${v}%`} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2 mt-2">
+              {PAYMENT_METHODS.map(m => (
+                <div key={m.name} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                    <span className="text-slate-600">{m.name}</span>
+                  </div>
+                  <span className="font-bold text-slate-900">{m.value}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Transactions Table */}
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-slate-900">Transactions récentes</h3>
+            <button className="flex items-center gap-1.5 text-sm text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-colors">
+              <Download size={14} /> Exporter
+            </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-sm">
-              <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
-                <tr>{['Référence', 'Bénéficiaire', 'Montant', 'Méthode', 'Statut', 'Date'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}</tr>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {['ID', 'Client', 'Véhicule', 'Montant total', 'Commission (50%)', 'Caution proprio (50%)', 'Méthode', 'Date', 'Statut'].map(h => (
+                    <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/30">
-                {payouts.map(payout => (
-                  <tr key={payout.id}>
-                    <td className="px-3 py-3">{payout.transaction_ref || `VERSEMENT-${payout.id}`}</td>
-                    <td className="px-3 py-3">{payout.recipient_name}<div className="text-xs text-on-surface-variant">{payout.recipient_email}</div></td>
-                    <td className="px-3 py-3 font-semibold">{amount(payout.amount)}{" " + uiText("pages.admin.Finance", "F")}</td>
-                    <td className="px-3 py-3">{METHODS.find(([key]) => key === payout.method)?.[1] || payout.method}</td>
-                    <td className="px-3 py-3">{STATUS_LABELS[payout.status] || payout.status}</td>
-                    <td className="px-3 py-3">{formatDate(new Date(payout.processed_at || payout.created_at))}</td>
+              <tbody className="divide-y divide-slate-50">
+                {TRANSACTIONS.map(t => (
+                  <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-3 font-mono text-xs text-slate-500">{t.id}</td>
+                    <td className="py-3 px-3 font-medium text-slate-900">{t.client}</td>
+                    <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{t.vehicle}</td>
+                    <td className="py-3 px-3 font-bold text-slate-900">{fmt(Math.abs(t.amount))} F</td>
+                    <td className="py-3 px-3 font-semibold text-accent-600">{t.commission > 0 ? fmt(t.commission) : '—'} F</td>
+                    <td className="py-3 px-3 font-semibold text-emerald-600">{t.owner_share > 0 ? fmt(t.owner_share) : '—'} F</td>
+                    <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{t.method}</td>
+                    <td className="py-3 px-3 text-slate-500 whitespace-nowrap">{t.date}</td>
+                    <td className="py-3 px-3">
+                      <span className={t.status === 'completed' ? 'badge-success' : t.status === 'pending' ? 'badge-warning' : 'badge-error'}>
+                        {t.status === 'completed' ? 'Confirmé' : t.status === 'pending' ? 'En attente' : 'Remboursé'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {payouts.length === 0 && <p className="py-8 text-center text-on-surface-variant">{uiText("pages.admin.Finance", "Aucun versement trouvé.")}</p>}
           </div>
-          <div className="flex items-center justify-between border-t pt-3 text-sm">
-            <span>{uiText("pages.admin.Finance", "Page") + " "}{payoutPage}{" " + uiText("pages.admin.Finance", "/") + " "}{Math.max(1, Math.ceil(payoutCount / 20))}</span>
-            <div className="flex gap-2">
-              <button className="btn-outline px-3 py-1" disabled={payoutPage <= 1} onClick={() => setPayoutPage(value => value - 1)}>{uiText("pages.admin.Finance", "Précédent")}</button>
-              <button className="btn-outline px-3 py-1" disabled={payoutPage * 20 >= payoutCount} onClick={() => setPayoutPage(value => value + 1)}>{uiText("pages.admin.Finance", "Suivant")}</button>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
     </DashboardLayout>
   );

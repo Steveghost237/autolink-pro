@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from django.core import signing
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.db.models.deletion import ProtectedError
 from django.urls import reverse
 from django.utils import timezone
@@ -14,7 +14,6 @@ from rest_framework import filters, generics, permissions, serializers, status
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from .email_utils import (
@@ -26,11 +25,7 @@ from .email_utils import (
 )
 from rest_framework.parsers import FormParser, MultiPartParser
 from .models import ContactMessage, NewsletterCampaign, PlatformSettings, User, Notification, LoginCode
-from .serializers import (ContactMessageAdminSerializer, ContactMessageSerializer,
-                          NewsletterCampaignSerializer, NewsletterSendSerializer,
-                          UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer,
-                          AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer,
-                          KYCUploadSerializer, PlatformSettingsSerializer)
+from .serializers import ContactMessageAdminSerializer, ContactMessageSerializer, NewsletterCampaignSerializer, NewsletterSendSerializer, UserSerializer, RegisterSerializer, LoginSerializer, AdminUserSerializer, AdminUserCreateSerializer, GoogleAuthSerializer, NotificationSerializer, KYCUploadSerializer, PlatformSettingsSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -134,6 +129,15 @@ class SiteConfigAPIView(APIView):
 class IsAdminRole(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'ADMIN'
+
+
+class PlatformSettingsView(generics.RetrieveUpdateAPIView):
+    """Paramètres plateforme (écran admin « Paramètres plateforme »)."""
+    serializer_class = PlatformSettingsSerializer
+    permission_classes = [IsAdminRole]
+
+    def get_object(self):
+        return PlatformSettings.current()
 
 
 class AdminActivityView(APIView):
@@ -599,7 +603,7 @@ class OTPVerifyView(APIView):
 class UserListView(generics.ListCreateAPIView):
     permission_classes = [IsAdminRole]
     filterset_fields = ['role', 'is_verified', 'is_active', 'kyc_status', 'id_document_verified']
-    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'referral_code']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering_fields = ['created_at', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'is_verified']
 
     def get_queryset(self):
@@ -684,32 +688,6 @@ class NotificationReadView(APIView):
         return Response({'unread': request.user.notifications.filter(is_read=False).count()})
 
 
-
-
-class PlatformSettingsView(generics.RetrieveUpdateAPIView):
-    """GET/PATCH des paramètres globaux — réservé à l'admin."""
-    serializer_class = PlatformSettingsSerializer
-    permission_classes = [IsAdminRole]
-    http_method_names = ['get', 'patch', 'head', 'options']
-
-    def get_object(self):
-        return PlatformSettings.load()
-
-    def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
-
-
-class PublicConfigView(APIView):
-    """Configuration publique (tarif service chauffeur, contacts support)."""
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        s = PlatformSettings.load()
-        return Response({
-            'driver_service_price': s.driver_service_price,
-            'support_email': s.support_email,
-            'support_phone': s.support_phone,
-        })
 class NotificationDetailView(APIView):
     """Suppression d'une notification de l'utilisateur connecté."""
     permission_classes = [permissions.IsAuthenticated]

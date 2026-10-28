@@ -1,291 +1,143 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Ban, CheckCircle, Plus, Trash2, Users, Download, FileCheck, XCircle, FileText, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Filter, Eye, Ban, CheckCircle, Users, Car, UserCheck, Shield } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
-import ListToolbar from '../../components/ListToolbar';
-import { useConfirm } from '../../contexts/ConfirmContext';
-import { usersAPI } from '../../services/api';
-import { formatDate,  uiText } from '../../i18n';
 
-const ROLES = [
-  ['CLIENT', uiText("pages.admin.ManageUsers", "Client")], ['OWNER', uiText("pages.admin.ManageUsers", "Propriétaire")], ['DRIVER', uiText("pages.admin.ManageUsers", "Chauffeur")],
-  ['INTERMEDIARY', uiText("pages.admin.ManageUsers", "Intermédiaire")],
-  ['CONTROLLER', uiText("pages.admin.ManageUsers", "Contrôleur")], ['ADMIN', uiText("pages.admin.ManageUsers", "Administrateur")],
+const USERS = [
+  { id: 1, name: 'Marie Konan', email: 'marie@email.com', phone: '+225 07 12 34 56', role: 'CLIENT', status: 'active', verified: true, joined: '2025-01-15', bookings: 8, spent: 430000 },
+  { id: 2, name: 'Jean Kouassi', email: 'jean@email.com', phone: '+225 05 22 33 44', role: 'OWNER', status: 'active', verified: true, joined: '2024-11-08', vehicles: 3, earned: 2250000 },
+  { id: 3, name: 'Armand Traoré', email: 'armand@email.com', phone: '+225 07 88 99 00', role: 'DRIVER', status: 'active', verified: true, joined: '2024-09-20', trips: 312, rating: 4.8 },
+  { id: 4, name: 'Awa Diallo', email: 'awa@email.com', phone: '+225 05 44 55 66', role: 'CLIENT', status: 'active', verified: false, joined: '2025-08-01', bookings: 1, spent: 50000 },
+  { id: 5, name: 'Moussa Koné', email: 'moussa@email.com', phone: '+225 07 00 11 22', role: 'OWNER', status: 'suspended', verified: true, joined: '2024-12-01', vehicles: 1, earned: 180000 },
+  { id: 6, name: 'Paul Bamba', email: 'paul@email.com', phone: '+225 05 99 88 77', role: 'DRIVER', status: 'active', verified: true, joined: '2025-02-14', trips: 87, rating: 4.6 },
+  { id: 7, name: 'Fatou Coulibaly', email: 'fatou@email.com', phone: '+225 07 33 44 55', role: 'CLIENT', status: 'active', verified: true, joined: '2025-03-22', bookings: 5, spent: 275000 },
+  { id: 8, name: 'Kofi Mensah', email: 'kofi@email.com', phone: '+225 05 11 22 33', role: 'DRIVER', status: 'pending', verified: false, joined: '2025-08-20', trips: 0, rating: null },
 ];
-const SORT_OPTIONS = [
-  { value: 'created_at', label: uiText("pages.admin.ManageUsers", "Date d’inscription") },
-  { value: 'username', label: uiText("pages.admin.ManageUsers", "Nom d’utilisateur") },
-  { value: 'email', label: uiText("pages.admin.ManageUsers", "Email") },
-  { value: 'role', label: uiText("pages.admin.ManageUsers", "Rôle") },
-  { value: 'is_active', label: uiText("pages.admin.ManageUsers", "Statut") },
-];
-const EMPTY_FORM = {
-  username: '', email: '', first_name: '', last_name: '', phone: '',
-  role: 'CLIENT', password: '',
-};
+
+const ROLE_CONFIG = { CLIENT: { label: 'Client', style: 'badge-info', icon: Users }, OWNER: { label: 'Propriétaire', style: 'badge-primary', icon: Car }, DRIVER: { label: 'Chauffeur', style: 'badge-warning', icon: UserCheck }, ADMIN: { label: 'Admin', style: 'badge-error', icon: Shield }, CONTROLLER: { label: 'Contrôleur', style: 'bg-purple-100 text-purple-700', icon: Shield } };
+const STATUS_CONFIG = { active: 'badge-success', suspended: 'badge-error', pending: 'badge-warning' };
 
 export default function ManageUsers() {
-  const confirm = useConfirm();
-  const [users, setUsers] = useState([]);
-  const [count, setCount] = useState(0);
   const [search, setSearch] = useState('');
-  const [role, setRole] = useState('');
-  const [active, setActive] = useState('');
-  const [sortField, setSortField] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [kycQueue, setKycQueue] = useState([]);
-  const [kycBusy, setKycBusy] = useState(null);
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await usersAPI.list({
-        page, page_size: 20, search: search.trim(), role: role || undefined,
-        is_active: active || undefined,
-        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
-      });
-      setUsers(data.results || []);
-      setCount(data.count ?? data.length ?? 0);
-      setError('');
-    } catch (_) {
-      setError(uiText("pages.admin.ManageUsers", "Impossible de charger les utilisateurs."));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, role, active, sortField, sortOrder]);
+  const filtered = USERS.filter(u =>
+    (roleFilter === 'ALL' || u.role === roleFilter) &&
+    (statusFilter === 'ALL' || u.status === statusFilter) &&
+    (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
+  );
 
-  useEffect(() => { load(); }, [load]);
-
-  const loadKyc = useCallback(async () => {
-    try {
-      const { data } = await usersAPI.list({ kyc_status: 'pending', page_size: 50, ordering: 'kyc_submitted_at' });
-      setKycQueue(data.results || []);
-    } catch (_) { setKycQueue([]); }
-  }, []);
-  useEffect(() => { loadKyc(); }, [loadKyc]);
-
-  const reviewKyc = async (user, approved) => {
-    let note = '';
-    if (!approved) {
-      note = window.prompt(uiText("pages.admin.ManageUsers", "Motif du refus (affiché au client) :"), '') || '';
-      if (note === null) return;
-    }
-    setKycBusy(user.id);
-    try {
-      await usersAPI.update(user.id, { kyc_status: approved ? 'approved' : 'rejected', kyc_note: note });
-      await Promise.all([loadKyc(), load()]);
-    } catch (e) {
-      setError(e.response?.data?.detail || uiText("pages.admin.ManageUsers", "La revue a échoué."));
-    }
-    setKycBusy(null);
-  };
-
-  const saveUser = async (id, changes) => {
-    try {
-      await usersAPI.update(id, changes);
-      await load();
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "La modification a échoué."));
-    }
-  };
-
-  const exportToExcel = async () => {
-    try {
-      const { data } = await usersAPI.list({
-        page_size: 1000, search: search.trim(), role: role || undefined,
-        is_active: active || undefined,
-        ordering: `${sortOrder === 'desc' ? '-' : ''}${sortField}`,
-      });
-      const rows = data.results || [];
-      const headers = ['Utilisateur', 'Email', 'Téléphone', 'Rôle', 'Statut', 'Vérifié', 'Inscription', 'Réservations', 'Véhicules', 'Courses'];
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(user => [
-          `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-          user.email || '',
-          user.phone || '',
-          user.role || '',
-          user.is_active ? 'Actif' : 'Suspendu',
-          user.is_verified ? 'Oui' : 'Non',
-          user.created_at ? formatDate(new Date(user.created_at)) : '',
-          user.bookings_count || 0,
-          user.vehicles_count || 0,
-          user.trips_count || 0,
-        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-      ].join('\n');
-
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `utilisateurs_autolink_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch (err) {
-      setError(uiText("pages.admin.ManageUsers", "L'export a échoué."));
-    }
-  };
-
-  const toggleActive = async (user) => {
-    if (user.is_active && !(await confirm({
-      title: uiText("pages.admin.ManageUsers", "Suspendre ce compte ?"),
-      message: `${user.first_name || user.username} ne pourra plus se connecter.`,
-      confirmLabel: uiText("pages.admin.ManageUsers", "Suspendre"), danger: true,
-    }))) return;
-    await saveUser(user.id, { is_active: !user.is_active });
-  };
-
-  const deleteUser = async (user) => {
-    if (!(await confirm({
-      title: uiText("pages.admin.ManageUsers", "Supprimer ce compte ?"),
-      message: uiText("pages.admin.ManageUsers", "Le compte {{email}} sera supprimé définitivement.", { email: user.email }),
-      confirmLabel: uiText("pages.admin.ManageUsers", "Supprimer"), danger: true,
-    }))) return;
-    try {
-      await usersAPI.delete(user.id);
-      await load();
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "Ce compte ne peut pas être supprimé."));
-    }
-  };
-
-  const createUser = async (event) => {
-    event.preventDefault();
-    try {
-      await usersAPI.create(form);
-      setCreating(false);
-      setForm(EMPTY_FORM);
-      setPage(1);
-      await load();
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || uiText("pages.admin.ManageUsers", "La création du compte a échoué."));
-    }
-  };
+  const counts = { CLIENT: USERS.filter(u => u.role === 'CLIENT').length, OWNER: USERS.filter(u => u.role === 'OWNER').length, DRIVER: USERS.filter(u => u.role === 'DRIVER').length };
 
   return (
-    <DashboardLayout title={uiText("pages.admin.ManageUsers", "Gestion des utilisateurs")}>
-      <div className="mx-auto max-w-7xl space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-on-surface-variant">{count}{" " + uiText("pages.admin.ManageUsers", "compte(s)")}</p>
-          <button onClick={() => setCreating(true)} className="btn-primary flex items-center gap-2">
-            <Plus size={17} />{" " + uiText("pages.admin.ManageUsers", "Créer un utilisateur") + " "}</button>
-        </div>
-        {error && <p role="alert" className="rounded-xl bg-error-container/50 p-3 text-sm text-error">{error}</p>}
-
-        {kycQueue.length > 0 && (
-          <section className="card border-2 border-tertiary-container/40 bg-tertiary-fixed/50/40">
-            <h2 className="font-bold text-tertiary flex items-center gap-2 mb-3"><FileCheck size={18} />{uiText("pages.admin.ManageUsers", "Dossiers KYC à vérifier ({{n}})", { n: kycQueue.length })}</h2>
-            <div className="space-y-3">
-              {kycQueue.map(user => (
-                <article key={user.id} className="bg-white rounded-xl border border-tertiary-container/40 p-4 flex flex-wrap items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-on-surface dark:text-white">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username} <span className="badge badge-info ml-1">{user.role}</span></div>
-                    <div className="text-xs text-on-surface-variant">{user.email} · {user.phone || '—'} · {uiText("pages.admin.ManageUsers", "déposé le") + " "}{user.kyc_submitted_at ? formatDate(new Date(user.kyc_submitted_at)) : '—'}</div>
-                    <div className="flex flex-wrap gap-3 mt-2 text-xs">
-                      {user.id_document ? <a href={user.id_document} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary-700 underline"><FileText size={13} />{uiText("pages.admin.ManageUsers", "Pièce d'identité")}</a> : <span className="text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Pas de CNI")}</span>}
-                      {user.driving_license ? <a href={user.driving_license} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary-700 underline"><FileText size={13} />{uiText("pages.admin.ManageUsers", "Permis de conduire")}{user.driving_license_expires_at ? ` (${uiText("pages.admin.ManageUsers", "exp.")} ${formatDate(new Date(user.driving_license_expires_at))})` : ''}</a> : <span className="text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Pas de permis")}</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button disabled={kycBusy === user.id} onClick={() => reviewKyc(user, false)} className="btn-outline text-error flex items-center gap-1 text-sm"><XCircle size={15} />{uiText("pages.admin.ManageUsers", "Refuser")}</button>
-                    <button disabled={kycBusy === user.id} onClick={() => reviewKyc(user, true)} className="btn-primary flex items-center gap-1 text-sm"><CheckCircle size={15} />{uiText("pages.admin.ManageUsers", "Valider")}</button>
-                  </div>
-                </article>
-              ))}
+    <DashboardLayout title="Gestion des utilisateurs">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Clients', count: counts.CLIENT, icon: Users, color: 'bg-blue-50 text-blue-600' },
+            { label: 'Propriétaires', count: counts.OWNER, icon: Car, color: 'bg-primary-50 text-primary-600' },
+            { label: 'Chauffeurs', count: counts.DRIVER, icon: UserCheck, color: 'bg-amber-50 text-amber-600' },
+          ].map(({ label, count, icon: Icon, color }) => (
+            <div key={label} className="card flex items-center gap-4">
+              <div className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shrink-0`}><Icon size={22} /></div>
+              <div>
+                <div className="text-2xl font-black text-slate-900">{count}</div>
+                <div className="text-sm text-slate-500">{label} actifs</div>
+              </div>
             </div>
-          </section>
-        )}
-
-        <div className="card flex flex-wrap items-center gap-3">
-          <ListToolbar
-            search={search} onSearchChange={value => { setSearch(value); setPage(1); }}
-            sortField={sortField} onSortFieldChange={value => { setSortField(value); setPage(1); }}
-            sortOrder={sortOrder} onSortOrderChange={value => { setSortOrder(value); setPage(1); }}
-            sortOptions={SORT_OPTIONS} placeholder={uiText("pages.admin.ManageUsers", "Rechercher nom, email, téléphone")}
-          />
-          <select className="input-field w-auto" value={role} onChange={event => { setRole(event.target.value); setPage(1); }}>
-            <option value="">{uiText("pages.admin.ManageUsers", "Tous les rôles")}</option>
-            {ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <select className="input-field w-auto" value={active} onChange={event => { setActive(event.target.value); setPage(1); }}>
-            <option value="">{uiText("pages.admin.ManageUsers", "Tous les statuts")}</option>
-            <option value="true">{uiText("pages.admin.ManageUsers", "Actifs")}</option>
-            <option value="false">{uiText("pages.admin.ManageUsers", "Suspendus")}</option>
-          </select>
-          <button onClick={exportToExcel} className="btn-outline flex items-center gap-2 text-sm">
-            <Download size={16} />{uiText("pages.admin.ManageUsers", "Exporter Excel")}
-          </button>
+          ))}
         </div>
-        <div className="card overflow-x-auto p-0">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-surface-container-low dark:bg-slate-900 text-left text-xs uppercase text-on-surface-variant">
-              <tr>{["Utilisateur", "Rôle", "Statut", "Vérifié", "Inscription", "Activité", "Actions"].map(label => <th key={label} className="px-4 py-3">{uiText("pages.admin.ManageUsers", label)}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/30">
-              {users.map(user => (
-                <tr key={user.id}>
-                  <td className="px-4 py-3">
-                    <div className="font-semibold">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</div>
-                    <div className="text-xs text-on-surface-variant">{user.email}{" " + uiText("pages.admin.ManageUsers", "·") + " "}{user.phone || uiText("pages.admin.ManageUsers", "—")}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select aria-label={`Rôle de ${user.username}`} className="input-field w-auto py-1"
-                      value={user.role} onChange={event => saveUser(user.id, { role: event.target.value })}>
-                      {ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">{user.is_active ? uiText("pages.admin.ManageUsers", "Actif") : uiText("pages.admin.ManageUsers", "Suspendu")}</td>
-                  <td className="px-4 py-3">
-                    <input type="checkbox" checked={user.is_verified} aria-label={uiText("pages.admin.ManageUsers", "Vérifier {{name}}", { name: user.username })}
-                      onChange={event => saveUser(user.id, { is_verified: event.target.checked })} />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(new Date(user.created_at))}</td>
-                  <td className="px-4 py-3 text-xs text-on-surface-variant">
-                    {user.bookings_count || 0}{" " + uiText("pages.admin.ManageUsers", "réservation(s) ·") + " "}{user.vehicles_count || 0}{" " + uiText("pages.admin.ManageUsers", "véhicule(s) ·") + " "}{user.trips_count || 0}{" " + uiText("pages.admin.ManageUsers", "course(s)") + " "}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button title={user.is_active ? uiText("pages.admin.ManageUsers", "Suspendre") : uiText("pages.admin.ManageUsers", "Réactiver")} onClick={() => toggleActive(user)}
-                        className={`rounded-lg p-2 ${user.is_active ? 'text-error' : 'text-primary'}`}>
-                        {user.is_active ? <Ban size={16} /> : <CheckCircle size={16} />}
-                      </button>
-                      <button title={uiText("pages.admin.ManageUsers", "Supprimer")} onClick={() => deleteUser(user)} className="rounded-lg p-2 text-error">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+
+        {/* Filters */}
+        <div className="card flex flex-wrap gap-4">
+          <div className="flex-1 min-w-48 relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" className="input-field pl-9" placeholder="Rechercher par nom ou email..."
+              value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <select className="input-field w-auto" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+            <option value="ALL">Tous les rôles</option>
+            <option value="CLIENT">Clients</option>
+            <option value="OWNER">Propriétaires</option>
+            <option value="DRIVER">Chauffeurs</option>
+          </select>
+          <select className="input-field w-auto" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="ALL">Tous les statuts</option>
+            <option value="active">Actifs</option>
+            <option value="suspended">Suspendus</option>
+            <option value="pending">En attente</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  {['Utilisateur', 'Rôle', 'Statut', 'Vérifié', 'Inscrit le', 'Activité', 'Actions'].map(h => (
+                    <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {!loading && users.length === 0 && <div className="py-12 text-center text-on-surface-variant"><Users className="mx-auto mb-2" />{uiText("pages.admin.ManageUsers", "Aucun utilisateur trouvé.")}</div>}
-          {loading && <p className="p-6 text-center text-on-surface-variant">{uiText("pages.admin.ManageUsers", "Chargement…")}</p>}
-          <div className="flex items-center justify-between border-t p-4 text-sm">
-            <span>{uiText("pages.admin.ManageUsers", "Page") + " "}{page}{" " + uiText("pages.admin.ManageUsers", "/") + " "}{Math.max(1, Math.ceil(count / 20))}</span>
-            <div className="flex gap-2">
-              <button className="btn-outline px-3 py-1" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>{uiText("pages.admin.ManageUsers", "Précédent")}</button>
-              <button className="btn-outline px-3 py-1" disabled={page * 20 >= count} onClick={() => setPage(value => value + 1)}>{uiText("pages.admin.ManageUsers", "Suivant")}</button>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map(u => {
+                  const RC = ROLE_CONFIG[u.role];
+                  const Icon = RC.icon;
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            {u.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900">{u.name}</div>
+                            <div className="text-xs text-slate-400">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={RC.style}><Icon size={10} className="inline mr-1" />{RC.label}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={STATUS_CONFIG[u.status]}>{u.status === 'active' ? 'Actif' : u.status === 'suspended' ? 'Suspendu' : 'En attente'}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {u.verified ? <CheckCircle size={16} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{u.joined}</td>
+                      <td className="py-3 px-4 text-slate-600 text-xs">
+                        {u.role === 'CLIENT' && `${u.bookings} réservations · ${u.spent?.toLocaleString()} F`}
+                        {u.role === 'OWNER' && `${u.vehicles} véhicule(s) · ${u.earned?.toLocaleString()} F`}
+                        {u.role === 'DRIVER' && `${u.trips} courses${u.rating ? ` · ★${u.rating}` : ''}`}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <button className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Voir profil"><Eye size={15} /></button>
+                          <button className={`p-1.5 rounded-lg transition-colors ${u.status === 'suspended' ? 'hover:bg-emerald-50 text-emerald-600' : 'hover:bg-red-50 text-red-500'}`} title={u.status === 'suspended' ? 'Réactiver' : 'Suspendre'}>
+                            {u.status === 'suspended' ? <CheckCircle size={15} /> : <Ban size={15} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length === 0 && (
+            <div className="text-center py-12">
+              <Users size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500">Aucun utilisateur trouvé</p>
             </div>
+          )}
+          <div className="px-4 py-3 border-t border-slate-100 text-sm text-slate-500">
+            {filtered.length} utilisateur(s) affiché(s) sur {USERS.length}
           </div>
         </div>
       </div>
-      {creating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form onSubmit={createUser} className="card w-full max-w-xl space-y-3">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{uiText("pages.admin.ManageUsers", "Créer un utilisateur")}</h2><button type="button" onClick={() => setCreating(false)}>{uiText("pages.admin.ManageUsers", "Fermer")}</button></div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ['username', uiText("pages.admin.ManageUsers", "Nom d’utilisateur")], ['email', uiText("pages.admin.ManageUsers", "Email")], ['first_name', uiText("pages.admin.ManageUsers", "Prénom")],
-                ['last_name', uiText("pages.admin.ManageUsers", "Nom")], ['phone', uiText("pages.admin.ManageUsers", "Téléphone")], ['password', uiText("pages.admin.ManageUsers", "Mot de passe")],
-              ].map(([key, label]) => <label key={key} className="text-sm">{label}<input required className="input-field mt-1" type={key === 'password' ? uiText("pages.admin.ManageUsers", "password") : key === 'email' ? uiText("pages.admin.ManageUsers", "email") : uiText("pages.admin.ManageUsers", "text")} value={form[key]} onChange={event => setForm(value => ({ ...value, [key]: event.target.value }))} /></label>)}
-              <label className="text-sm">{uiText("pages.admin.ManageUsers", "Rôle")}<select className="input-field mt-1" value={form.role} onChange={event => setForm(value => ({ ...value, role: event.target.value }))}>{ROLES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            </div>
-            <button className="btn-primary w-full">{uiText("pages.admin.ManageUsers", "Créer le compte")}</button>
-          </form>
-        </div>
-      )}
     </DashboardLayout>
   );
 }

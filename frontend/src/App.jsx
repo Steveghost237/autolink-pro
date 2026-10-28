@@ -1,9 +1,7 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { ConfirmProvider } from './contexts/ConfirmContext';
 
 import Landing from './pages/Landing';
 import Catalog from './pages/Catalog';
@@ -17,17 +15,13 @@ import Register from './pages/auth/Register';
 import ClientDashboard from './pages/client/ClientDashboard';
 import SearchVehicles from './pages/client/SearchVehicles';
 import MyBookings from './pages/client/MyBookings';
-import ClientStats from './pages/client/ClientStats';
-import ClientWallet from './pages/client/ClientWallet';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
-import DriverService from './pages/owner/DriverService';
-import IntermediaryDashboard from './pages/intermediary/IntermediaryDashboard';
+import OwnerRequests from './pages/owner/OwnerRequests';
+import OwnerRevenue from './pages/owner/OwnerRevenue';
 import OwnerVehicleDetail from './pages/owner/OwnerVehicleDetail';
-import VehicleAudit from './pages/owner/VehicleAudit';
 import DriverDashboard from './pages/driver/DriverDashboard';
-import DriverApplicationForm from './pages/driver/DriverApplicationForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriverRecruitment from './pages/admin/DriverRecruitment';
 import Finance from './pages/admin/Finance';
@@ -36,27 +30,9 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
-import Disputes from './pages/admin/Disputes';
-import ContactMessages from './pages/admin/ContactMessages';
-import Newsletter from './pages/admin/Newsletter';
-import LegalPages from './pages/LegalPages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import Messages from './pages/Messages';
-import Maintenance from './pages/owner/Maintenance';
-import AdminMaintenance from './pages/admin/AdminMaintenance';
-import PlatformSettings from './pages/admin/PlatformSettings';
 import NotFound from './pages/NotFound';
-import Favorites from './pages/client/Favorites';
-import BookingDetail from './pages/client/BookingDetail';
-import Wallet from './pages/client/Wallet';
-import Messaging from './pages/Messaging';
-import Notifications from './pages/Notifications';
-import Revenue from './pages/Revenue';
-import RentalRequests from './pages/owner/RentalRequests';
-import AdminBookings from './pages/admin/AdminBookings';
-import AdminOwners from './pages/admin/AdminOwners';
-import MaintenanceBanner from './components/MaintenanceBanner';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -80,68 +56,33 @@ function AppRoutes() {
       <Route path="/devenir-proprietaire" element={<BecomeOwner />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/privacy" element={<LegalPages />} />
-      <Route path="/terms" element={<LegalPages />} />
-      <Route path="/cookies" element={<LegalPages />} />
-      <Route path="/vehicles/:id" element={<VehicleDetail />} />
-      <Route path="/catalog" element={<Catalog />} />
-      <Route path="/how-it-works" element={<HowItWorks />} />
-      <Route path="/pricing" element={<Pricing />} />
-      <Route path="/become-owner" element={<BecomeOwner />} />
-      <Route path="/help" element={<Help />} />
 
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
-      <Route path="/client/stats" element={<Guard roles={['CLIENT']}><ClientStats /></Guard>} />
-      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><ClientWallet /></Guard>} />
-      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><BookingDetail /></Guard>} />
-      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
-      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><Wallet /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
-      <Route path="/owner/bookings/:id" element={<Guard roles={['OWNER']}><BookingDetail /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
       <Route path="/owner/vehicles/:id" element={<Guard roles={['OWNER']}><OwnerVehicleDetail /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
-      <Route path="/owner/driver-service" element={<Guard roles={['OWNER']}><DriverService /></Guard>} />
-      <Route path="/owner/maintenance" element={<Guard roles={['OWNER']}><Maintenance /></Guard>} />
-
-      <Route path="/intermediary/dashboard" element={<Guard roles={['INTERMEDIARY']}><IntermediaryDashboard /></Guard>} />
-      <Route path="/owner/vehicles/:id/edit" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
-      <Route path="/owner/vehicles/:id" element={<Guard roles={['OWNER']}><VehicleAudit /></Guard>} />
-      <Route path="/owner/requests" element={<Guard roles={['OWNER']}><RentalRequests /></Guard>} />
-      <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><Revenue /></Guard>} />
+      <Route path="/owner/requests" element={<Guard roles={['OWNER']}><OwnerRequests /></Guard>} />
+      <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><OwnerRevenue /></Guard>} />
 
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
-      <Route path="/driver/revenue" element={<Guard roles={['DRIVER']}><Revenue /></Guard>} />
-      <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
-      <Route path="/driver/bookings/:id" element={<Guard roles={['DRIVER']}><BookingDetail /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
-      <Route path="/admin/bookings" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
-      <Route path="/admin/bookings/:id" element={<Guard roles={['ADMIN']}><BookingDetail /></Guard>} />
-      <Route path="/admin/owners" element={<Guard roles={['ADMIN']}><AdminOwners /></Guard>} />
-      <Route path="/admin/settings" element={<Guard roles={['ADMIN']}><PlatformSettings /></Guard>} />
       <Route path="/admin/drivers" element={<Guard roles={['ADMIN']}><DriverRecruitment /></Guard>} />
       <Route path="/admin/finance" element={<Guard roles={['ADMIN']}><Finance /></Guard>} />
       <Route path="/admin/inspections" element={<Guard roles={['ADMIN', 'CONTROLLER']}><VehicleInspection /></Guard>} />
       <Route path="/admin/users" element={<Guard roles={['ADMIN']}><ManageUsers /></Guard>} />
       <Route path="/admin/catalog" element={<Guard roles={['ADMIN']}><CatalogManager /></Guard>} />
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
-      <Route path="/admin/maintenance" element={<Guard roles={['ADMIN']}><AdminMaintenance /></Guard>} />
-      <Route path="/admin/platform-settings" element={<Guard roles={['ADMIN']}><PlatformSettings /></Guard>} />
-      <Route path="/admin/disputes" element={<Guard roles={['ADMIN']}><Disputes /></Guard>} />
-      <Route path="/admin/messages" element={<Guard roles={['ADMIN']}><ContactMessages /></Guard>} />
-      <Route path="/admin/newsletter" element={<Guard roles={['ADMIN']}><Newsletter /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
       <Route path="/profile" element={<Guard><Profile /></Guard>} />
       <Route path="/settings" element={<Guard><Settings /></Guard>} />
-      <Route path="/messages" element={<Guard><Messaging /></Guard>} />
-      <Route path="/notifications" element={<Guard><Notifications /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -149,15 +90,11 @@ function AppRoutes() {
 }
 
 export default function App() {
-  useTranslation();
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <ConfirmProvider>
-            <MaintenanceBanner />
-            <AppRoutes />
-          </ConfirmProvider>
+          <AppRoutes />
         </Router>
       </AuthProvider>
     </ThemeProvider>

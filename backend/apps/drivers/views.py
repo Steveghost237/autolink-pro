@@ -9,12 +9,11 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from config.pagination import StandardPagination
 from apps.users.models import User
-from .models import DriverApplication, DriverEarning, DriverProfile, DriverServiceRequest
+from .models import DriverApplication, DriverEarning, DriverProfile
 from .serializers import (
     DriverApplicationSerializer,
     DriverEarningSerializer,
     DriverProfileSerializer,
-    DriverServiceRequestSerializer,
 )
 
 
@@ -172,27 +171,3 @@ class AdminDriverProfileViewSet(DriverProfileViewSet):
 
     def get_queryset(self):
         return DriverProfile.objects.select_related('driver', 'assigned_vehicle').order_by('-certified_at')
-
-
-class DriverServiceRequestViewSet(viewsets.ModelViewSet):
-    """Service recrutement/formation de chauffeurs pour propriétaires.
-    Le propriétaire crée et suit ses demandes ; l'admin traite le pipeline."""
-    serializer_class = DriverServiceRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ['get', 'post', 'patch', 'head', 'options']
-
-    def get_queryset(self):
-        qs = DriverServiceRequest.objects.select_related('owner', 'processed_by')
-        if self.request.user.role == 'ADMIN':
-            return qs.all()
-        return qs.filter(owner=self.request.user)
-
-    def perform_create(self, serializer):
-        if self.request.user.role not in ('OWNER', 'ADMIN'):
-            raise PermissionDenied('Service réservé aux propriétaires de véhicules.')
-        serializer.save(owner=self.request.user)
-
-    def perform_update(self, serializer):
-        if self.request.user.role != 'ADMIN':
-            raise PermissionDenied("Traitement réservé à l'administration.")
-        serializer.save(processed_by=self.request.user)
