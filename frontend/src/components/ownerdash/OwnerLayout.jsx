@@ -29,13 +29,9 @@ export default function OwnerLayout({ children, badges = {}, balance = null }) {
 
   const Sidebar = () => (
     <div className="flex flex-col h-full bg-white border-r border-slate-100 w-60">
-      <div className="px-5 py-5 flex items-center gap-2.5 border-b border-slate-50">
-        <Link to="/" className="flex items-center gap-2.5">
+      <div className="px-4 pt-2 pb-3 flex items-center border-b border-slate-50">
+        <Link to="/" className="flex items-center">
           <AutoLinkLogo size="sm" />
-          <div className="leading-none">
-            <span className="font-black text-slate-900 text-sm tracking-tight block">AutoLink <span className="text-teal-600">Pro</span></span>
-            <span className="text-[9px] font-bold text-slate-400 tracking-[0.2em]">PRO MOBILITY</span>
-          </div>
         </Link>
       </div>
 
@@ -95,9 +91,9 @@ export default function OwnerLayout({ children, badges = {}, balance = null }) {
         <header className="bg-white border-b border-slate-100 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setOpen(true)} className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100"><Menu size={20} /></button>
-            <button className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:border-teal-300 transition-colors">
+            {/* <button className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:border-teal-300 transition-colors">
               <MapPin size={13} className="text-teal-600" /> Douala &amp; Yaoundé
-            </button>
+            </button> */}
             <span className="hidden md:flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 px-3 py-2 rounded-xl">
               <BadgeCheck size={13} /> Partenaire certifié
             </span>
@@ -108,9 +104,9 @@ export default function OwnerLayout({ children, badges = {}, balance = null }) {
                 {Math.round(balance).toLocaleString('fr-FR')} <span className="text-teal-400">FCFA</span>
               </span>
             )}
-            <button className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors">
+            {/* <button className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors">
               <Banknote size={13} /> Retirer
-            </button>
+            </button> */}
             <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">
               <Bell size={18} />
               {badges.demandes > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}

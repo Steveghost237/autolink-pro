@@ -177,7 +177,7 @@ export default function DashboardLayout({ children, title }) {
 
   const Sidebar = ({ mobile = false }) => (
     <div className={`flex flex-col h-full bg-slate-900 ${mobile ? 'w-full' : 'w-64'}`}>
-      <div className="p-4 border-b border-slate-800 flex items-center justify-center">
+      <div className="px-4 pt-2 pb-3 border-b border-slate-800 flex items-center justify-center">
         <Link to="/">
           <AutoLinkLogo size="md" />
         </Link>

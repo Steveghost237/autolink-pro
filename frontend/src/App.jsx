@@ -23,6 +23,13 @@ import OwnerRevenue from './pages/owner/OwnerRevenue';
 import OwnerVehicleDetail from './pages/owner/OwnerVehicleDetail';
 import DriverDashboard from './pages/driver/DriverDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminBookingDetail from './pages/admin/AdminBookingDetail';
+import AdminVehicleDetail from './pages/admin/AdminVehicleDetail';
+import AdminPartners from './pages/admin/AdminPartners';
+import AdminDisputes from './pages/admin/AdminDisputes';
+import AdminClients from './pages/admin/AdminClients';
+import AdminSettings from './pages/admin/AdminSettings';
 import DriverRecruitment from './pages/admin/DriverRecruitment';
 import Finance from './pages/admin/Finance';
 import VehicleInspection from './pages/admin/VehicleInspection';
@@ -71,12 +78,19 @@ function AppRoutes() {
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
+      <Route path="/admin/reservations" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
+      <Route path="/admin/reservations/:id" element={<Guard roles={['ADMIN']}><AdminBookingDetail /></Guard>} />
+      <Route path="/admin/vehicles/:id" element={<Guard roles={['ADMIN']}><AdminVehicleDetail /></Guard>} />
+      <Route path="/admin/partenaires" element={<Guard roles={['ADMIN']}><AdminPartners /></Guard>} />
+      <Route path="/admin/litiges" element={<Guard roles={['ADMIN']}><AdminDisputes /></Guard>} />
+      <Route path="/admin/clients" element={<Guard roles={['ADMIN']}><AdminClients /></Guard>} />
       <Route path="/admin/drivers" element={<Guard roles={['ADMIN']}><DriverRecruitment /></Guard>} />
       <Route path="/admin/finance" element={<Guard roles={['ADMIN']}><Finance /></Guard>} />
       <Route path="/admin/inspections" element={<Guard roles={['ADMIN', 'CONTROLLER']}><VehicleInspection /></Guard>} />
       <Route path="/admin/users" element={<Guard roles={['ADMIN']}><ManageUsers /></Guard>} />
       <Route path="/admin/catalog" element={<Guard roles={['ADMIN']}><CatalogManager /></Guard>} />
       <Route path="/admin/agents" element={<Guard roles={['ADMIN']}><AgentsManager /></Guard>} />
+      <Route path="/admin/settings" element={<Guard roles={['ADMIN']}><AdminSettings /></Guard>} />
 
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 

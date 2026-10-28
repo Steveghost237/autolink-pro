@@ -12,11 +12,8 @@ export default function Footer() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-2.5 mb-4">
+            <div className="mb-4">
               <AutoLinkLogo size="sm" />
-              <span className="font-black text-white text-lg tracking-tight">
-                AutoLink <span className="text-teal-400">Pro</span>
-              </span>
             </div>
             <p className="text-sm leading-relaxed mb-5">
               La première plateforme numérique de location de véhicules vérifiés

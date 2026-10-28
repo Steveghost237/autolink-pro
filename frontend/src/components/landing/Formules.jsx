@@ -27,7 +27,7 @@ export default function Formules() {
                 f.popular ? 'border-teal-500 shadow-lg shadow-teal-100' : 'border-slate-100 shadow-sm'
               }`}>
               {f.popular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-teal-600 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
                   Le plus demandé
                 </span>
               )}

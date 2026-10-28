@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Landmark, ShieldCheck, Zap, Lock, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Landmark, ShieldCheck, Zap, Lock, CheckCircle2, ChevronDown, Banknote } from 'lucide-react';
 
 const fmt = n => Math.round(Number(n || 0)).toLocaleString('fr-FR');
 
@@ -9,8 +9,9 @@ const METHODS = [
   { id: 'uba',    icon: Landmark,   name: 'UBA Cameroun',   sub: 'RIB 0400 1300 1304 — MARC T. ATANGANA', badge: 'Virement 24 h CEMAC', cls: 'border-slate-200 bg-white' },
 ];
 
-/* Panneau « Demander un retrait de fonds » + Protocole Sécurisé. */
+/* Panneau « Demander un retrait de fonds » — accordéon : le contenu se déplie au clic. */
 export default function WithdrawPanel({ balance = 0 }) {
+  const [open, setOpen] = useState(false);
   const [method, setMethod] = useState('mtn');
   const [amount, setAmount] = useState(balance ? Math.min(balance, 500000) : 0);
   const [sent, setSent] = useState(false);
@@ -18,12 +19,28 @@ export default function WithdrawPanel({ balance = 0 }) {
   const confirm = () => { setSent(true); setTimeout(() => setSent(false), 4000); };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_300px] gap-5 items-start">
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* En-tête du dropdown */}
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-slate-50/60 transition-colors">
+        <span className="flex items-center gap-4">
+          <span className="w-11 h-11 bg-teal-50 rounded-2xl flex items-center justify-center shrink-0">
+            <Banknote size={20} className="text-teal-600" />
+          </span>
+          <span>
+            <span className="block font-black text-slate-900">Demander un retrait de fonds</span>
+            <span className="block text-[11px] text-slate-400 mt-0.5">
+              Transfert sécurisé vers votre Mobile Money ou compte bancaire — {fmt(balance)} FCFA disponibles
+            </span>
+          </span>
+        </span>
+        <ChevronDown size={18} className={`text-slate-400 shrink-0 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+    <div className="grid lg:grid-cols-[1fr_300px] gap-5 items-start border-t border-slate-100 p-5 bg-slate-50/40">
       {/* Formulaire retrait */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-        <h3 className="font-black text-slate-900 mb-1">Demander un retrait de fonds</h3>
-        <p className="text-[11px] text-slate-400 mb-5">Transfert sécurisé vers votre solde Mobile Money ou compte bancaire.</p>
-
         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2.5">1. Sélectionner le compte bénéficiaire</div>
         <div className="grid sm:grid-cols-3 gap-3 mb-5">
           {METHODS.map(m => (
@@ -92,6 +109,8 @@ export default function WithdrawPanel({ balance = 0 }) {
           <strong className="text-slate-700">Assistance Comptable AutoLink</strong><br />Support 24/7 — Douala
         </div>
       </div>
+    </div>
+      )}
     </div>
   );
 }
