@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tag, Plus, CheckCircle, XCircle, TrendingUp, DollarSign, Users, Copy, ToggleLeft, ToggleRight, Search } from 'lucide-react';
-import DashboardLayout from '../../components/DashboardLayout';
+import AdminLayout from '../../components/admindash/AdminLayout';
 
 const MOCK_AGENTS = [
   { id: 1, code: 'AGT-DBL-001', name: 'Moise Kamga',    type: 'Influenceur',  phone: '+237 6 77 11 22 33', conversions: 28, totalAmount: 4340000, commission: 217000, rate: 5, active: true,  joined: '2025-01-15' },
@@ -43,7 +43,7 @@ export default function AgentsManager() {
   const totalAmount      = agents.filter(a => a.active).reduce((s, a) => s + a.totalAmount, 0);
 
   return (
-    <DashboardLayout title="Agents affiliés">
+    <AdminLayout title="Agents et Parrainage" subtitle="Réseau d'apporteurs d'affaires, codes promo et suivi des commissions.">
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* KPIs */}
@@ -194,6 +194,6 @@ export default function AgentsManager() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

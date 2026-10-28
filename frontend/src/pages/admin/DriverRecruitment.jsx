@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, FileText, Shield, Award, X, Car, Calendar } from 'lucide-react';
-import DashboardLayout from '../../components/DashboardLayout';
+import AdminLayout from '../../components/admindash/AdminLayout';
 
 const CRITERIA = [
   { id: 'license', label: 'Permis de conduire valide (catégorie B min.)', required: true },
@@ -120,7 +120,7 @@ export default function DriverRecruitment() {
   const counts = { all: CANDIDATES.length, pending: CANDIDATES.filter(c => c.status === 'pending').length, review: CANDIDATES.filter(c => c.status === 'review').length, approved: CANDIDATES.filter(c => c.status === 'approved').length, rejected: CANDIDATES.filter(c => c.status === 'rejected').length };
 
   return (
-    <DashboardLayout title="Recrutement Chauffeurs">
+    <AdminLayout title="Recrutement et Onboarding Chauffeurs" subtitle="Dossiers candidats, contrôles CEMAC et certification des chauffeurs partenaires.">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Criteria info */}
         <div className="card bg-gradient-to-br from-slate-900 to-primary-900 text-white">
@@ -205,6 +205,6 @@ export default function DriverRecruitment() {
         </div>
       </div>
       {selected && <CandidateModal candidate={selected} onClose={() => setSelected(null)} />}
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

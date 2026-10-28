@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ClipboardList, CheckCircle, XCircle, Camera, AlertTriangle, Plus, X, Car, User, Calendar } from 'lucide-react';
-import DashboardLayout from '../../components/DashboardLayout';
+import AdminLayout from '../../components/admindash/AdminLayout';
 
 const INSPECTION_ITEMS = {
   exterior: {
@@ -188,7 +188,7 @@ export default function VehicleInspection() {
   const [tab, setTab] = useState('pending');
 
   return (
-    <DashboardLayout title="Inspections Véhicules">
+    <AdminLayout title="Inspections et Audits Techniques" subtitle="Contrôles physiques des véhicules, checklists Hub et homologation CEMAC.">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="card bg-gradient-to-r from-primary-700 to-primary-900 text-white">
           <div className="flex items-start gap-4">
@@ -272,6 +272,6 @@ export default function VehicleInspection() {
         )}
       </div>
       {selected && <InspectionForm inspection={selected} onClose={() => setSelected(null)} />}
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

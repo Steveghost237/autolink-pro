@@ -65,11 +65,8 @@ export default function PublicNavbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <AutoLinkLogo size="sm" />
-            <span className="font-black text-slate-900 text-lg tracking-tight">
-              AutoLink <span className="text-teal-600">Pro</span>
-            </span>
+          <Link to="/" className="flex items-center shrink-0">
+            <AutoLinkLogo size="xs" />
           </Link>
 
           {/* Desktop nav links */}

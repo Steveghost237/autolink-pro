@@ -13,7 +13,7 @@ import OtpPanel from '../../components/auth/OtpPanel';
 const ROLES = [
   { value: 'CLIENT', label: 'Je veux louer', icon: Car },
   { value: 'OWNER', label: 'Je veux proposer', icon: KeyRound },
-  { value: 'DRIVER', label: 'Je suis chauffeur', icon: Briefcase },
+  // { value: 'DRIVER', label: 'Je veux etre chauffeur', icon: KeyRound },
 ];
 
 // Force du mot de passe → barres 0-4 + libellé
@@ -138,10 +138,10 @@ export default function Register() {
         )}
 
         {/* Onglets rôle — dans le formulaire */}
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1.5 rounded-2xl mb-6">
+        <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1.5 rounded-2xl mb-6">
           {ROLES.map(({ value, label, icon: RoleIcon }) => (
             <button key={value} type="button" onClick={() => set('role', value)}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${form.role === value ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              className={`flex flex-row sm:flex-row items-center justify-center gap-1.5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${form.role === value ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
               <RoleIcon size={15} className={form.role === value ? 'text-teal-600' : ''} /> {label}
             </button>
           ))}

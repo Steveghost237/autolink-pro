@@ -1,4 +1,5 @@
 import React from 'react';
+import logoPng from '../logo/logo.png';
 
 /* ─── SVG logo (shield style — AutoLink Pro) ─── */
 export function AutoLinkShield({ size = 200 }) {
@@ -251,14 +252,19 @@ export function AutoLinkShield({ size = 200 }) {
   );
 }
 
-/* ── Sizes ── */
-const H = { xs: 32, sm: 40, md: 52, lg: 64, xl: 80, '2xl': 100 };
+/* ── Sizes (hauteur du logo) ── */
+const H = { xs: 52, sm: 68, md: 84, lg: 84, xl: 128, '2xl': 160 };
 
 export function AutoLinkIcon({ size = 52 }) {
-  return <AutoLinkShield size={size} />;
+  return <img src={logoPng} alt="AutoLink Pro" style={{ height: size, width: 'auto' }} className="object-contain" />;
 }
 
-export default function AutoLinkLogo({ size = 'md', variant = 'icon' }) {
+/* Logo officiel AutoLink (PNG) — affiché tel quel, sans modification. */
+export default function AutoLinkLogo({ size = 'md', className = '' }) {
   const h = H[size] || H.md;
-  return <AutoLinkShield size={h} />;
+  return (
+    <img src={logoPng} alt="AutoLink Pro"
+      style={{ height: h, width: 'auto' }}
+      className={`object-contain shrink-0 ${className}`} />
+  );
 }

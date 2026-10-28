@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, Eye, Ban, CheckCircle, Users, Car, UserCheck, Shield } from 'lucide-react';
-import DashboardLayout from '../../components/DashboardLayout';
+import AdminLayout from '../../components/admindash/AdminLayout';
 
 const USERS = [
   { id: 1, name: 'Marie Konan', email: 'marie@email.com', phone: '+225 07 12 34 56', role: 'CLIENT', status: 'active', verified: true, joined: '2025-01-15', bookings: 8, spent: 430000 },
@@ -30,7 +30,7 @@ export default function ManageUsers() {
   const counts = { CLIENT: USERS.filter(u => u.role === 'CLIENT').length, OWNER: USERS.filter(u => u.role === 'OWNER').length, DRIVER: USERS.filter(u => u.role === 'DRIVER').length };
 
   return (
-    <DashboardLayout title="Gestion des utilisateurs">
+    <AdminLayout title="Utilisateurs et Comptes" subtitle="Comptes clients, propriétaires et chauffeurs — vérifications KYC et suspensions.">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Summary */}
         <div className="grid grid-cols-3 gap-4">
@@ -138,6 +138,6 @@ export default function ManageUsers() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

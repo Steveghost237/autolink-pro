@@ -6,6 +6,7 @@ module.exports = {
     extend: {
       colors: {
         primary: {
+          DEFAULT: '#0d9488', container: '#14b8a6', fixed: '#99f6e4', 'fixed-dim': '#5eead4',
           50: '#f0fdfa',
           100: '#ccfbf1',
           200: '#99f6e4',
@@ -18,6 +19,31 @@ module.exports = {
           900: '#134e4a',
           950: '#042f2e',
         },
+        // ── Tokens design system Yves (maquettes /design) ──
+        secondary: {
+          DEFAULT: '#46617d', container: '#c1ddfe', fixed: '#cfe5ff', 'fixed-dim': '#adc9ea',
+          50: '#e3efff', 100: '#c1ddfe', 200: '#9ec5fd', 300: '#7badfc', 400: '#5895fb',
+          500: '#347efa', 600: '#46617d', 700: '#2d4964', 800: '#1e40af', 900: '#001d34', 950: '#172554',
+        },
+        tertiary: {
+          DEFAULT: '#805200', container: '#a16800', fixed: '#ffddb5', 'fixed-dim': '#ffb957',
+          50: '#fffbeb', 100: '#ffddb5', 200: '#fde68a', 300: '#fcd34d', 400: '#ffb957',
+          500: '#f59e0b', 600: '#a16800', 700: '#805200', 800: '#643f00', 900: '#2a1800', 950: '#451a03',
+        },
+        surface: {
+          DEFAULT: '#f7f9ff', dim: '#cfdbeb', bright: '#f7f9ff', variant: '#d7e4f4', tint: '#006b5f',
+          container: '#e3efff', 'container-lowest': '#ffffff', 'container-low': '#edf4ff',
+          'container-high': '#dde9fa', 'container-highest': '#d7e4f4',
+        },
+        error: { DEFAULT: '#ba1a1a', container: '#ffdad6' },
+        background: '#f7f9ff',
+        outline: { DEFAULT: '#6d7a76', variant: '#bcc9c5' },
+        'on-primary': '#ffffff', 'on-primary-container': '#f4fffb', 'on-primary-fixed': '#00201c', 'on-primary-fixed-variant': '#005047',
+        'on-secondary': '#ffffff', 'on-secondary-container': '#46617e', 'on-secondary-fixed': '#001d34', 'on-secondary-fixed-variant': '#2d4964',
+        'on-tertiary': '#ffffff', 'on-tertiary-container': '#fffbff', 'on-tertiary-fixed': '#2a1800', 'on-tertiary-fixed-variant': '#643f00',
+        'on-error': '#ffffff', 'on-error-container': '#93000a',
+        'on-surface': '#101d28', 'on-surface-variant': '#3d4946', 'on-background': '#101d28',
+        'inverse-surface': '#26323e', 'inverse-on-surface': '#e8f2ff', 'inverse-primary': '#63dac7',
         accent: {
           50: '#fff7ed',
           100: '#ffedd5',
@@ -33,6 +59,35 @@ module.exports = {
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        'headline-xl': ['"Plus Jakarta Sans"', 'sans-serif'], 'headline-lg': ['"Plus Jakarta Sans"', 'sans-serif'],
+        'headline-md': ['"Plus Jakarta Sans"', 'sans-serif'], 'headline-sm': ['"Plus Jakarta Sans"', 'sans-serif'],
+        'currency-display': ['"Plus Jakarta Sans"', 'sans-serif'],
+        'body-lg': ['Inter', 'sans-serif'], 'body-md': ['Inter', 'sans-serif'], 'body-sm': ['Inter', 'sans-serif'],
+        'label-lg': ['Inter', 'sans-serif'], 'label-md': ['Inter', 'sans-serif'], 'label-sm': ['Inter', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['48px', { lineHeight: '56px', fontWeight: '800' }],
+        'headline-xl': ['32px', { lineHeight: '40px', fontWeight: '700' }],
+        'headline-lg': ['24px', { lineHeight: '32px', fontWeight: '700' }],
+        'headline-md': ['20px', { lineHeight: '28px', fontWeight: '600' }],
+        'headline-sm': ['18px', { lineHeight: '24px', fontWeight: '600' }],
+        'currency-display': ['22px', { lineHeight: '28px', fontWeight: '800' }],
+        'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+        'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+        'label-lg': ['14px', { lineHeight: '20px', fontWeight: '600' }],
+        'label-md': ['12px', { lineHeight: '16px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '14px', fontWeight: '600' }],
+      },
+      spacing: {
+        'space-xs': '0.25rem', 'space-sm': '0.5rem', 'space-md': '1rem', 'space-lg': '1.5rem',
+        'space-xl': '2.5rem', 'gutter-sm': '1rem', gutter: '1.5rem', 'margin-sm': '1rem', margin: '2rem',
+      },
+      boxShadow: {
+        'elevation-1': '0 2px 4px -1px rgba(18,48,74,0.04), 0 4px 8px -1px rgba(18,48,74,0.06)',
+        'elevation-2': '0 10px 20px -3px rgba(18,48,74,0.08), 0 4px 6px -2px rgba(18,48,74,0.04)',
+        'elevation-3': '0 20px 25px -5px rgba(18,48,74,0.12), 0 10px 10px -5px rgba(18,48,74,0.05)',
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-in-out',

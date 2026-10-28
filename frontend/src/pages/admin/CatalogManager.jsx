@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Trash2, Edit3, Plus, Image, CheckCircle, X, Car, Save } from 'lucide-react';
-import DashboardLayout from '../../components/DashboardLayout';
+import { Upload, Trash2, Edit3, Plus, Image, CheckCircle, X, Car, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import AdminLayout from '../../components/admindash/AdminLayout';
 import { CATALOG_VEHICLES, VEHICLE_IMAGES } from '../../utils/carImages';
 
 const CATEGORIES = ['Berline', 'SUV', 'Luxe', 'Van', 'Minibus', 'Pick-up', 'Citadine'];
+const PAGE_SIZE = 8; /* 4 colonnes × 2 lignes max par page */
 
 function ImageCard({ vehicle, onEdit, onDelete }) {
   const [imgError, setImgError] = useState(false);
@@ -167,8 +168,13 @@ export default function CatalogManager() {
   const [showAdd, setShowAdd] = useState(false);
   const [filterCat, setFilterCat] = useState('ALL');
   const [saved, setSaved] = useState(false);
+  const [page, setPage] = useState(1);
 
   const filtered = filterCat === 'ALL' ? vehicles : vehicles.filter(v => v.category === filterCat);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const goTo = (p) => { setPage(Math.min(Math.max(1, p), totalPages)); document.getElementById('catalog-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
   const handleSave = (updated) => {
     if (updated.id) {
@@ -189,7 +195,7 @@ export default function CatalogManager() {
   };
 
   return (
-    <DashboardLayout title="Catalogue images véhicules">
+    <AdminLayout title="Catalogue et Flotte" subtitle="Visuels véhicules, gammes tarifaires et gestion du parc publié.">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-wrap gap-4 items-center justify-between">
@@ -218,7 +224,7 @@ export default function CatalogManager() {
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
           {['ALL', ...CATEGORIES].map(c => (
-            <button key={c} onClick={() => setFilterCat(c)}
+            <button key={c} onClick={() => { setFilterCat(c); setPage(1); }}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${filterCat === c ? 'bg-primary-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'}`}>
               {c === 'ALL' ? `Tous (${vehicles.length})` : `${c} (${vehicles.filter(v => v.category === c).length})`}
             </button>
@@ -226,8 +232,8 @@ export default function CatalogManager() {
         </div>
 
         {/* Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filtered.map(v => (
+        <div id="catalog-grid" className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 scroll-mt-24">
+          {pageItems.map(v => (
             <ImageCard key={v.id} vehicle={v} onEdit={setEditing} onDelete={handleDelete} />
           ))}
           {/* Add placeholder */}
@@ -238,6 +244,29 @@ export default function CatalogManager() {
             <span className="text-sm font-medium">Ajouter un véhicule</span>
           </button>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button onClick={() => goTo(safePage - 1)} disabled={safePage === 1} aria-label="Page précédente"
+              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <ChevronLeft size={15} />
+            </button>
+            {[...Array(totalPages)].map((_, i) => {
+              const p = i + 1;
+              return (
+                <button key={p} onClick={() => goTo(p)}
+                  className={`w-9 h-9 rounded-xl text-xs font-bold transition-colors ${p === safePage ? 'bg-teal-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-teal-500 hover:text-teal-700'}`}>
+                  {p}
+                </button>
+              );
+            })}
+            <button onClick={() => goTo(safePage + 1)} disabled={safePage === totalPages} aria-label="Page suivante"
+              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:border-teal-500 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
 
         {/* Usage guide */}
         <div className="card bg-slate-50 dark:bg-slate-800/50">
@@ -267,6 +296,6 @@ export default function CatalogManager() {
           onClose={() => { setEditing(null); setShowAdd(false); }}
         />
       )}
-    </DashboardLayout>
+    </AdminLayout>
   );
 }
