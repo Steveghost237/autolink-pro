@@ -8,14 +8,11 @@ import { ConfirmProvider } from './contexts/ConfirmContext';
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import ClientDashboard from './pages/client/ClientDashboard';
 import SearchVehicles from './pages/client/SearchVehicles';
-import MyBookings from './pages/client/MyBookings';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
 import VehicleAudit from './pages/owner/VehicleAudit';
-import DriverDashboard from './pages/driver/DriverDashboard';
 import DriverApplicationForm from './pages/driver/DriverApplicationForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriverRecruitment from './pages/admin/DriverRecruitment';
@@ -29,15 +26,15 @@ import Disputes from './pages/admin/Disputes';
 import ContactMessages from './pages/admin/ContactMessages';
 import Newsletter from './pages/admin/Newsletter';
 import LegalPages from './pages/LegalPages';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import VehicleDetail from './pages/VehicleDetail';
-import Favorites from './pages/client/Favorites';
 import BookingDetail from './pages/client/BookingDetail';
-import Wallet from './pages/client/Wallet';
-import Messaging from './pages/Messaging';
-import Notifications from './pages/Notifications';
+import D8 from './design/c8_notifications';
+import DD from './design/driver_dashboard';
+import DP from './design/driver_profile';
+import DR from './design/driver_revenue';
+import DDN from './design/driver_notifications';
+import Parametres from './design/Parametres';
 import Revenue from './pages/Revenue';
 import RentalRequests from './pages/owner/RentalRequests';
 import AdminBookings from './pages/admin/AdminBookings';
@@ -49,6 +46,18 @@ import HowItWorks from './pages/HowItWorks';
 import Pricing from './pages/Pricing';
 import BecomeOwner from './pages/BecomeOwner';
 import Help from './pages/Help';
+import D1 from './design/c1_tableau_de_bord_client';
+import D2s1 from './design/c2_tunnel_tape_1_r_capitulatif';
+import D2s2i from './design/c2_tunnel_tape_2_paiement_solde_insuffisant';
+import D2s2s from './design/c2_tunnel_tape_2_paiement_solde_suffisant';
+import D2s3 from './design/c2_tunnel_tape_3_confirmation';
+import D3 from './design/c3_mes_r_servations';
+import D4 from './design/c4_d_tail_d_une_r_servation';
+import D5 from './design/c5_portefeuille_et_caution';
+import D6 from './design/c6_favoris';
+import D7 from './design/c7_messagerie';
+import D9 from './design/c9_profil_et_param_tres';
+import Referrals from './design/Referrals';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -76,12 +85,17 @@ function AppRoutes() {
       <Route path="/become-owner" element={<BecomeOwner />} />
       <Route path="/help" element={<Help />} />
 
-      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
+      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><D1 /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
-      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
-      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><BookingDetail /></Guard>} />
-      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
-      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><Wallet /></Guard>} />
+      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><D3 /></Guard>} />
+      <Route path="/client/booking/recap" element={<Guard roles={['CLIENT']}><D2s1 /></Guard>} />
+      <Route path="/client/booking/paiement" element={<Guard roles={['CLIENT']}><D2s2s /></Guard>} />
+      <Route path="/client/booking/paiement-insuffisant" element={<Guard roles={['CLIENT']}><D2s2i /></Guard>} />
+      <Route path="/client/booking/confirmation" element={<Guard roles={['CLIENT']}><D2s3 /></Guard>} />
+      <Route path="/client/referrals" element={<Guard roles={['CLIENT']}><Referrals /></Guard>} />
+      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><D4 /></Guard>} />
+      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><D6 /></Guard>} />
+      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><D5 /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/bookings/:id" element={<Guard roles={['OWNER']}><BookingDetail /></Guard>} />
@@ -92,10 +106,13 @@ function AppRoutes() {
       <Route path="/owner/requests" element={<Guard roles={['OWNER']}><RentalRequests /></Guard>} />
       <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><Revenue /></Guard>} />
 
-      <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
-      <Route path="/driver/revenue" element={<Guard roles={['DRIVER']}><Revenue /></Guard>} />
+      <Route path="/driver/dashboard" element={<DD />} />
+      <Route path="/driver/revenue" element={<DR />} />
       <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
-      <Route path="/driver/bookings/:id" element={<Guard roles={['DRIVER']}><BookingDetail /></Guard>} />
+      <Route path="/driver/notifications" element={<DDN />} />
+      <Route path="/driver/messages" element={<D7 role="driver" />} />
+      <Route path="/driver/profile" element={<DP />} />
+      <Route path="/driver/settings" element={<Parametres role="driver" />} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
       <Route path="/admin/bookings" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
@@ -115,10 +132,10 @@ function AppRoutes() {
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
-      <Route path="/profile" element={<Guard><Profile /></Guard>} />
-      <Route path="/settings" element={<Guard><Settings /></Guard>} />
-      <Route path="/messages" element={<Guard><Messaging /></Guard>} />
-      <Route path="/notifications" element={<Guard><Notifications /></Guard>} />
+      <Route path="/profile" element={<Guard><D9 /></Guard>} />
+      <Route path="/settings" element={<Parametres />} />
+      <Route path="/messages" element={<Guard><D7 /></Guard>} />
+      <Route path="/notifications" element={<D8 />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

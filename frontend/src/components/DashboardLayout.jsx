@@ -16,15 +16,15 @@ const NAV_ITEMS = {
     space: 'Espace Client',
     items: [
       { icon: 'dashboard', label: 'Tableau de bord', path: '/client/dashboard' },
-      { icon: 'search', label: 'Chercher un véhicule', path: '/client/search' },
-      { icon: 'calendar_month', label: 'Mes réservations', path: '/client/bookings' },
+      { icon: 'directions_car', label: 'Mes Réservations', path: '/client/bookings' },
       { icon: 'account_balance_wallet', label: 'Portefeuille & Caution', path: '/client/wallet' },
-      { icon: 'favorite', label: 'Mes favoris', path: '/client/favorites' },
+      { icon: 'favorite', label: 'Favoris', path: '/client/favorites' },
+      { icon: 'badge', label: 'Documents & Profil', path: '/profile' },
       { icon: 'chat', label: 'Messages', path: '/messages', badge: 'messages' },
-      { icon: 'notifications', label: 'Notifications', path: '/notifications', badge: 'notifications' },
-      { icon: 'verified_user', label: 'Documents & Profil', path: '/profile' },
-      { icon: 'badge', label: 'Devenir chauffeur', path: '/driver/application' },
+      { icon: 'loyalty', label: 'Parrainage & Réductions', path: '/client/referrals' },
       { icon: 'settings', label: 'Paramètres', path: '/settings' },
+      { icon: 'directions_car', label: 'Catalogue', path: '/client/search' },
+      { icon: 'help', label: 'Aide', path: '/help' },
     ],
   },
   OWNER: {
@@ -374,10 +374,6 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-10 h-10 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high dark:text-slate-300" aria-label={t('Menu')}>
               <Icon name="menu" />
             </button>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low dark:bg-slate-800 text-on-surface-variant">
-              <Icon name="location_on" size={18} className="text-primary" />
-              <span className="font-label-md text-label-md font-semibold text-on-surface dark:text-slate-100">{user?.city || t('Douala & Yaoundé')}</span>
-            </div>
             <h1 className="font-headline-sm text-headline-sm text-on-surface dark:text-white truncate">{title}</h1>
           </div>
 
