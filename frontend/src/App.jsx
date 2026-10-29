@@ -45,6 +45,12 @@ import ContactMessages from './pages/admin/ContactMessages';
 import Newsletter from './pages/admin/Newsletter';
 import LegalPages from './pages/LegalPages';
 import BookingDetail from './pages/client/BookingDetail';
+import Messaging from './pages/Messaging';
+import Notifications from './pages/Notifications';
+import ClientDashboard from './pages/client/ClientDashboard';
+import MyBookings from './pages/client/MyBookings';
+import Wallet from './pages/client/Wallet';
+import Favorites from './pages/client/Favorites';
 import D8 from './design/c8_notifications';
 import DD from './design/driver_dashboard';
 import DP from './design/driver_profile';
@@ -93,17 +99,17 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><D1 /></Guard>} />
+      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
-      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><D3 /></Guard>} />
+      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
       <Route path="/client/booking/recap" element={<Guard roles={['CLIENT']}><D2s1 /></Guard>} />
       <Route path="/client/booking/paiement" element={<Guard roles={['CLIENT']}><D2s2s /></Guard>} />
       <Route path="/client/booking/paiement-insuffisant" element={<Guard roles={['CLIENT']}><D2s2i /></Guard>} />
       <Route path="/client/booking/confirmation" element={<Guard roles={['CLIENT']}><D2s3 /></Guard>} />
       <Route path="/client/referrals" element={<Guard roles={['CLIENT']}><Referrals /></Guard>} />
-      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><D4 /></Guard>} />
-      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><D6 /></Guard>} />
-      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><D5 /></Guard>} />
+      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><BookingDetail /></Guard>} />
+      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><Favorites /></Guard>} />
+      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><Wallet /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
@@ -112,13 +118,13 @@ function AppRoutes() {
       <Route path="/owner/requests" element={<Guard roles={['OWNER']}><OwnerRequests /></Guard>} />
       <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><OwnerRevenue /></Guard>} />
 
-      <Route path="/driver/dashboard" element={<DD />} />
+      <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
       <Route path="/driver/revenue" element={<DR />} />
       <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
-      <Route path="/driver/notifications" element={<DDN />} />
-      <Route path="/driver/messages" element={<D7 role="driver" />} />
-      <Route path="/driver/profile" element={<DP />} />
-      <Route path="/driver/settings" element={<Parametres role="driver" />} />
+      <Route path="/driver/notifications" element={<Guard roles={['DRIVER']}><Notifications /></Guard>} />
+      <Route path="/driver/messages" element={<Guard roles={['DRIVER']}><Messaging /></Guard>} />
+      <Route path="/driver/profile" element={<Guard roles={['DRIVER']}><Profile /></Guard>} />
+      <Route path="/driver/settings" element={<Guard roles={['DRIVER']}><Settings /></Guard>} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
       <Route path="/admin/reservations" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
@@ -138,10 +144,10 @@ function AppRoutes() {
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
-      <Route path="/profile" element={<Guard><D9 /></Guard>} />
-      <Route path="/settings" element={<Parametres />} />
-      <Route path="/messages" element={<Guard><D7 /></Guard>} />
-      <Route path="/notifications" element={<D8 />} />
+      <Route path="/profile" element={<Guard><Profile /></Guard>} />
+      <Route path="/settings" element={<Guard><Settings /></Guard>} />
+      <Route path="/messages" element={<Guard><Messaging /></Guard>} />
+      <Route path="/notifications" element={<Guard><Notifications /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
