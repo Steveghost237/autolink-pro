@@ -18,6 +18,8 @@ import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
 import OwnerRequests from './pages/owner/OwnerRequests';
 import OwnerRevenue from './pages/owner/OwnerRevenue';
+import OwnerMessages from './pages/owner/OwnerMessages';
+import OwnerNotifications from './pages/owner/OwnerNotifications';
 import OwnerVehicleDetail from './pages/owner/OwnerVehicleDetail';
 import DriverDashboard from './pages/driver/DriverDashboard';
 import VehicleAudit from './pages/owner/VehicleAudit';
@@ -128,8 +130,8 @@ function AppRoutes() {
       <Route path="/owner/vehicles/:id" element={<Guard roles={['OWNER']}><OwnerVehicleDetail /></Guard>} />
       <Route path="/owner/add-vehicle" element={<Guard roles={['OWNER']}><AddVehicle /></Guard>} />
       <Route path="/owner/requests" element={<Guard roles={['OWNER']}><OwnerRequests /></Guard>} />
-      <Route path="/owner/messages" element={<Guard roles={['OWNER']}><D7 role="owner" /></Guard>} />
-      <Route path="/owner/notifications" element={<Guard roles={['OWNER']}><D8 role="owner" /></Guard>} />
+      <Route path="/owner/messages" element={<Guard roles={['OWNER']}><OwnerMessages /></Guard>} />
+      <Route path="/owner/notifications" element={<Guard roles={['OWNER']}><OwnerNotifications /></Guard>} />
       <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><OwnerRevenue /></Guard>} />
 
       <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DD /></Guard>} />
