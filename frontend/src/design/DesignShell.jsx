@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
+import { useAuth } from '../contexts/AuthContext';
 
 const NAVS = {
   client: [
@@ -40,6 +41,8 @@ export default function DesignShell({ children, role = 'client' }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const doLogout = () => { logout(); doLogout(); };
 
   useEffect(() => {
     if (!profileOpen) return undefined;
@@ -50,7 +53,7 @@ export default function DesignShell({ children, role = 'client' }) {
   const sidebar = (
     <div className="flex flex-col h-full w-72 bg-surface-container-lowest text-on-surface shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="h-20 px-6 flex items-center justify-between shrink-0">
-        <Link to="/design" className="flex items-center gap-2.5">
+        <Link to="/" className="flex items-center gap-2.5">
           <span className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
             <Icon name="directions_car" size={22} />
           </span>
@@ -88,7 +91,7 @@ export default function DesignShell({ children, role = 'client' }) {
             <span className="w-2 h-2 rounded-full bg-primary-fixed animate-pulse" />En ligne
           </span>
         </div>
-        <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-label-md text-error hover:bg-error-container transition-all">
+        <button onClick={doLogout} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-label-md text-error hover:bg-error-container transition-all">
           <Icon name="logout" size={18} />Déconnexion
         </button>
       </div>
@@ -160,7 +163,7 @@ export default function DesignShell({ children, role = 'client' }) {
                     </button>
                   ))}
                   <div className="border-t border-outline-variant/30 mt-1 pt-1">
-                    <button onClick={() => navigate('/login')} className="flex items-center gap-2 px-4 py-2 font-body-md text-body-md text-error hover:bg-error-container/50 w-full">
+                    <button onClick={() => doLogout()} className="flex items-center gap-2 px-4 py-2 font-body-md text-body-md text-error hover:bg-error-container/50 w-full">
                       <Icon name="logout" size={18} />Déconnexion
                     </button>
                   </div>

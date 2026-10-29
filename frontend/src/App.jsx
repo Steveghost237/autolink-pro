@@ -107,6 +107,8 @@ function AppRoutes() {
       <Route path="/comment-ca-marche" element={<HowItWorks />} />
       <Route path="/tarifs" element={<Pricing />} />
       <Route path="/aide" element={<Help />} />
+      <Route path="/help" element={<Help />} />
+      <Route path="/design" element={<DesignIndex />} />
       <Route path="/devenir-proprietaire" element={<BecomeOwner />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
