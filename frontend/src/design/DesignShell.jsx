@@ -28,7 +28,7 @@ const NAVS = {
 };
 
 const USERS = {
-  client: { init: 'EN', name: 'Emmanuel Ndedi', short: 'Emmanuel N.', role: 'Client', email: '{user.email}', space: 'Espace Client' },
+  client: { init: 'EN', name: 'Emmanuel Ndedi', short: 'Emmanuel N.', role: 'Client', email: 'emmanuel@autolink.cm', space: 'Espace Client' },
   driver: { init: 'JM', name: 'Jean-Pierre Mbida', short: 'Jean-Pierre M.', role: 'Chauffeur', email: 'jp.mbida@autolink.cm', space: 'Espace Chauffeur' },
 };
 
@@ -42,7 +42,7 @@ export default function DesignShell({ children, role = 'client' }) {
   const profileRef = useRef(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const doLogout = () => { logout(); doLogout(); };
+  const doLogout = () => { logout(); navigate('/login'); };
 
   useEffect(() => {
     if (!profileOpen) return undefined;
