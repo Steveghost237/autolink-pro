@@ -12,9 +12,7 @@ import Help from './pages/Help';
 import BecomeOwner from './pages/BecomeOwner';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import ClientDashboard from './pages/client/ClientDashboard';
 import SearchVehicles from './pages/client/SearchVehicles';
-import MyBookings from './pages/client/MyBookings';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import MyVehicles from './pages/owner/MyVehicles';
 import AddVehicle from './pages/owner/AddVehicle';
@@ -22,6 +20,8 @@ import OwnerRequests from './pages/owner/OwnerRequests';
 import OwnerRevenue from './pages/owner/OwnerRevenue';
 import OwnerVehicleDetail from './pages/owner/OwnerVehicleDetail';
 import DriverDashboard from './pages/driver/DriverDashboard';
+import VehicleAudit from './pages/owner/VehicleAudit';
+import DriverApplicationForm from './pages/driver/DriverApplicationForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminBookingDetail from './pages/admin/AdminBookingDetail';
@@ -40,7 +40,22 @@ import AgentsManager from './pages/admin/AgentsManager';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
-// ── Maquettes design system (Yves-ANAGUE) — prévisualisées sous /design/* ──
+import Disputes from './pages/admin/Disputes';
+import ContactMessages from './pages/admin/ContactMessages';
+import Newsletter from './pages/admin/Newsletter';
+import LegalPages from './pages/LegalPages';
+import BookingDetail from './pages/client/BookingDetail';
+import D8 from './design/c8_notifications';
+import DD from './design/driver_dashboard';
+import DP from './design/driver_profile';
+import DR from './design/driver_revenue';
+import DDN from './design/driver_notifications';
+import Parametres from './design/Parametres';
+import Revenue from './pages/Revenue';
+import RentalRequests from './pages/owner/RentalRequests';
+import AdminOwners from './pages/admin/AdminOwners';
+import PlatformSettings from './pages/admin/PlatformSettings';
+import MaintenanceBanner from './components/MaintenanceBanner';
 import D1 from './design/c1_tableau_de_bord_client';
 import D2s1 from './design/c2_tunnel_tape_1_r_capitulatif';
 import D2s2i from './design/c2_tunnel_tape_2_paiement_solde_insuffisant';
@@ -51,14 +66,8 @@ import D4 from './design/c4_d_tail_d_une_r_servation';
 import D5 from './design/c5_portefeuille_et_caution';
 import D6 from './design/c6_favoris';
 import D7 from './design/c7_messagerie';
-import D8 from './design/c8_notifications';
 import D9 from './design/c9_profil_et_param_tres';
-import DD from './design/driver_dashboard';
-import DP from './design/driver_profile';
-import DR from './design/driver_revenue';
-import DDN from './design/driver_notifications';
-import DesignParametres from './design/Parametres';
-import DesignReferrals from './design/Referrals';
+import Referrals from './design/Referrals';
 import DesignIndex from './design/DesignIndex';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -84,9 +93,17 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><ClientDashboard /></Guard>} />
+      <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><D1 /></Guard>} />
       <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
-      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><MyBookings /></Guard>} />
+      <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><D3 /></Guard>} />
+      <Route path="/client/booking/recap" element={<Guard roles={['CLIENT']}><D2s1 /></Guard>} />
+      <Route path="/client/booking/paiement" element={<Guard roles={['CLIENT']}><D2s2s /></Guard>} />
+      <Route path="/client/booking/paiement-insuffisant" element={<Guard roles={['CLIENT']}><D2s2i /></Guard>} />
+      <Route path="/client/booking/confirmation" element={<Guard roles={['CLIENT']}><D2s3 /></Guard>} />
+      <Route path="/client/referrals" element={<Guard roles={['CLIENT']}><Referrals /></Guard>} />
+      <Route path="/client/bookings/:id" element={<Guard roles={['CLIENT']}><D4 /></Guard>} />
+      <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><D6 /></Guard>} />
+      <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><D5 /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />
@@ -95,7 +112,13 @@ function AppRoutes() {
       <Route path="/owner/requests" element={<Guard roles={['OWNER']}><OwnerRequests /></Guard>} />
       <Route path="/owner/revenue" element={<Guard roles={['OWNER']}><OwnerRevenue /></Guard>} />
 
-      <Route path="/driver/dashboard" element={<Guard roles={['DRIVER']}><DriverDashboard /></Guard>} />
+      <Route path="/driver/dashboard" element={<DD />} />
+      <Route path="/driver/revenue" element={<DR />} />
+      <Route path="/driver/application" element={<Guard><DriverApplicationForm /></Guard>} />
+      <Route path="/driver/notifications" element={<DDN />} />
+      <Route path="/driver/messages" element={<D7 role="driver" />} />
+      <Route path="/driver/profile" element={<DP />} />
+      <Route path="/driver/settings" element={<Parametres role="driver" />} />
 
       <Route path="/admin/dashboard" element={<Guard roles={['ADMIN']}><AdminDashboard /></Guard>} />
       <Route path="/admin/reservations" element={<Guard roles={['ADMIN']}><AdminBookings /></Guard>} />
@@ -115,31 +138,10 @@ function AppRoutes() {
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
-      <Route path="/profile" element={<Guard><Profile /></Guard>} />
-      <Route path="/settings" element={<Guard><Settings /></Guard>} />
-
-      {/* Maquettes design system (Yves) — /design/* */}
-      <Route path="/design" element={<DesignIndex />} />
-      <Route path="/design/client/dashboard" element={<D1 />} />
-      <Route path="/design/client/bookings" element={<D3 />} />
-      <Route path="/design/client/booking/recap" element={<D2s1 />} />
-      <Route path="/design/client/booking/paiement" element={<D2s2s />} />
-      <Route path="/design/client/booking/paiement-insuffisant" element={<D2s2i />} />
-      <Route path="/design/client/booking/confirmation" element={<D2s3 />} />
-      <Route path="/design/client/referrals" element={<DesignReferrals />} />
-      <Route path="/design/client/bookings/:id" element={<D4 />} />
-      <Route path="/design/client/favorites" element={<D6 />} />
-      <Route path="/design/client/wallet" element={<D5 />} />
-      <Route path="/design/driver/dashboard" element={<DD />} />
-      <Route path="/design/driver/revenue" element={<DR />} />
-      <Route path="/design/driver/notifications" element={<DDN />} />
-      <Route path="/design/driver/messages" element={<D7 role="driver" />} />
-      <Route path="/design/driver/profile" element={<DP />} />
-      <Route path="/design/driver/settings" element={<DesignParametres role="driver" />} />
-      <Route path="/design/profile" element={<D9 />} />
-      <Route path="/design/settings" element={<DesignParametres />} />
-      <Route path="/design/messages" element={<D7 />} />
-      <Route path="/design/notifications" element={<D8 />} />
+      <Route path="/profile" element={<Guard><D9 /></Guard>} />
+      <Route path="/settings" element={<Parametres />} />
+      <Route path="/messages" element={<Guard><D7 /></Guard>} />
+      <Route path="/notifications" element={<D8 />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
