@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import DashboardLayout from '../../components/DashboardLayout';
+import DesignShell from '../../design/DesignShell';
 import ListToolbar from '../../components/ListToolbar';
 import Icon from '../../components/Icon';
 import VehicleCard from '../../components/VehicleCard';
@@ -11,6 +11,17 @@ import { vehiclesAPI, bookingsAPI, paymentsAPI, walletAPI } from '../../services
 import { useAuth } from '../../contexts/AuthContext';
 import useFavorites from '../../utils/useFavorites';
 import { formatDate, formatNumber, uiText, vehicleLabel } from '../../i18n';
+
+const MOCK_VEHICLES = [
+  { id: 1, brand: 'Toyota', model: 'RAV4 AWD Hybrid', year: 2022, category: 'SUV', tier: 'Premium', seats: 5, fuel: 'Hybride', gearbox: 'Automatique', driver: true, inspected: true, is_new: true, daily_rate: 45000, rating: 9.7, city: 'Douala — Akwa', status: 'approved', image_url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80', km_included_per_day: 200, extra_km_rate: 150, deposit_amount: 150000 },
+  { id: 2, brand: 'Porsche', model: 'Panamera', year: 2023, category: 'Berline', tier: 'Super Luxe', seats: 5, fuel: 'Hybride', gearbox: 'Automatique', driver: true, inspected: true, is_new: true, daily_rate: 250000, rating: 9.8, city: 'Douala — Bonanjo', status: 'approved', image_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80', km_included_per_day: 300, extra_km_rate: 600, deposit_amount: 800000 },
+  { id: 3, brand: 'Toyota', model: 'Corolla', year: 2021, category: 'Berline', tier: 'Économique', seats: 5, fuel: 'Essence', gearbox: 'Manuelle', driver: true, inspected: true, is_new: false, daily_rate: 22000, rating: 9.2, city: 'Yaoundé — Bastos', status: 'approved', image_url: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&q=80', km_included_per_day: 200, extra_km_rate: 120, deposit_amount: 80000 },
+  { id: 4, brand: 'Mercedes', model: 'Classe S 500', year: 2023, category: 'Berline', tier: 'Luxe', seats: 5, fuel: 'Hybride', gearbox: 'Automatique', driver: true, inspected: true, is_new: true, daily_rate: 151200, rating: 9.8, city: 'Douala — Bonapriso', status: 'approved', image_url: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=80', km_included_per_day: 250, extra_km_rate: 400, deposit_amount: 500000 },
+  { id: 5, brand: 'Toyota', model: 'Land Cruiser Prado', year: 2022, category: 'SUV', tier: 'Premium', seats: 7, fuel: 'Diesel', gearbox: 'Automatique', driver: true, inspected: true, is_new: false, daily_rate: 75000, rating: 9.6, city: 'Douala — Bonabéri', status: 'approved', image_url: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&q=80', km_included_per_day: 300, extra_km_rate: 250, deposit_amount: 300000 },
+  { id: 6, brand: 'BMW', model: 'X7', year: 2023, category: 'SUV', tier: 'Luxe', seats: 7, fuel: 'Essence', gearbox: 'Automatique', driver: true, inspected: true, is_new: false, daily_rate: 130000, rating: 9.6, city: 'Yaoundé — Nkolbisson', status: 'approved', image_url: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80', km_included_per_day: 250, extra_km_rate: 350, deposit_amount: 450000 },
+  { id: 7, brand: 'Dacia', model: 'Duster', year: 2021, category: 'SUV', tier: 'Économique', seats: 5, fuel: 'Diesel', gearbox: 'Manuelle', driver: true, inspected: true, is_new: false, daily_rate: 28000, rating: 8.8, city: 'Douala — Deïdo', status: 'approved', image_url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80', km_included_per_day: 200, extra_km_rate: 100, deposit_amount: 100000 },
+  { id: 8, brand: 'Kia', model: 'Sorento', year: 2021, category: 'SUV', tier: 'Intermédiaire', seats: 7, fuel: 'Essence', gearbox: 'Automatique', driver: true, inspected: true, is_new: false, daily_rate: 48000, rating: 9.0, city: 'Douala — Bonanjo', status: 'approved', image_url: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80', km_included_per_day: 250, extra_km_rate: 180, deposit_amount: 180000 },
+];
 
 const t = (text, options) => uiText('pages.client.SearchVehicles', text, options);
 
@@ -382,7 +393,7 @@ export default function SearchVehicles() {
   const [fuel, setFuel] = useState('');
 
   useEffect(() => {
-    vehiclesAPI.facets().then(({ data }) => { setFacets(data); setMaxPrice(Number(data.max_rate) || 200000); }).catch(() => {});
+    Promise.resolve({ data: { max_rate: 280000 } }).then(({ data }) => { setFacets(data); setMaxPrice(Number(data.max_rate) || 280000); }).catch(() => {});
     const type = new URLSearchParams(window.location.search).get('type');
     if (type) setType(type);
   }, []);
@@ -390,10 +401,10 @@ export default function SearchVehicles() {
   useEffect(() => {
     let mounted = true;
     setLoadingList(true);
-    vehiclesAPI.getAll({
+    Promise.resolve({ data: { results: MOCK_VEHICLES } }) /* vehiclesAPI.getAll({
       status: 'approved', page_size: 200,
       ...(onlyAvailable ? { available: 1, ...(availabilityStart ? { start: availabilityStart } : {}), ...(availabilityEnd ? { end: availabilityEnd } : {}) } : {}),
-    })
+    }) */
       .then((res) => {
         if (!mounted) return;
         const list = (res.data.results || res.data || []).map(mapApiVehicle);
@@ -403,7 +414,7 @@ export default function SearchVehicles() {
         if (selectedId) {
           const vehicle = list.find((item) => item.id === selectedId);
           if (vehicle) setSelected(vehicle);
-          else vehiclesAPI.detail(selectedId).then(({ data }) => mounted && setSelected(mapApiVehicle(data))).catch(() => {});
+          else vehiclesAPI.detail(selectedId).then(({ data }) => mounted && setSelected({ ...data, type: 'rental' })).catch(() => {});
         }
         setLoadingList(false);
       })
@@ -437,7 +448,8 @@ export default function SearchVehicles() {
   const maxRate = Math.max(15000, Number(facets.max_rate) || 200000);
 
   return (
-    <DashboardLayout title={t('Catalogue de véhicules')} subtitle={t('Choisissez votre véhicule, votre formule et réservez en quelques clics.')}>
+    <DesignShell role="client">
+      <div className="mb-4"><h1 className="font-headline-lg text-headline-lg text-on-surface">{t('Catalogue de véhicules')}</h1><p className="text-body-md text-on-surface-variant">{t('Choisissez votre véhicule, votre formule et réservez en quelques clics.')}</p></div>
       <div className="flex flex-col gap-6">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {[{ id: '', label: 'Toutes les formules' }, ...RENTAL_TYPES].map((rt) => (
@@ -507,6 +519,6 @@ export default function SearchVehicles() {
         {loadingList && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-96 rounded-xl bg-surface-container animate-pulse" />)}</div>}
       </div>
       {selectedVehicle && <BookingFunnel vehicle={selectedVehicle} onClose={closeFunnel} />}
-    </DashboardLayout>
+    </DesignShell>
   );
 }
