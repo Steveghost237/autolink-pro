@@ -393,7 +393,7 @@ export default function SearchVehicles() {
   const [fuel, setFuel] = useState('');
 
   useEffect(() => {
-    Promise.resolve({ data: { max_rate: 280000 } }).then(({ data }) => { setFacets(f => ({ ...f, max_rate: data.max_rate })); setMaxPrice(Number(data.max_rate) || 280000); }).catch(() => {});
+    Promise.resolve({ data: { max_rate: 280000, brands: ['Toyota','Porsche','Mercedes','BMW','Dacia','Kia'], models: {'Toyota':['RAV4 AWD Hybrid','Corolla','Land Cruiser Prado'],'Porsche':['Panamera'],'Mercedes':['Classe S 500'],'BMW':['X7'],'Dacia':['Duster'],'Kia':['Sorento']}, categories: ['Berline','SUV','Citadine','Pick-up','Van','Minibus'], fuels: ['Essence','Diesel','Hybride'] } }).then(({ data }) => { setFacets(f => ({ ...f, max_rate: data.max_rate })); setMaxPrice(Number(data.max_rate) || 280000); }).catch(() => {});
     const type = new URLSearchParams(window.location.search).get('type');
     if (type) setType(type);
   }, []);
