@@ -78,7 +78,6 @@ import D6 from './design/c6_favoris';
 import D7 from './design/c7_messagerie';
 import D9 from './design/c9_profil_et_param_tres';
 import Referrals from './design/Referrals';
-import CatalogueDesign from './design/c10_catalogue';
 import DesignIndex from './design/DesignIndex';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -114,7 +113,7 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
 
       <Route path="/client/dashboard" element={<Guard roles={['CLIENT']}><D1 /></Guard>} />
-      <Route path="/client/search" element={<Guard roles={['CLIENT']}><CatalogueDesign /></Guard>} />
+      <Route path="/client/search" element={<Guard roles={['CLIENT']}><SearchVehicles /></Guard>} />
       <Route path="/client/bookings" element={<Guard roles={['CLIENT']}><D3 /></Guard>} />
       <Route path="/client/booking/recap" element={<Guard roles={['CLIENT']}><D2s1 /></Guard>} />
       <Route path="/client/booking/paiement" element={<Guard roles={['CLIENT']}><D2s2s /></Guard>} />
