@@ -38,6 +38,8 @@ import ControllerDashboard from './pages/controller/ControllerDashboard';
 import CatalogManager from './pages/admin/CatalogManager';
 import AgentsManager from './pages/admin/AgentsManager';
 import Profile from './pages/Profile';
+import ProfileMoko from './pages/ProfileMoko';
+import SettingsMoko from './pages/SettingsMoko';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Disputes from './pages/admin/Disputes';
@@ -82,6 +84,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user?.role)) return <Navigate to="/" replace />;
   return children;
+};
+
+// Rend la bonne interface selon le rôle : Yves pour CLIENT/DRIVER,
+// Moko (dev_back) pour OWNER/ADMIN/CONTROLLER/INTERMEDIARY.
+const RolePage = ({ yves, moko }) => {
+  const { user } = useAuth();
+  const isYvesUi = ['CLIENT', 'DRIVER'].includes(user?.role);
+  return isYvesUi ? yves : moko;
 };
 
 const Guard = ({ roles, children }) => <ProtectedRoute allowedRoles={roles}>{children}</ProtectedRoute>;
@@ -144,10 +154,10 @@ function AppRoutes() {
       <Route path="/controller/dashboard" element={<Guard roles={['ADMIN', 'CONTROLLER']}><ControllerDashboard /></Guard>} />
 
       {/* Pages communes à tous les rôles connectés */}
-      <Route path="/profile" element={<Guard><Profile /></Guard>} />
-      <Route path="/settings" element={<Guard><Settings /></Guard>} />
-      <Route path="/messages" element={<Guard><Messaging /></Guard>} />
-      <Route path="/notifications" element={<Guard><Notifications /></Guard>} />
+      <Route path="/profile" element={<Guard><RolePage yves={<Profile />} moko={<ProfileMoko />} /></Guard>} />
+      <Route path="/settings" element={<Guard><RolePage yves={<Settings />} moko={<SettingsMoko />} /></Guard>} />
+      <Route path="/messages" element={<Guard roles={['CLIENT', 'DRIVER']}><Messaging /></Guard>} />
+      <Route path="/notifications" element={<Guard roles={['CLIENT', 'DRIVER']}><Notifications /></Guard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
