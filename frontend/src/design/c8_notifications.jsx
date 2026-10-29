@@ -401,6 +401,6 @@ const LINKS = {
   'Paramètres': '/settings',
 };
 
-export default function c8notifications() {
-  return <DesignPage html={HTML} links={LINKS} />;
+export default function c8notifications({ role = 'client' }) {
+  return <DesignPage html={HTML} links={LINKS} role={role} />;
 }

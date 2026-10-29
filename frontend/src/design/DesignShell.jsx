@@ -30,13 +30,23 @@ const NAVS = {
 const USERS = {
   client: { init: 'EN', name: 'Emmanuel Ndedi', short: 'Emmanuel N.', role: 'Client', email: 'emmanuel@autolink.cm', space: 'Espace Client' },
   driver: { init: 'JM', name: 'Jean-Pierre Mbida', short: 'Jean-Pierre M.', role: 'Chauffeur', email: 'jp.mbida@autolink.cm', space: 'Espace Chauffeur' },
+  owner: { init: 'AY', name: 'ANANGUE Yves', short: 'ANANGUE Y.', role: 'Propriétaire', email: 'anague@autolink.cm', space: 'Espace Propriétaire' },
 };
 
 export default function DesignShell({ children, role = 'client' }) {
-  const NAV = NAVS[role] || NAVS.client;
+  const NAV = role === 'owner' ? [
+    { icon: 'dashboard', label: 'Tableau de bord', path: '/owner/dashboard' },
+    { icon: 'directions_car', label: 'Mes véhicules', path: '/owner/vehicles' },
+    { icon: 'post_add', label: 'Ajouter un véhicule', path: '/owner/add-vehicle' },
+    { icon: 'inbox', label: 'Demandes de location', path: '/owner/requests' },
+    { icon: 'account_balance_wallet', label: 'Revenus & Finances', path: '/owner/revenue' },
+    { icon: 'chat', label: 'Messagerie', path: '/owner/messages' },
+    { icon: 'notifications', label: 'Notifications', path: '/owner/notifications' },
+    { icon: 'badge', label: 'Profil & Paramètres', path: '/settings' },
+  ] : (NAVS[role] || NAVS.client);
   const user = USERS[role] || USERS.client;
-  const notifPath = role === 'driver' ? '/driver/notifications' : '/notifications';
-  const walletPath = role === 'driver' ? '/driver/revenue' : '/client/wallet?recharge=1';
+  const notifPath = role === 'driver' ? '/driver/notifications' : role === 'owner' ? '/owner/notifications' : '/notifications';
+  const walletPath = role === 'driver' ? '/driver/revenue' : role === 'owner' ? '/owner/revenue' : '/client/wallet?recharge=1';
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
