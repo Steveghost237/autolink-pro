@@ -120,6 +120,54 @@ const RENTAL_TYPES = [
   { id:'longhaul',  label:'Longue duree',icon:'moon-outline',     mult:null, minP:0,     km:500 },
 ];
 
+// ─── MOCK DATA — mêmes données que la version web ─────────────────────────────
+const MOCK_VEHICLES = [
+  { id:1, brand:'Toyota', model:'RAV4 AWD Hybrid', year:2022, category:'SUV', tier:'premium', seats:5, fuel:'Hybride', city:'Douala — Akwa', daily_rate:45000, rating:9.7, status:'approved', image_url:'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80', km_included_per_day:200, extra_km_rate:150, deposit_amount:150000 },
+  { id:2, brand:'Porsche', model:'Panamera', year:2023, category:'Berline', tier:'collection', seats:5, fuel:'Hybride', city:'Douala — Bonanjo', daily_rate:250000, rating:9.8, status:'approved', image_url:'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80', km_included_per_day:300, extra_km_rate:600, deposit_amount:800000 },
+  { id:3, brand:'Toyota', model:'Corolla', year:2021, category:'Berline', tier:'basic', seats:5, fuel:'Essence', city:'Yaoundé — Bastos', daily_rate:22000, rating:9.2, status:'approved', image_url:'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&q=80', km_included_per_day:200, extra_km_rate:120, deposit_amount:80000 },
+  { id:4, brand:'Mercedes', model:'Classe S 500', year:2023, category:'Berline', tier:'gold', seats:5, fuel:'Hybride', city:'Douala — Bonapriso', daily_rate:151200, rating:9.8, status:'approved', image_url:'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&q=80', km_included_per_day:250, extra_km_rate:400, deposit_amount:500000 },
+  { id:5, brand:'Toyota', model:'Land Cruiser Prado', year:2022, category:'SUV', tier:'premium', seats:7, fuel:'Diesel', city:'Douala — Bonabéri', daily_rate:75000, rating:9.6, status:'approved', image_url:'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&q=80', km_included_per_day:300, extra_km_rate:250, deposit_amount:300000 },
+  { id:6, brand:'BMW', model:'X7', year:2023, category:'SUV', tier:'gold', seats:7, fuel:'Essence', city:'Yaoundé — Nkolbisson', daily_rate:130000, rating:9.6, status:'approved', image_url:'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80', km_included_per_day:250, extra_km_rate:350, deposit_amount:450000 },
+  { id:7, brand:'Dacia', model:'Duster', year:2021, category:'SUV', tier:'basic', seats:5, fuel:'Diesel', city:'Douala — Deïdo', daily_rate:28000, rating:8.8, status:'approved', image_url:'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80', km_included_per_day:200, extra_km_rate:100, deposit_amount:100000 },
+  { id:8, brand:'Kia', model:'Sorento', year:2021, category:'SUV', tier:'standard', seats:7, fuel:'Essence', city:'Douala — Bonanjo', daily_rate:48000, rating:9.0, status:'approved', image_url:'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80', km_included_per_day:250, extra_km_rate:180, deposit_amount:180000 },
+];
+const MOCK_BOOKINGS_CLIENT = [
+  { id:'BK-0021', vehicle:'Toyota RAV4 AWD Hybrid 2022', type:'24 heures', amount:45000, status:'confirmed', date:'2024-10-28', endDate:'2024-10-29', driver:'Chauffeur AutoLink', driverType:'internal', escrow:'held', rawId:21 },
+  { id:'BK-0018', vehicle:'Porsche Panamera 2023', type:'Interurbain', amount:250000, status:'completed', date:'2024-10-15', endDate:'2024-10-16', driver:'Sans chauffeur', driverType:'none', escrow:'released', rawId:18 },
+  { id:'BK-0012', vehicle:'Mercedes Classe S 500 2023', type:'8 heures', amount:75600, status:'completed', date:'2024-09-30', endDate:'2024-09-30', driver:'Chauffeur du proprio', driverType:'owner', escrow:'released', rawId:12 },
+];
+const MOCK_NOTIFS_CLIENT = [
+  { id:1, title:'Réservation confirmée', body:'Votre Toyota RAV4 est confirmée pour le 28/10 — prise en charge à 08h30.', time:'Il y a 5 min', read:false },
+  { id:2, title:'Solde rechargé', body:'45 000 FCFA ajoutés via MTN MoMo.', time:'Il y a 2 h', read:false },
+  { id:3, title:'Avis de retour', body:'Votre Porsche Panamera a été restituée. Caution débloquée.', time:'Hier 16:20', read:true },
+  { id:4, title:'Promo AutoLink', body:'–10% sur toutes les locations de 3+ jours ce week-end.', time:'Lun 09:00', read:true },
+];
+const MOCK_THREADS_CLIENT = [
+  { id:1, name:"Chauffeur — Thomas K.", init:'T', color:'#0D9488', last:"Je serai là à 08h25 devant l'accueil.", time:'10:42', unread:1, msgs:[{from:'client',text:"Bonjour, vous êtes bien confirmé pour 08h30 Akwa ?",time:'10:38'},{from:'other',text:"Oui bonjour ! Je serai là à 08h25 devant l'accueil.",time:'10:40'},{from:'client',text:'Parfait merci !',time:'10:42'}] },
+  { id:2, name:"AutoLink Pro — Support", init:'A', color:'#3B82F6', last:"Votre inspection du 28/10 a été validée.", time:'Hier', unread:0, msgs:[{from:'other',text:"Votre inspection du 28/10 a été validée. Bon voyage !",time:'Hier'}] },
+];
+const MOCK_VEHICLES_OWNER = [
+  { id:10, name:'Toyota Corolla 2022', tier:'basic', daily_rate:22000, status:'approved', city:'Douala', image_url:'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&q=80', rating:9.3 },
+  { id:11, name:'Hyundai Tucson 2023', tier:'standard', daily_rate:45000, status:'rented', city:'Yaoundé', image_url:'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800&q=80', rating:9.7 },
+  { id:12, name:'Kia Picanto 2021', tier:'basic', daily_rate:18000, status:'approved', city:'Douala', image_url:'https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=800&q=80', rating:9.3 },
+];
+const MOCK_REQUESTS_OWNER = [
+  { id:1, client:'Nadia Fouda', vehicle:'Kia Sorento', dates:'31/10 → 02/11', amount:144000, status:'pending' },
+  { id:2, client:'Jules Mbappe', vehicle:'Hyundai Tucson', dates:'28/10 → 29/10', amount:45000, status:'confirmed' },
+];
+const MOCK_NOTIFS_OWNER = [
+  { id:1, title:'Nouvelle demande de location', body:'Nadia Fouda souhaite louer votre Kia Sorento du 31/10 au 02/11 — Bonanjo.', time:'Il y a 12 min', read:false },
+  { id:2, title:'Revenus disponibles', body:'45 000 FCFA ajoutés à votre solde — commission 10 % déduite.', time:'Il y a 1 h', read:false },
+  { id:3, title:'Inspection validée', body:'Votre Toyota Corolla a passé le contrôle technique avec succès.', time:'Hier 16:20', read:true },
+  { id:4, title:'Nouvel avis locataire', body:'Jules Mbappe a laissé une note de 4.8/5 sur votre Hyundai Tucson.', time:'Mar 12:05', read:true },
+];
+const MOCK_THREADS_OWNER = [
+  { id:1, name:'Nadia Fouda', init:'N', color:'#0D9488', tag:'Locataire', last:'Bonjour, le point de remise convient pour 14h ?', time:'10:42', unread:2, msgs:[{from:'other',text:'Bonjour ! Le point de remise à Bonanjo convient pour 14h ?',time:'10:38'},{from:'me',text:'Oui parfait — carrefour Ndokoti à 14h.',time:'10:40'},{from:'other',text:'Super, merci ! Je prépare ma caution.',time:'10:42'}] },
+  { id:2, name:'AutoLink Pro — Support', init:'A', color:'#3B82F6', tag:'Support', last:'Votre inspection du 28/10 a été validée.', time:'Hier', unread:0, msgs:[{from:'other',text:'Votre inspection du 28/10 a été validée.',time:'Hier'}] },
+  { id:3, name:"Jules Mbappe", init:"J", color:"#F59E0B", tag:"Locataire", last:"Merci pour le véhicule, tout s'est bien passé.", time:"Mar", unread:0, msgs:[{from:"other",text:"Merci pour le véhicule, tout s'est bien passé.",time:"Mar"}] },
+];
+
+
 
 
 
@@ -608,25 +656,29 @@ function ClientDash({ user, logout }) {
   const [search, setSearch] = useState('');
   const [selV, setSelV] = useState(null);
   const [tier, setTier] = useState('');
-  const [vehicles, setVehicles] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [balance, setBalance] = useState(user.balance != null ? Number(user.balance) : null);
+  const [vehicles, setVehicles] = useState(MOCK_VEHICLES.map(mapApiVehicle));
+  const [bookings, setBookings] = useState(MOCK_BOOKINGS_CLIENT);
+  const [balance, setBalance] = useState(45000);
   const [showTopUp, setShowTopUp] = useState(false);
-  const av = (user.firstName[0] || 'A') + (user.lastName[0] || 'L');
+  const [activeThread, setActiveThread] = useState(MOCK_THREADS_CLIENT[0]);
+  const [msgText, setMsgText] = useState('');
+  const av = 'EN';
+  const displayName = 'Emmanuel Ndedi';
 
   const refresh = useCallback(async () => {
     try { const d = await api.vehicles(); const l = (d.results || d).map(mapApiVehicle); if (l.length) setVehicles(l); } catch (_) {}
     try {
       const d = await api.bookings();
-      setBookings((d.results || d).map(b => ({
+      const mapped = (d.results || d).map(b => ({
         id: `BK-${String(b.id).padStart(4,'0')}`, vehicle: b.vehicle_name, type: 'Location',
         amount: Number(b.subtotal), status: b.status, date: b.start_date, endDate: b.end_date,
-        driver: b.driver_name || (b.driver_type==='internal' ? 'Attribution auto…' : b.driver_type==='owner' ? 'Chauffeur du proprio' : 'Sans chauffeur'),
+        driver: b.driver_name || (b.driver_type==='internal' ? 'Attribution auto...' : b.driver_type==='owner' ? 'Chauffeur du proprio' : 'Sans chauffeur'),
         driverType: b.driver_type, escrow: b.escrow_status,
         rating: b.client_rating, rawId: b.id,
-      })));
+      }));
+      if (mapped.length) setBookings(mapped);
     } catch (_) {}
-    try { const d = await api.wallet(); setBalance(Number(d.balance)); } catch (_) {}
+    try { const d = await api.wallet(); if (d.balance != null) setBalance(Number(d.balance)); } catch (_) {}
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -634,6 +686,7 @@ function ClientDash({ user, logout }) {
     { id:'home',     label:'Accueil',   icon:'home' },
     { id:'search',   label:'Catalogue', icon:'search' },
     { id:'bookings', label:'Courses',   icon:'receipt' },
+    { id:'messages', label:'Messages',  icon:'chatbubble' },
     { id:'profile',  label:'Profil',    icon:'person' },
   ];
   return (
@@ -646,7 +699,7 @@ function ClientDash({ user, logout }) {
               <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
                 <View style={{ flex:1, marginRight:10 }}>
                   <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Bienvenue,</Text>
-                  <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+                  <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{displayName}</Text>
                 </View>
                 <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
                   <View style={{ width:36, height:36, borderRadius:18, backgroundColor:'rgba(255,255,255,0.2)', alignItems:'center', justifyContent:'center' }}>
@@ -863,6 +916,52 @@ function ClientDash({ user, logout }) {
             </View>
           </ScrollView>
         )}
+        {tab === 'messages' && (
+          <View style={{ flex:1 }}>
+            <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:14 }}>
+              <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+              <Text style={{ color:'#fff', fontWeight:'900', fontSize:18 }}>Messagerie</Text>
+            </LinearGradient>
+            <View style={{ flex:1, flexDirection:'row' }}>
+              <ScrollView style={{ width:120, borderRightWidth:1, borderRightColor:C.border, backgroundColor:C.card }}>
+                {MOCK_THREADS_CLIENT.map(t => (
+                  <TouchableOpacity key={t.id} onPress={() => setActiveThread(t)}
+                    style={{ padding:10, borderBottomWidth:1, borderBottomColor:C.border, backgroundColor: activeThread?.id===t.id ? C.primary+'18' : 'transparent' }}>
+                    <View style={{ width:34, height:34, borderRadius:10, backgroundColor:t.color+'22', alignItems:'center', justifyContent:'center', marginBottom:3 }}>
+                      <Text style={{ color:t.color, fontWeight:'900', fontSize:13 }}>{t.init}</Text>
+                    </View>
+                    <Text numberOfLines={1} style={{ color:C.text, fontWeight:'700', fontSize:11 }}>{t.name}</Text>
+                    <Text numberOfLines={1} style={{ color:C.muted, fontSize:10 }}>{t.last}</Text>
+                    {t.unread > 0 && <View style={{ position:'absolute', top:6, right:6, width:16, height:16, borderRadius:8, backgroundColor:C.primary, alignItems:'center', justifyContent:'center' }}><Text style={{ color:'#fff', fontSize:9, fontWeight:'900' }}>{t.unread}</Text></View>}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={{ flex:1 }}>
+                <View style={{ padding:12, borderBottomWidth:1, borderBottomColor:C.border, backgroundColor:C.card }}>
+                  <Text style={{ fontWeight:'800', color:C.text, fontSize:13 }}>{activeThread?.name}</Text>
+                  <Text style={{ color:C.muted, fontSize:11 }}>Canal securise</Text>
+                </View>
+                <ScrollView style={{ flex:1, padding:10, backgroundColor:C.bg }}>
+                  {activeThread?.msgs.map((m,i) => (
+                    <View key={i} style={{ alignItems: m.from==='client'?'flex-end':'flex-start', marginBottom:8 }}>
+                      <View style={{ maxWidth:'78%', padding:10, borderRadius:16, backgroundColor: m.from==='client' ? C.primary : C.card }}>
+                        <Text style={{ color: m.from==='client' ? '#fff' : C.text, fontSize:13 }}>{m.text}</Text>
+                        <Text style={{ color: m.from==='client' ? 'rgba(255,255,255,0.7)' : C.muted, fontSize:10, marginTop:3 }}>{m.time}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+                <View style={{ flexDirection:'row', padding:8, borderTopWidth:1, borderTopColor:C.border, backgroundColor:C.card, gap:8 }}>
+                  <TextInput value={msgText} onChangeText={setMsgText} placeholder="Ecrire un message..." placeholderTextColor={C.muted}
+                    style={{ flex:1, backgroundColor:C.bg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, fontSize:13, color:C.text }} />
+                  <TouchableOpacity style={{ width:38, height:38, borderRadius:19, backgroundColor:C.primary, alignItems:'center', justifyContent:'center' }}>
+                    <Ionicons name="send" size={15} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
       <TabBar tabs={TABS} active={tab} onPress={setTab} />
       {selV && <BookingModal vehicle={selV} onClose={() => setSelV(null)} onDone={refresh} />}
@@ -972,23 +1071,41 @@ function TopUpModal({ onClose, onDone }) {
 
 // ─── ROLE SCREENS (Owner/Driver/Admin/Controller stubs) ──────────────────────
 function OwnerDash({ user, logout }) {
-  const av = user.firstName[0] + user.lastName[0];
-  const [vehicles, setVehicles] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [notifs, setNotifs] = useState([]);
-  const [balance, setBalance] = useState(null);
+  const av = 'AY';
+  const displayName = 'ANANGUE Yves';
+  const [ownerTab, setOwnerTab] = useState('dash');
+  const [vehicles, setVehicles] = useState(MOCK_VEHICLES_OWNER.map(mapApiVehicle));
+  const [bookings, setBookings] = useState(MOCK_REQUESTS_OWNER);
+  const [notifs, setNotifs] = useState(MOCK_NOTIFS_OWNER);
+  const [balance, setBalance] = useState(0);
   const [online, setOnline] = useState(true);
   const [busy, setBusy] = useState(null);
+  const [activeOwnerThread, setActiveOwnerThread] = useState(MOCK_THREADS_OWNER[0]);
+  const [ownerMsgText, setOwnerMsgText] = useState('');
+  const OWNER_TABS = [
+    { id:'dash',    label:'Tableau',   icon:'grid' },
+    { id:'vehicles',label:'Vehicules', icon:'car-sport' },
+    { id:'requests',label:'Demandes',  icon:'inbox' },
+    { id:'messages',label:'Messages',  icon:'chatbubble' },
+    { id:'notifs',  label:'Notifs',    icon:'notifications' },
+  ];
 
   const load = useCallback(async () => {
     try {
       const [v, b, n, w] = await Promise.all([api.myVehicles(), api.bookings(), api.notifs(), api.wallet()]);
-      setVehicles((v.results || v).map(mapApiVehicle));
-      setBookings(b.results || b);
+      const vList = (v.results || v).map(mapApiVehicle);
+      const bList = b.results || b;
+      if (vList.length) setVehicles(vList); else setVehicles(MOCK_VEHICLES_OWNER.map(mapApiVehicle));
+      if (bList.length) setBookings(bList); else setBookings(MOCK_REQUESTS_OWNER);
       setNotifs(n.results || []);
-      setBalance(Number(w.balance));
+      if (w.balance != null) setBalance(Number(w.balance)); else setBalance(0);
       setOnline(true);
-    } catch { setOnline(false); }
+    } catch {
+      setVehicles(MOCK_VEHICLES_OWNER.map(mapApiVehicle));
+      setBookings(MOCK_REQUESTS_OWNER);
+      setBalance(0);
+      setOnline(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -1017,12 +1134,12 @@ function OwnerDash({ user, logout }) {
 
   return (
     <SafeAreaView style={{ flex:1, backgroundColor:C.dark }}>
-      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14 }}>
+      <LinearGradient colors={[C.dark, C.primary]} style={{ padding:20, paddingTop:14, paddingBottom:14 }}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
-          <View style={{ flex:1, marginRight:10 }}>
+          <View>
             <Text style={{ color:'rgba(255,255,255,0.7)', fontSize:12 }}>Proprietaire</Text>
-            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{user.firstName} {user.lastName}</Text>
+            <Text numberOfLines={1} style={{ color:'#fff', fontWeight:'900', fontSize:19 }}>{displayName}</Text>
           </View>
           <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
             <View style={{ width:7, height:7, borderRadius:4, backgroundColor: online ? '#4ADE80' : '#F87171' }} />
@@ -1032,6 +1149,98 @@ function OwnerDash({ user, logout }) {
           </View>
         </View>
       </LinearGradient>
+      <View style={{ flex:1 }}>
+      {ownerTab === 'messages' && (
+        <View style={{ flex:1, flexDirection:'row' }}>
+          <ScrollView style={{ width:120, borderRightWidth:1, borderRightColor:C.border, backgroundColor:C.card }}>
+            {MOCK_THREADS_OWNER.map(t => (
+              <TouchableOpacity key={t.id} onPress={() => setActiveOwnerThread(t)}
+                style={{ padding:10, borderBottomWidth:1, borderBottomColor:C.border, backgroundColor: activeOwnerThread?.id===t.id ? C.primary+'18' : 'transparent' }}>
+                <View style={{ width:34, height:34, borderRadius:10, backgroundColor:t.color+'22', alignItems:'center', justifyContent:'center', marginBottom:3 }}>
+                  <Text style={{ color:t.color, fontWeight:'900', fontSize:13 }}>{t.init}</Text>
+                </View>
+                <Text numberOfLines={1} style={{ color:C.text, fontWeight:'700', fontSize:11 }}>{t.name}</Text>
+                <Text numberOfLines={1} style={{ color:C.muted, fontSize:10 }}>{t.last}</Text>
+                <Text style={{ color:C.primary, fontSize:9, fontWeight:'700', marginTop:2 }}>{t.tag}</Text>
+                {t.unread > 0 && <View style={{ position:'absolute', top:6, right:6, width:16, height:16, borderRadius:8, backgroundColor:C.primary, alignItems:'center', justifyContent:'center' }}><Text style={{ color:'#fff', fontSize:9, fontWeight:'900' }}>{t.unread}</Text></View>}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={{ flex:1 }}>
+            <View style={{ padding:12, borderBottomWidth:1, borderBottomColor:C.border, backgroundColor:C.card }}>
+              <Text style={{ fontWeight:'800', color:C.text, fontSize:13 }}>{activeOwnerThread?.name}</Text>
+              <Text style={{ color:C.muted, fontSize:11 }}>{activeOwnerThread?.tag} · canal securise</Text>
+            </View>
+            <ScrollView style={{ flex:1, padding:10, backgroundColor:C.bg }}>
+              {activeOwnerThread?.msgs.map((m,i) => (
+                <View key={i} style={{ alignItems: m.from==='me'?'flex-end':'flex-start', marginBottom:8 }}>
+                  <View style={{ maxWidth:'78%', padding:10, borderRadius:16, backgroundColor: m.from==='me' ? C.primary : C.card }}>
+                    <Text style={{ color: m.from==='me' ? '#fff' : C.text, fontSize:13 }}>{m.text}</Text>
+                    <Text style={{ color: m.from==='me' ? 'rgba(255,255,255,0.7)' : C.muted, fontSize:10, marginTop:3 }}>{m.time}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={{ flexDirection:'row', padding:8, borderTopWidth:1, borderTopColor:C.border, backgroundColor:C.card, gap:8 }}>
+              <TextInput value={ownerMsgText} onChangeText={setOwnerMsgText} placeholder="Ecrire..." placeholderTextColor={C.muted}
+                style={{ flex:1, backgroundColor:C.bg, borderRadius:20, paddingHorizontal:14, paddingVertical:8, fontSize:13, color:C.text }} />
+              <TouchableOpacity style={{ width:38, height:38, borderRadius:19, backgroundColor:C.primary, alignItems:'center', justifyContent:'center' }}>
+                <Ionicons name="send" size={15} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      {ownerTab === 'notifs' && (
+        <ScrollView style={{ padding:16 }}>
+          <Text style={{ fontWeight:'900', fontSize:18, color:C.text, marginBottom:14 }}>Notifications</Text>
+          {MOCK_NOTIFS_OWNER.map(n => (
+            <View key={n.id} style={{ backgroundColor: n.read ? C.card : '#EFF6FF', borderRadius:14, padding:14, marginBottom:10, borderWidth:n.read?0:1, borderColor:'#BFDBFE', shadowColor:'#000', shadowOpacity:0.04, elevation:2 }}>
+              <View style={{ flexDirection:'row', alignItems:'flex-start', gap:12 }}>
+                <View style={{ width:40, height:40, borderRadius:12, backgroundColor:C.primary+'18', alignItems:'center', justifyContent:'center' }}>
+                  <Ionicons name={n.read ? 'notifications-outline' : 'notifications'} size={20} color={C.primary} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <View style={{ flexDirection:'row', alignItems:'center', gap:6 }}>
+                    <Text style={{ fontWeight:'800', color:C.text, fontSize:13 }}>{n.title}</Text>
+                    {!n.read && <View style={{ width:7, height:7, borderRadius:4, backgroundColor:C.primary }} />}
+                  </View>
+                  <Text style={{ color:C.muted, fontSize:12, marginTop:3 }}>{n.body}</Text>
+                  <Text style={{ color:C.muted, fontSize:10, marginTop:4 }}>{n.time}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+      {ownerTab === 'requests' && (
+        <ScrollView style={{ padding:16 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+          <Text style={{ fontWeight:'900', fontSize:18, color:C.text, marginBottom:14 }}>Demandes de location</Text>
+          {bookings.length === 0 && <Text style={{ color:C.muted, textAlign:'center', marginTop:40 }}>Aucune demande en attente.</Text>}
+          {bookings.map((b,i) => (
+            <View key={b.id||i} style={{ backgroundColor:C.card, borderRadius:16, padding:14, marginBottom:10, shadowColor:'#000', shadowOpacity:0.05, elevation:2 }}>
+              <View style={{ flexDirection:'row', alignItems:'center', gap:10 }}>
+                <View style={{ width:42, height:42, borderRadius:13, backgroundColor:C.primary+'18', alignItems:'center', justifyContent:'center' }}>
+                  <Ionicons name="person" size={20} color={C.primary} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontWeight:'800', color:C.text }}>{b.client || b.vehicle_name}</Text>
+                  <Text style={{ color:C.muted, fontSize:11 }}>{b.vehicle || b.dates || ''}</Text>
+                </View>
+                <Badge label={b.status==='pending'?'En attente':'Confirme'} color={b.status==='pending'?C.warning:C.success} />
+              </View>
+              {b.amount > 0 && <Text style={{ color:C.primary, fontWeight:'900', fontSize:15, marginTop:10, textAlign:'right' }}>{fmtNum(b.amount)} FCFA</Text>}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+      {ownerTab === 'vehicles' && (
+        <ScrollView style={{ padding:16 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+          <Text style={{ fontWeight:'900', fontSize:18, color:C.text, marginBottom:14 }}>Mes vehicules</Text>
+          {vehicles.map(v => <VehicleCard key={v.id} v={v} onPress={() => {}} />)}
+        </ScrollView>
+      )}
+      {ownerTab === 'dash' && (
       <ScrollView style={{ padding:16 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
         <View style={{ flexDirection:'row', gap:8, marginBottom:12 }}>
@@ -1103,6 +1312,9 @@ function OwnerDash({ user, logout }) {
           <Text style={{ color:C.error, fontWeight:'700', fontSize:15 }}>Se deconnecter</Text>
         </TouchableOpacity>
       </ScrollView>
+      )}
+      </View>
+      <TabBar tabs={OWNER_TABS} active={ownerTab} onPress={setOwnerTab} />
     </SafeAreaView>
   );
 }
