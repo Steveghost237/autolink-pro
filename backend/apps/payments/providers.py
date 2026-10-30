@@ -14,9 +14,11 @@ import json
 import time
 import urllib.parse
 import urllib.request
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
+import requests
 
 
 class ProviderError(Exception):
@@ -54,9 +56,13 @@ def _get(url, headers=None, timeout=20):
 STRIPE_API = 'https://api.stripe.com/v1'
 
 
+def stripe_configured():
+    return bool(getattr(settings, 'STRIPE_API_KEY', ''))
+
+
 def _stripe_headers():
     key = getattr(settings, 'STRIPE_API_KEY', '')
-    if not key:
+    if not stripe_configured():
         raise ProviderError('STRIPE_API_KEY non configurée.')
     return {'Authorization': f'Bearer {key}'}
 
@@ -103,6 +109,13 @@ def stripe_verify_webhook(payload_bytes, sig_header, secret):
 
 # ─── PAYPAL ───────────────────────────────────────────────────────────────────
 
+def paypal_configured():
+    return bool(
+        getattr(settings, 'PAYPAL_CLIENT_ID', '')
+        and getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
+    )
+
+
 def _paypal_base():
     return 'https://api-m.paypal.com' if getattr(settings, 'PAYPAL_MODE', 'sandbox') == 'live' \
         else 'https://api-m.sandbox.paypal.com'
@@ -111,7 +124,7 @@ def _paypal_base():
 def _paypal_token():
     cid = getattr(settings, 'PAYPAL_CLIENT_ID', '')
     sec = getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
-    if not cid or not sec:
+    if not paypal_configured():
         raise ProviderError('Identifiants PayPal non configurés.')
     auth = base64.b64encode(f'{cid}:{sec}'.encode()).decode()
     r = _post(f'{_paypal_base()}/v1/oauth2/token',
@@ -160,3 +173,117 @@ def paypal_capture_order(order_id):
         'Authorization': f'Bearer {_paypal_token()}',
         'Content-Type': 'application/json',
     })
+
+
+def _request(method, url, **kwargs):
+    try:
+        response = requests.request(method, url, timeout=30, **kwargs)
+        response.raise_for_status()
+        return response.json() if response.content else {}
+    except requests.RequestException as error:
+        raise ProviderError(f'Prestataire indisponible: {error}') from error
+
+
+def mtn_configured():
+    return all(getattr(settings, name, '') for name in (
+        'MTN_MOMO_SUBSCRIPTION_KEY', 'MTN_MOMO_API_USER', 'MTN_MOMO_API_KEY'))
+
+
+def _mtn_token():
+    if not mtn_configured():
+        raise ProviderError('Configuration MTN MoMo incomplète.')
+    base = settings.MTN_MOMO_BASE_URL.rstrip('/')
+    data = _request(
+        'post', f'{base}/collection/token/',
+        auth=(settings.MTN_MOMO_API_USER, settings.MTN_MOMO_API_KEY),
+        headers={'Ocp-Apim-Subscription-Key': settings.MTN_MOMO_SUBSCRIPTION_KEY},
+    )
+    if not data.get('access_token'):
+        raise ProviderError('Le token MTN MoMo est absent.')
+    return data['access_token']
+
+
+def mtn_request_to_pay(amount, phone, external_id, payer_message='Paiement AutoLink',
+                       payee_note='Paiement AutoLink'):
+    token = _mtn_token()
+    reference = str(uuid.uuid4())
+    base = settings.MTN_MOMO_BASE_URL.rstrip('/')
+    _request(
+        'post', f'{base}/collection/v1_0/requesttopay',
+        json={
+            'amount': str(amount),
+            'currency': settings.MTN_MOMO_CURRENCY,
+            'externalId': external_id,
+            'payer': {'partyIdType': 'MSISDN', 'partyId': phone},
+            'payerMessage': payer_message,
+            'payeeNote': payee_note,
+        },
+        headers={
+            'Authorization': f'Bearer {token}',
+            'X-Reference-Id': reference,
+            'X-Target-Environment': settings.MTN_MOMO_TARGET_ENV,
+            'Ocp-Apim-Subscription-Key': settings.MTN_MOMO_SUBSCRIPTION_KEY,
+            'Content-Type': 'application/json',
+        },
+    )
+    return {'provider_ref': reference, 'status': 'PENDING'}
+
+
+def mtn_status(reference):
+    token = _mtn_token()
+    return _request(
+        'get',
+        f'{settings.MTN_MOMO_BASE_URL.rstrip("/")}/collection/v1_0/requesttopay/{reference}',
+        headers={
+            'Authorization': f'Bearer {token}',
+            'X-Target-Environment': settings.MTN_MOMO_TARGET_ENV,
+            'Ocp-Apim-Subscription-Key': settings.MTN_MOMO_SUBSCRIPTION_KEY,
+        },
+    )
+
+
+def orange_configured():
+    return all(getattr(settings, name, '') for name in (
+        'ORANGE_CLIENT_ID', 'ORANGE_CLIENT_SECRET', 'ORANGE_MERCHANT_KEY'))
+
+
+def _orange_token():
+    if not orange_configured():
+        raise ProviderError('Configuration Orange Money incomplète.')
+    data = _request(
+        'post', 'https://api.orange.com/oauth/v3/token',
+        auth=(settings.ORANGE_CLIENT_ID, settings.ORANGE_CLIENT_SECRET),
+        data={'grant_type': 'client_credentials'},
+    )
+    if not data.get('access_token'):
+        raise ProviderError('Le token Orange Money est absent.')
+    return data['access_token']
+
+
+def orange_create_payment(amount, order_id, reference, return_url, cancel_url, notif_url):
+    data = _request(
+        'post', f'{settings.ORANGE_OM_BASE_URL.rstrip("/")}/webpayment',
+        headers={'Authorization': f'Bearer {_orange_token()}', 'Content-Type': 'application/json'},
+        json={
+            'merchant_key': settings.ORANGE_MERCHANT_KEY,
+            'currency': settings.ORANGE_OM_CURRENCY,
+            'order_id': order_id,
+            'amount': int(amount),
+            'return_url': return_url,
+            'cancel_url': cancel_url,
+            'notif_url': notif_url,
+            'lang': 'fr',
+            'reference': reference,
+        },
+    )
+    if not data.get('payment_url') or not data.get('pay_token') or not data.get('notif_token'):
+        raise ProviderError('Réponse Orange Money incomplète.')
+    return data
+
+
+def orange_status(order_id, amount, pay_token):
+    return _request(
+        'post', f'{settings.ORANGE_OM_BASE_URL.rstrip("/")}/transactionstatus',
+        headers={'Authorization': f'Bearer {_orange_token()}', 'Content-Type': 'application/json'},
+        json={'order_id': order_id, 'amount': int(amount), 'pay_token': pay_token},
+    )

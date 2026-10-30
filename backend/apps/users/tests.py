@@ -1,8 +1,11 @@
-from django.core import mail
+from django.core import mail, signing
 from django.utils import timezone
 from datetime import timedelta
+from unittest.mock import patch
+from django.test import override_settings
 from rest_framework.test import APITestCase
-from apps.users.models import User, LoginCode
+from apps.users.models import ContactMessage, LoginCode, NewsletterCampaign, User
+from apps.users.views import NEWSLETTER_UNSUBSCRIBE_SALT
 
 
 class AuthTests(APITestCase):
@@ -56,6 +59,20 @@ class AuthTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['email'], 'nouveau@test.cm')
 
+    def test_me_can_update_language_preference(self):
+        user = User.objects.create_user(
+            username='language-user', email='language@example.com',
+            password='SecurePass2026!')
+        self.client.force_authenticate(user)
+
+        response = self.client.patch(
+            '/api/users/me/', {'language': 'en'}, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['language'], 'en')
+        user.refresh_from_db()
+        self.assertEqual(user.language, 'en')
+
     def test_user_list_admin_only(self):
         client = User.objects.create_user(username='c', email='c@c.cm', password='x', role='CLIENT')
         admin = User.objects.create_user(username='a', email='a@a.cm', password='x', role='ADMIN')
@@ -63,6 +80,32 @@ class AuthTests(APITestCase):
         self.assertIn(self.client.get('/api/users/').status_code, (401, 403))
         self.client.force_authenticate(admin)
         self.assertEqual(self.client.get('/api/users/').status_code, 200)
+
+    def test_admin_user_create_update_delete_permissions_and_activity(self):
+        client = User.objects.create_user(username='ordinary', email='ordinary@test.cm', password='x', role='CLIENT')
+        admin = User.objects.create_user(username='admin-user', email='admin-user@test.cm', password='x', role='ADMIN')
+        payload = {
+            'username': 'created-user', 'email': 'created@test.cm',
+            'first_name': 'Created', 'last_name': 'User', 'role': 'CLIENT',
+            'phone': '+237690000001', 'password': 'ValidPassword2026!',
+        }
+
+        self.client.force_authenticate(client)
+        self.assertEqual(self.client.post('/api/users/', payload, format='json').status_code, 403)
+        self.assertEqual(self.client.patch(f'/api/users/{admin.pk}/', {'is_active': False}, format='json').status_code, 403)
+        self.assertEqual(self.client.delete(f'/api/users/{admin.pk}/').status_code, 403)
+
+        self.client.force_authenticate(admin)
+        created = self.client.post('/api/users/', payload, format='json')
+        self.assertEqual(created.status_code, 201, created.data)
+        user = User.objects.get(username='created-user')
+        listed = self.client.get('/api/users/', {'search': 'created@test.cm'})
+        self.assertEqual(listed.data['results'][0]['bookings_count'], 0)
+        self.assertEqual(listed.data['results'][0]['vehicles_count'], 0)
+        updated = self.client.patch(f'/api/users/{user.pk}/', {'is_active': False}, format='json')
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertFalse(updated.data['is_active'])
+        self.assertEqual(self.client.delete(f'/api/users/{user.pk}/').status_code, 204)
 
 
 class OTPLoginTests(APITestCase):
@@ -145,3 +188,210 @@ class NotificationTests(APITestCase):
         r = self.client.get('/api/users/notifications/')
         data = r.data.get('results', r.data) if isinstance(r.data, dict) else r.data
         self.assertEqual(len(data), 0)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class ContactEndpointTests(APITestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_contact_saves_and_sends_notification_and_acknowledgement(self):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'email': 'jean@example.com',
+            'rental_type': 'Location urbaine',
+            'message': 'Besoin d’un véhicule demain.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        message = ContactMessage.objects.get()
+        self.assertEqual(message.email, 'jean@example.com')
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(mail.outbox[0].to, ['wibchallenge@gmail.com'])
+        self.assertEqual(mail.outbox[1].to, ['jean@example.com'])
+
+    def test_english_accept_language_localizes_contact_acknowledgement(self):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'email': 'jean@example.com',
+            'message': 'I need a vehicle tomorrow.',
+        }, format='json', HTTP_ACCEPT_LANGUAGE='en-GB,en;q=0.9')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn('We received your message', mail.outbox[1].subject)
+        self.assertIn('Hello Jean', mail.outbox[1].body)
+        self.assertIn('get back to you', mail.outbox[1].body)
+
+    @patch('apps.users.views.send_mail', side_effect=OSError('Mail unavailable'))
+    def test_contact_saves_message_when_email_fails(self, send_mail_mock):
+        response = self.client.post('/api/contact/', {
+            'last_name': 'Nana',
+            'first_name': 'Jean',
+            'phone': '+237 699 000 000',
+            'message': 'Besoin d’un véhicule demain.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(ContactMessage.objects.count(), 1)
+        self.assertIn('enregistré', response.data['detail'])
+
+    def test_site_config_is_public_and_has_company_contacts(self):
+        response = self.client.get('/api/site-config/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['contact_email'], 'wibchallenge@gmail.com')
+        self.assertEqual(len(response.data['phones']), 2)
+        self.assertEqual(response.data['hours'], {
+            'weekdays': {'open': '06:00', 'close': '22:00'},
+            'saturday': {'open': '07:00', 'close': '21:00'},
+            'sunday': None,
+        })
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class AuthenticationEmailTests(APITestCase):
+    def setUp(self):
+        mail.outbox = []
+
+    def test_registration_sends_welcome_email(self):
+        response = self.client.post('/api/users/register/', {
+            'username': 'welcome-user',
+            'email': 'welcome@example.com',
+            'first_name': 'Awa',
+            'last_name': 'Nana',
+            'password': 'SecurePass2026!',
+            'password2': 'SecurePass2026!',
+            'role': 'CLIENT',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Bienvenue', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['welcome@example.com'])
+
+    def test_english_registration_sets_language_and_sends_english_welcome(self):
+        response = self.client.post('/api/users/register/', {
+            'username': 'welcome-english',
+            'email': 'welcome-english@example.com',
+            'first_name': 'Awa',
+            'last_name': 'Nana',
+            'password': 'SecurePass2026!',
+            'password2': 'SecurePass2026!',
+            'role': 'CLIENT',
+        }, format='json', HTTP_ACCEPT_LANGUAGE='en')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['user']['language'], 'en')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'Welcome to AutoLink Pro')
+        self.assertIn('Your account is ready', mail.outbox[0].body)
+
+    def test_password_login_sends_notification_email(self):
+        User.objects.create_user(
+            username='member',
+            email='member@example.com',
+            password='SecurePass2026!',
+            first_name='Awa',
+        )
+
+        response = self.client.post('/api/users/login/', {
+            'email': 'member@example.com',
+            'password': 'SecurePass2026!',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('connexion', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['member@example.com'])
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class NewsletterTests(APITestCase):
+    def setUp(self):
+        mail.outbox = []
+        self.admin = User.objects.create_user(
+            username='newsletter-admin',
+            email='admin@example.com',
+            password='SecurePass2026!',
+            role='ADMIN',
+            newsletter_opt_in=False,
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_signed_unsubscribe_turns_off_opt_in(self):
+        user = User.objects.create_user(
+            username='subscriber',
+            email='subscriber@example.com',
+            password='SecurePass2026!',
+        )
+        token = signing.dumps(
+            {'user_id': user.pk, 'email': user.email},
+            salt=NEWSLETTER_UNSUBSCRIBE_SALT,
+        )
+
+        response = self.client.get('/api/users/newsletter/unsubscribe/', {'token': token})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user.refresh_from_db()
+        self.assertFalse(user.newsletter_opt_in)
+
+    def test_campaign_sends_only_to_opted_in_active_users(self):
+        subscriber = User.objects.create_user(
+            username='subscriber',
+            email='subscriber@example.com',
+            password='SecurePass2026!',
+        )
+        opted_out = User.objects.create_user(
+            username='opted-out',
+            email='opted-out@example.com',
+            password='SecurePass2026!',
+            newsletter_opt_in=False,
+        )
+        inactive = User.objects.create_user(
+            username='inactive',
+            email='inactive@example.com',
+            password='SecurePass2026!',
+            is_active=False,
+        )
+
+        response = self.client.post('/api/users/newsletter/send/', {
+            'subject': 'Actualités AutoLink',
+            'html_body': '<p>Bonjour !</p>',
+            'text_body': 'Bonjour !',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['recipients_count'], 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [subscriber.email])
+        self.assertIn('Se désinscrire', mail.outbox[0].body)
+        campaign = NewsletterCampaign.objects.get()
+        self.assertEqual(campaign.recipients_count, 1)
+        self.assertEqual(campaign.sent_by, self.admin)
+        self.assertTrue(opted_out.is_active)
+        self.assertFalse(inactive.is_active)
+
+    def test_campaign_uses_english_unsubscribe_footer_for_english_recipient(self):
+        subscriber = User.objects.create_user(
+            username='english-subscriber',
+            email='english-subscriber@example.com',
+            password='SecurePass2026!',
+            language='en',
+        )
+
+        response = self.client.post('/api/users/newsletter/send/', {
+            'subject': 'AutoLink news',
+            'text_body': 'New vehicles are available.',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['recipients_count'], 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [subscriber.email])
+        self.assertIn('Unsubscribe:', mail.outbox[0].body)

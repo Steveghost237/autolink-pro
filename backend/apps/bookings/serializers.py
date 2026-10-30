@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.inspections.serializers import VehicleInspectionSerializer
 from .models import Booking
 
 
@@ -9,12 +10,17 @@ class BookingSerializer(serializers.ModelSerializer):
     vehicle_name = serializers.SerializerMethodField()
     vehicle_plate = serializers.CharField(source='vehicle.plate', read_only=True)
     vehicle_tier = serializers.CharField(source='vehicle.tier', read_only=True)
+    vehicle_city = serializers.CharField(source='vehicle.city', read_only=True)
+    vehicle_image = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
+    owner_phone = serializers.CharField(source='vehicle.owner.phone', read_only=True)
     driver_name = serializers.SerializerMethodField()
     driver_phone = serializers.CharField(source='driver.phone', read_only=True)
     payment_method = serializers.CharField(source='payment.method', read_only=True)
     payment_status = serializers.CharField(source='payment.status', read_only=True)
     escrow_status = serializers.CharField(source='payment.escrow_status', read_only=True)
     deposit_status = serializers.CharField(source='payment.deposit_status', read_only=True)
+    inspections = VehicleInspectionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Booking
@@ -22,12 +28,22 @@ class BookingSerializer(serializers.ModelSerializer):
         read_only_fields = ['client', 'driver', 'daily_rate', 'days', 'subtotal',
                             'commission_amount', 'owner_amount', 'discount_percent',
                             'deposit_amount',
-                            'dispute_reason', 'dispute_opened_at',
+                            'dispute_reason', 'dispute_opened_at', 'driver_response',
+                            'owner_response', 'owner_responded_at',
                             'created_at', 'updated_at']
 
     def get_client_name(self, obj): return obj.client.get_full_name()
     def get_vehicle_name(self, obj): return str(obj.vehicle)
     def get_driver_name(self, obj): return obj.driver.get_full_name() if obj.driver else None
+    def get_owner_name(self, obj): return obj.vehicle.owner.get_full_name()
+
+    def get_vehicle_image(self, obj):
+        vehicle = obj.vehicle
+        photo = vehicle.photos.filter(kind='image').order_by('uploaded_at').first()
+        if photo and photo.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(photo.image.url) if request else photo.image.url
+        return getattr(vehicle, 'image_url', '') or None
 
     def create(self, validated_data):
         vehicle = validated_data['vehicle']

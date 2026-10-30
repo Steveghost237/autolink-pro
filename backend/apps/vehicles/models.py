@@ -89,6 +89,8 @@ class Vehicle(models.Model):
     class Fuel(models.TextChoices):
         ESSENCE = 'essence', 'Essence'
         DIESEL = 'diesel', 'Diesel'
+        SUPER = 'super', 'Super'
+        GASOIL = 'gasoil', 'Gasoil'
         HYBRID = 'hybrid', 'Hybride'
         ELECTRIC = 'electric', 'Électrique'
 
@@ -137,6 +139,8 @@ class Vehicle(models.Model):
     insurance_expiry = models.DateField()
     technical_control_date = models.DateField(null=True, blank=True)
     condition_score = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    last_inspection_at = models.DateTimeField(null=True, blank=True)
+    last_inspection_score = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
 
     mileage = models.IntegerField(default=0)
     fuel_level = models.IntegerField(default=100, validators=[MinValueValidator(0), MaxValueValidator(100)])
@@ -262,13 +266,36 @@ class Vehicle(models.Model):
 
 
 class VehiclePhoto(models.Model):
+    class Kind(models.TextChoices):
+        IMAGE = 'image', 'Image'
+        VIDEO = 'video', 'Vidéo'
+
+    class Position(models.TextChoices):
+        EXTERIOR = 'exterior', 'Extérieur'
+        INTERIOR = 'interior', 'Intérieur'
+        OTHER = 'other', 'Autre'
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='vehicles/')
+    image = models.FileField(upload_to='vehicles/')
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.IMAGE)
+    position = models.CharField(max_length=10, choices=Position.choices, default=Position.EXTERIOR)
     caption = models.CharField(max_length=100, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'Photo de {self.vehicle}'
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='vehicle_favorites')
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='favorites')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'vehicle'], name='unique_user_vehicle_favorite'),
+        ]
+        ordering = ['-created_at']
 
 
 class VehicleAvailability(models.Model):

@@ -1,55 +1,89 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Car, Eye, EyeOff, AlertCircle, CheckCircle, User, KeyRound, Briefcase, MailCheck } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import {
+  Car, KeyRound, Briefcase, Eye, EyeOff, AlertCircle, ArrowRight,
+  User, Mail, Lock, Loader,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
 import GoogleAuthButton from '../../components/GoogleAuthButton';
+import AuthLayout from '../../components/auth/AuthLayout';
+import OtpPanel from '../../components/auth/OtpPanel';
 
 const ROLES = [
-  { value: 'CLIENT', label: 'Client', desc: 'Je veux louer un véhicule', icon: User },
-  { value: 'OWNER', label: 'Propriétaire', desc: 'Je veux proposer mon véhicule', icon: KeyRound },
-  { value: 'DRIVER', label: 'Chauffeur', desc: 'Je veux conduire pour AutoLink', icon: Briefcase },
+  { value: 'CLIENT', label: 'Je veux louer', icon: Car },
+  { value: 'OWNER', label: 'Je veux proposer', icon: KeyRound },
+  // { value: 'DRIVER', label: 'Je veux etre chauffeur', icon: KeyRound },
 ];
+
+// Force du mot de passe → barres 0-4 + libellé
+const pwStrength = (pw) => {
+  let s = 0;
+  if (pw.length >= 8) s += 1;
+  if (/[A-Z]/.test(pw)) s += 1;
+  if (/\d/.test(pw)) s += 1;
+  if (/[^A-Za-z0-9]/.test(pw)) s += 1;
+  return s;
+};
+const STRENGTH_LABEL = ['Très faible', 'Faible', 'Moyen', 'Bon', 'Excellent'];
+const STRENGTH_CLS = ['bg-red-400', 'bg-amber-400', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500'];
 
 export default function Register() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { register, otpVerify, getDashboardPath } = useAuth();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', role: '' });
-  const [code, setCode] = useState('');
+  // ?next=/chemin : reprendre l'action initiée (ex. réservation) après inscription
+  const next = params.get('next');
+  const presetRole = { client: 'CLIENT', owner: 'OWNER', driver: 'DRIVER' }[(params.get('role') || '').toLowerCase()] || 'CLIENT';
+  const [step, setStep] = useState(1); // 1 = formulaire, 2 = vérification OTP
+  const [form, setForm] = useState({
+    fullName: '', email: '', phone: '', password: '', confirmPassword: '', role: presetRole, referral: '',
+  });
   const [emailSent, setEmailSent] = useState(true);
   const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
+  const [terms, setTerms] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const handleStep1 = (e) => {
-    e.preventDefault();
-    if (!form.role) { setError('Veuillez choisir un rôle.'); return; }
-    setError('');
-    setStep(2);
-  };
+  const strength = pwStrength(form.password);
 
   const sendCode = async () => {
     try {
-      await authAPI.otpRequest({ email: form.email.trim(), first_name: form.firstName, last_name: form.lastName });
+      const parts = form.fullName.trim().split(/\s+/);
+      await authAPI.otpRequest({
+        email: form.email.trim(),
+        first_name: parts[0] || '',
+        last_name: parts.slice(1).join(' ') || '',
+      });
       return true;
     } catch (_) { return false; }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (!terms) { setError('Veuillez accepter les Conditions Générales pour continuer.'); return; }
     if (form.password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
+    if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return; }
     setError('');
     setLoading(true);
-    const result = await register(form);
+    const parts = form.fullName.trim().split(/\s+/);
+    const digits = form.phone.replace(/\D/g, '');
+    const result = await register({
+      firstName: parts[0] || '',
+      lastName: parts.slice(1).join(' ') || parts[0] || '',
+      email: form.email.trim(),
+      phone: digits ? `+237${digits.slice(-9)}` : '',
+      password: form.password,
+      role: form.role,
+    });
     if (!result.success) { setLoading(false); setError(result.error); return; }
-    // Compte créé → on envoie le code de validation par email (étape 3)
+    // Compte créé → on envoie le code de validation (étape 2, maquette 3)
     setEmailSent(await sendCode());
     setLoading(false);
-    setStep(3);
+    setStep(2);
   };
 
   const handleVerify = async (e) => {
@@ -59,155 +93,168 @@ export default function Register() {
     setLoading(true);
     const result = await otpVerify(form.email.trim(), code.trim());
     setLoading(false);
-    if (result.success) navigate(getDashboardPath(result.user.role));
+    if (result.success) navigate(next || getDashboardPath(result.user.role));
     else setError(result.error);
   };
 
   const handleResend = async () => {
     setError('');
-    setLoading(true);
     const ok = await sendCode();
-    setLoading(false);
     setEmailSent(ok);
     if (!ok) setError("Le code n'a pas pu être renvoyé — réessayez dans une minute.");
   };
 
+  // Étape 2 : écran de vérification (maquette 3 — fond dégradé)
+  if (step === 2) {
+    return (
+      <AuthLayout gradient maxW="max-w-lg">
+        <OtpPanel
+          email={form.email} phone={form.phone} code={code}
+          onCodeChange={setCode}
+          onSubmit={handleVerify} onResend={handleResend}
+          onBack={() => { setStep(1); setError(''); setCode(''); }}
+          loading={loading}
+          error={error || (emailSent ? '' : "Votre compte est créé mais l'email n'a pas pu être envoyé — utilisez « Renvoyer ».")}
+        />
+      </AuthLayout>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-950 via-primary-900 to-slate-900 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <Car size={22} className="text-white" />
-            </div>
-            <span className="text-2xl font-black text-white">Auto<span className="text-primary-400">Link</span> <span className="text-accent-400 text-sm">PRO</span></span>
-          </Link>
-          <h1 className="text-2xl font-bold text-white mb-1">Créer votre compte</h1>
-          <p className="text-primary-300 text-sm">Étape {step}/3 — {step === 1 ? 'Choisissez votre rôle' : step === 2 ? 'Vos informations' : 'Vérification email'}</p>
+    <AuthLayout maxW="max-w-2xl">
+      {/* En-tête */}
+      <div className="text-center mb-7">
+        <h1 className="text-3xl font-black text-teal-600 mb-1.5">Créer un compte</h1>
+        <p className="text-sm text-slate-500">
+          {next ? 'Créez votre compte pour finaliser votre réservation' : 'Rejoignez AutoLink Pro en quelques instants'}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-7 sm:p-10">
+        {error && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 mb-5 text-sm">
+            <AlertCircle size={16} /> {error}
+          </div>
+        )}
+
+        {/* Onglets rôle — dans le formulaire */}
+        <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1.5 rounded-2xl mb-6">
+          {ROLES.map(({ value, label, icon: RoleIcon }) => (
+            <button key={value} type="button" onClick={() => set('role', value)}
+              className={`flex flex-row sm:flex-row items-center justify-center gap-1.5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${form.role === value ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              <RoleIcon size={15} className={form.role === value ? 'text-teal-600' : ''} /> {label}
+            </button>
+          ))}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="flex gap-2 mb-6">
-            {[1, 2, 3].map(n => (
-              <div key={n} className={`flex-1 h-1.5 rounded-full transition-colors ${n <= step ? 'bg-primary-600' : 'bg-slate-200'}`} />
-            ))}
+        {form.role === 'DRIVER' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 text-xs text-amber-800">
+            <strong>Note :</strong> les chauffeurs passent par notre processus de recrutement — votre demande sera examinée par notre équipe.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="label">Nom complet <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" required className="input-field pl-10" placeholder="Emmanuel Ndedi"
+                value={form.fullName} onChange={e => set('fullName', e.target.value)} />
+            </div>
           </div>
 
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 mb-5 text-sm">
-              <AlertCircle size={16} /> {error}
+          <div>
+            <label className="label">Adresse e-mail <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="email" required autoComplete="email" className="input-field pl-10" placeholder="emmanuel.ndedi@exemple.cm"
+                value={form.email} onChange={e => set('email', e.target.value)} />
             </div>
-          )}
+          </div>
 
-          {step === 1 ? (
-            <form onSubmit={handleStep1}>
-              <p className="text-slate-600 font-medium mb-4">Je suis :</p>
-              <div className="space-y-3 mb-6">
-                {ROLES.map(({ value, label, desc, icon: RoleIcon }) => (
-                  <label key={value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.role === value ? 'border-primary-500 bg-primary-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <input type="radio" name="role" value={value} className="sr-only" onChange={() => set('role', value)} />
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${form.role === value ? 'bg-primary-600' : 'bg-slate-100'}`}>
-                      <RoleIcon size={18} className={form.role === value ? 'text-white' : 'text-slate-500'} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900">{label}</div>
-                      <div className="text-sm text-slate-500">{desc}</div>
-                    </div>
-                    {form.role === value && <CheckCircle size={20} className="text-primary-600" />}
-                  </label>
-                ))}
-              </div>
-              {form.role === 'DRIVER' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-800">
-                  <strong>Note :</strong> Les chauffeurs doivent passer par notre processus de recrutement strict. Votre demande sera examinée par notre équipe.
-                </div>
-              )}
-              <button type="submit" className="btn-primary w-full">Continuer →</button>
-              <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium">OU</span>
-                <div className="flex-1 h-px bg-slate-200" />
-              </div>
-              <GoogleAuthButton label="S'inscrire avec Google" />
-            </form>
-          ) : step === 3 ? (
-            <form onSubmit={handleVerify} className="text-center">
-              <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MailCheck size={26} className="text-primary-600" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 mb-1">Vérifiez votre email</h2>
-              <p className="text-sm text-slate-500 mb-5">
-                {emailSent
-                  ? <>Un code à 6 chiffres a été envoyé à <span className="font-semibold text-slate-700">{form.email}</span>. Copiez-le ici pour activer votre compte.</>
-                  : <>Votre compte est créé, mais l'email de validation n'a pas pu être envoyé. Vous pouvez réessayer ou vous connecter plus tard.</>}
-              </p>
-              <input
-                type="text" inputMode="numeric" maxLength={6} required autoFocus
-                className="input-field text-center text-2xl font-black tracking-[0.5em] mb-4"
-                placeholder="••••••" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-              />
-              <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Valider mon compte'}
-              </button>
-              <button type="button" onClick={handleResend} disabled={loading} className="text-sm text-primary-600 font-semibold hover:underline mt-4">
-                Renvoyer le code
-              </button>
-              <p className="text-xs text-slate-400 mt-3">Le code expire dans 10 minutes.</p>
-            </form>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Prénom</label>
-                  <input type="text" required className="input-field" placeholder="Marie" value={form.firstName} onChange={e => set('firstName', e.target.value)} />
-                </div>
-                <div>
-                  <label className="label">Nom</label>
-                  <input type="text" required className="input-field" placeholder="Konan" value={form.lastName} onChange={e => set('lastName', e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <label className="label">Email</label>
-                <input type="email" required className="input-field" placeholder="votre@email.com" value={form.email} onChange={e => set('email', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Téléphone</label>
-                <input type="tel" required className="input-field" placeholder="+237 6XX XX XX XX" value={form.phone} onChange={e => set('phone', e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Mot de passe</label>
-                <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} required className="input-field pr-12" placeholder="Minimum 6 caractères" value={form.password} onChange={e => set('password', e.target.value)} />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="label">Confirmer le mot de passe</label>
-                <input type="password" required className="input-field" placeholder="••••••••" value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} />
-              </div>
-              <div className="flex items-start gap-2">
-                <input type="checkbox" required id="terms" className="mt-1 w-4 h-4 accent-primary-600" />
-                <label htmlFor="terms" className="text-sm text-slate-600">
-                  J'accepte les <a href="#" className="text-primary-600 hover:underline">conditions d'utilisation</a> et la <a href="#" className="text-primary-600 hover:underline">politique de confidentialité</a>
-                </label>
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(1)} className="btn-outline flex-1 py-3">← Retour</button>
-                <button type="submit" disabled={loading} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
-                  {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Créer mon compte'}
+          <div>
+            <label className="label">Numéro de téléphone <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <input type="tel" required inputMode="tel" className="input-field" placeholder="6XX XX XX XX"
+                value={form.phone} onChange={e => set('phone', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Mot de passe <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type={showPw ? 'text' : 'password'} required autoComplete="new-password"
+                  className="input-field pl-10 pr-12" placeholder="Au moins 8 caractères"
+                  value={form.password} onChange={e => set('password', e.target.value)} />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
-            </form>
-          )}
+            </div>
+            <div>
+              <label className="label">Confirmer <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type={showPw2 ? 'text' : 'password'} required autoComplete="new-password"
+                  className="input-field pl-10 pr-12" placeholder="Répétez le mot de passe"
+                  value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} />
+                <button type="button" onClick={() => setShowPw2(!showPw2)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPw2 ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+            {/* Force du mot de passe + correspondance — pleine largeur */}
+            <div className="sm:col-span-2 -mt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400 font-medium shrink-0">Force du mot de passe</span>
+                <div className="flex-1 flex gap-1">
+                  {[0, 1, 2, 3].map(i => (
+                    <span key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < strength ? STRENGTH_CLS[strength] : 'bg-slate-200'}`} />
+                  ))}
+                </div>
+                <span className={`text-[10px] font-bold shrink-0 ${strength >= 3 ? 'text-teal-600' : 'text-slate-400'}`}>
+                  {form.password ? STRENGTH_LABEL[strength] : ''}
+                </span>
+              </div>
+              {form.confirmPassword && form.password !== form.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">Les mots de passe ne correspondent pas.</p>
+              )}
+            </div>
+          </div>
 
-          <p className="text-center text-sm text-slate-500 mt-5">
-            Déjà un compte ?{' '}
-            <Link to="/login" className="text-primary-600 font-semibold hover:underline">Se connecter</Link>
-          </p>
-        </div>
+          {/* Code de parrainage repliable */}
+      
+
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-teal-600 rounded" />
+            <span className="text-xs text-slate-500 leading-relaxed">
+              J'accepte les <a href="#" className="text-teal-600 font-semibold hover:underline">Conditions Générales</a> et la{' '}
+              <a href="#" className="text-teal-600 font-semibold hover:underline">Politique de confidentialité</a> conforme à la
+              loi 2010/012 régissant les données numériques au Cameroun.
+            </span>
+          </label>
+
+          <button type="submit" disabled={loading}
+            className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+            {loading ? <Loader size={17} className="animate-spin" /> : <>Créer mon compte <ArrowRight size={16} /></>}
+          </button>
+
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium">ou</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+          <GoogleAuthButton label="S'inscrire avec Google" />
+        </form>
+
+        <p className="text-center text-sm text-slate-500 mt-5">
+          Déjà inscrit ?{' '}
+          <Link to={next ? `/login?next=${encodeURIComponent(next)}` : '/login'} className="text-teal-600 font-bold hover:underline">Se connecter</Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

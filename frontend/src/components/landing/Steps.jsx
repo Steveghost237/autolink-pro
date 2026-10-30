@@ -1,0 +1,66 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Clock } from 'lucide-react';
+import { ETAPES } from './data';
+
+/* « 4 étapes pour prendre le volant » — section sombre */
+export default function Steps() {
+  const navigate = useNavigate();
+
+  return (
+    <section id="etapes" className="py-20 bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
+            4 étapes pour prendre le volant
+          </h2>
+          <p className="text-slate-400 max-w-2xl mx-auto">
+            De la recherche à la prise en charge, tout se fait depuis votre téléphone.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {ETAPES.map((s, i) => (
+            <div key={s.title} className="relative text-center lg:text-left">
+              <div className="relative inline-flex items-center justify-center w-14 h-14 bg-teal-600/15 border border-teal-500/30 rounded-2xl mb-5">
+                <s.icon size={24} className="text-teal-400" />
+                <span className="absolute -top-2 -right-2 w-6 h-6 bg-teal-600 text-white text-[11px] font-black rounded-full flex items-center justify-center">
+                  {i + 1}
+                </span>
+              </div>
+              {i < ETAPES.length - 1 && (
+                <div className="hidden lg:block absolute top-7 left-16 right-0 h-px border-t border-dashed border-slate-700" />
+              )}
+              <h3 className="font-black text-white mb-2">{s.title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Barre d'info */}
+        <div className="bg-white rounded-2xl px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
+              <Clock size={22} className="text-teal-600" />
+            </div>
+            <p className="text-slate-700 text-sm font-medium">
+              <span className="font-black text-slate-900">Un imprévu ou un changement de programme ?</span>{' '}
+              Modification gratuite jusqu'à 15 minutes avant le départ.
+            </p>
+          </div>
+          <button onClick={() => navigate('/catalogue')}
+            className="shrink-0 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+            Réserver maintenant
+          </button>
+        </div>
+
+        <div className="text-center mt-8">
+          <button onClick={() => navigate('/comment-ca-marche')}
+            className="text-teal-400 hover:text-teal-300 font-bold text-sm transition-colors">
+            Découvrir le fonctionnement complet → caution, portefeuille, documents
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -61,9 +61,25 @@ eas build -p android --profile preview
 
 ## Comptes utilisateurs
 
-**Aucun compte de démonstration** — chaque utilisateur s'inscrit réellement via le site ou l'application (email + mot de passe, Google, ou code de vérification par email).
+En production, chaque utilisateur s'inscrit réellement via le site ou l'application (email + mot de passe, Google, ou code de vérification par email). Seul le **super admin** est créé automatiquement au démarrage via `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
-Seul le **super admin** est créé automatiquement au démarrage via les variables d'environnement `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Les autres rôles (propriétaire, chauffeur, contrôleur) sont attribués par l'admin depuis le tableau de bord ou `/admin/`.
+### Comptes de démonstration (opt-in)
+
+Pour les recettes et présentations, une commande séparée crée les 4 rôles :
+
+```bash
+python manage.py seed_demo_users
+```
+
+| Rôle | Email | Accès |
+|------|-------|-------|
+| Admin | `demo.admin@autolink.com` | Panel admin complet |
+| Propriétaire | `demo.owner@autolink.com` | Véhicule démo + service chauffeur |
+| Client | `demo.client@autolink.com` | Recherche, réservation, wallet |
+| Intermédiaire | `demo.inter@autolink.com` | Code parrain auto-généré + commissions |
+
+Mot de passe commun : `Demo2026!` (configurable via `DEMO_PASSWORD`).
+**Ne jamais exécuter en production** — ces comptes sont publics.
 
 ---
 
@@ -72,6 +88,14 @@ Seul le **super admin** est créé automatiquement au démarrage via les variabl
 - **Commission AutoLink : 25%** de chaque location
 - **Propriétaire reçoit : 75%** de chaque location
 - Paiements acceptés : MTN Money, Orange Money, PayPal, Stripe
+
+## Paiements mobile money
+
+Les paiements MTN MoMo et Orange Money sont masqués tant que leurs identifiants ne sont pas configurés. Copiez `backend/.env.example` vers un fichier `.env` local ou définissez les variables dans l’environnement de déploiement. N’ajoutez jamais de clés réelles au dépôt.
+
+- MTN : configurez `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER` et `MTN_MOMO_API_KEY`; utilisez `MTN_MOMO_TARGET_ENV=sandbox` et la devise `EUR` pour les tests, puis l’environnement `mtncameroon` et `XAF` en production.
+- Orange : configurez `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET` et `ORANGE_MERCHANT_KEY`; les valeurs par défaut ciblent l’environnement WebPay de développement (`OUV`).
+- Le statut du paiement est confirmé côté serveur avant tout crédit du portefeuille ou confirmation d’une réservation. Le retour du navigateur seul ne crédite jamais le compte.
 
 ### Calcul automatique du tarif
 Le tarif est calculé selon :
@@ -86,11 +110,16 @@ Le tarif est calculé selon :
 
 | Interface | Rôle | Fonctionnalités |
 |-----------|------|-----------------|
-| **Client** | Louer | Recherche, réservation, paiement, historique, notation |
-| **Propriétaire** | Gérer ses voitures | Ajout véhicule, modes (confié/domicile), revenus, documents |
-| **Chauffeur** | Conduire | Statut en ligne, courses, véhicule assigné, statistiques |
-| **Admin** | Gérer la plateforme | Utilisateurs, recrutement chauffeurs, finance, commissions |
+| **Client** | Louer | Recherche, réservation, paiement, code intermédiaire, historique, notation |
+| **Propriétaire** | Gérer ses voitures | Ajout véhicule, revenus, **service recrutement chauffeur** (payant) |
+| **Intermédiaire** | Apporter des affaires | Code parrain unique, commissions, réservation pour le compte d'un client |
+| **Admin** | Gérer la plateforme | Tous droits : utilisateurs, véhicules, chauffeurs, intermédiaires, finance, litiges |
 | **Contrôleur** | Inspecter | Fiches entrée/sortie, photos, score d'état, litiges |
+
+> Le rôle **chauffeur** a été retiré de l'interface publique : les données
+> (profils, candidatures, courses) restent en base pour l'administration, et
+> l'option « chauffeur » reste disponible à la réservation (AutoLink ou
+> propriétaire).
 
 ---
 
@@ -102,7 +131,8 @@ POST   /api/auth/token/              → Login JWT (email + password)
 POST   /api/auth/token/refresh/      → Refresh token
 POST   /api/users/login/             → Login → { user, access, refresh }
 POST   /api/users/google/            → Connexion/inscription Google (Gmail)
-POST   /api/users/register/          → Inscription
+POST   /api/users/register/          → Inscription (client/propriétaire/intermédiaire, + referral_code optionnel)
+POST   /api/users/                   → Créer un compte (ADMIN, ex. intermédiaire)
 GET    /api/users/me/                → Profil utilisateur
 GET    /api/users/                   → Tous les comptes (ADMIN)
 PATCH  /api/users/{id}/              → Activer/suspendre/changer rôle (ADMIN)
@@ -111,7 +141,7 @@ GET    /api/vehicles/                → Liste véhicules (+ ?tier=basic|standar
 POST   /api/vehicles/                → Ajouter un véhicule (OWNER)
 PATCH  /api/vehicles/{id}/           → Approuver/suspendre (ADMIN)
 
-POST   /api/bookings/                → Créer une réservation (CLIENT)
+POST   /api/bookings/                → Créer une réservation (CLIENT ; + agent_code, + on_behalf_email pour INTERMEDIARY)
 GET    /api/bookings/                → Réservations (filtrées par rôle)
 PATCH  /api/bookings/{id}/           → Statut (admin: tout · client: annuler · chauffeur: active/completed)
 GET    /api/bookings/stats/          → Statistiques globales (ADMIN/CONTROLLER)
@@ -121,7 +151,9 @@ POST   /api/payments/wallet/topup/   → Recharger (mtn, orange, senbid, paybid,
 POST   /api/payments/payments/       → Initier un paiement
 GET    /api/payments/payouts/        → Mes versements
 
-GET    /api/drivers/applications/    → Candidatures chauffeurs
+GET    /api/drivers/applications/    → Candidatures chauffeurs (archives + admin)
+POST   /api/drivers/service-requests/ → Demande de recrutement chauffeur (OWNER)
+GET    /api/drivers/service-requests/ → Demandes : ses propres (OWNER) / toutes (ADMIN)
 GET    /api/inspections/             → Fiches d'inspection
 ```
 

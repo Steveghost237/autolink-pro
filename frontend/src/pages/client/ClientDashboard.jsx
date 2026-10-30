@@ -1,344 +1,323 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
-import { Car, Search, FileText, Star, Clock, CreditCard, ArrowRight, MapPin, Timer, Navigation, Calendar, Wallet, Plus, X, Loader, CheckCircle } from 'lucide-react';
+import Icon from '../../components/Icon';
+import TopUpModal from '../../components/TopUpModal';
 import { walletAPI, bookingsAPI, vehiclesAPI } from '../../services/api';
+import { RENTAL_TYPES } from '../../utils/carImages';
+import { vehicleImage, vehicleName, vehicleRate } from '../../utils/vehicles';
+import { formatNumber, formatDate, uiText } from '../../i18n';
 
-const TOPUP_METHODS = [
-  { id: 'mtn',    label: 'MTN MoMo',    color: 'bg-yellow-400', text: 'text-yellow-900' },
-  { id: 'orange', label: 'Orange Money', color: 'bg-orange-500', text: 'text-white' },
-  { id: 'senbid', label: 'SenBid',      color: 'bg-teal-500',   text: 'text-white' },
-  { id: 'paybid', label: 'PayBid',      color: 'bg-indigo-500', text: 'text-white' },
-  { id: 'paypal', label: 'PayPal',      color: 'bg-blue-700',   text: 'text-white' },
-  { id: 'stripe', label: 'Stripe',      color: 'bg-violet-600', text: 'text-white' },
-];
+const t = (text, options) => uiText('pages.client.ClientDashboard', text, options);
 
-const QUICK_AMOUNTS = [5000, 10000, 25000, 50000, 100000];
-
-function TopUpModal({ onClose, onDone }) {
-  const [amount, setAmount] = useState(25000);
-  const [method, setMethod] = useState('mtn');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(null);
-  const [error, setError] = useState('');
-
-  const submit = async () => {
-    setLoading(true); setError('');
-    try {
-      const { data } = await walletAPI.topup(amount, method, phone);
-      // Stripe / PayPal : redirection vers la page de paiement sécurisée —
-      // le solde n'est crédité qu'au retour, après vérification serveur.
-      if (data.payment_url) {
-        window.location.href = data.payment_url;
-        return;
-      }
-      setDone(data);
-      onDone?.(data.balance);
-    } catch (e) {
-      setError(e.response?.data?.detail || 'API injoignable — recharge impossible hors ligne.');
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-700">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><Wallet size={18} /> Recharger mon solde</h3>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={18} /></button>
-        </div>
-        {done ? (
-          <div className="p-8 text-center">
-            <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
-            <h4 className="font-bold text-slate-900 dark:text-white mb-1">Recharge effectuée</h4>
-            <p className="text-sm text-slate-500 mb-2">Référence : {done.transaction?.reference}</p>
-            <p className="text-2xl font-black text-primary-600 mb-6">{Number(done.balance).toLocaleString()} FCFA</p>
-            <button onClick={onClose} className="btn-primary w-full">Fermer</button>
-          </div>
-        ) : (
-          <div className="p-5 space-y-5">
-            <div>
-              <label className="label">Montant (FCFA)</label>
-              <input type="number" min={500} step={500} className="input-field" value={amount}
-                onChange={e => setAmount(Number(e.target.value))} />
-              <div className="flex flex-wrap gap-2 mt-2">
-                {QUICK_AMOUNTS.map(a => (
-                  <button key={a} onClick={() => setAmount(a)}
-                    className={`text-xs px-3 py-1.5 rounded-full border font-semibold ${amount === a ? 'bg-primary-600 text-white border-primary-600' : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}>
-                    {a.toLocaleString()} F
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="label">Moyen de paiement</label>
-              <div className="grid grid-cols-3 gap-2">
-                {TOPUP_METHODS.map(m => (
-                  <button key={m.id} onClick={() => setMethod(m.id)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${method === m.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-slate-200 dark:border-slate-600'}`}>
-                    <div className={`w-8 h-8 ${m.color} rounded-lg flex items-center justify-center`}>
-                      <span className={`text-[10px] font-black ${m.text}`}>{m.label.slice(0, 2).toUpperCase()}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">{m.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {(method === 'mtn' || method === 'orange' || method === 'senbid' || method === 'paybid') && (
-              <div>
-                <label className="label">Numéro de téléphone</label>
-                <input type="tel" className="input-field" placeholder="+237 6XX XX XX XX"
-                  value={phone} onChange={e => setPhone(e.target.value)} />
-              </div>
-            )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button onClick={submit} disabled={loading || amount < 500}
-              className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 font-bold">
-              {loading ? <Loader size={16} className="animate-spin" /> : <Plus size={16} />}
-              {loading ? 'Traitement...' : `Recharger ${amount.toLocaleString()} FCFA`}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const STATUS_STYLES = {
-  completed: 'badge-success',
-  pending: 'badge-warning',
-  active: 'badge-info',
-  cancelled: 'badge-error',
+const STATUS = {
+  completed: { label: 'Terminé', cls: 'badge-neutral' },
+  pending: { label: 'En attente de paiement', cls: 'badge-warning' },
+  active: { label: 'En cours', cls: 'badge-success' },
+  confirmed: { label: 'Confirmé', cls: 'badge-info' },
+  cancelled: { label: 'Annulé', cls: 'badge-neutral' },
+  disputed: { label: 'Litige', cls: 'badge-error' },
 };
-
-const RENTAL_QUICK = [
-  { id: 'urban_3h',  label: '3 heures',    icon: Timer,      desc: 'Courses & RDV',          color: 'bg-blue-600' },
-  { id: 'urban_8h',  label: '8 heures',    icon: Clock,      desc: 'Demi-journée / Pro',     color: 'bg-teal-600' },
-  { id: 'urban_day', label: '24 heures',   icon: Calendar,   desc: 'Journée complète',       color: 'bg-primary-600' },
-  { id: 'intercity', label: 'Interurbain', icon: Navigation, desc: 'Douala ↔ Yaoundé',       color: 'bg-orange-500' },
-];
-
-const STATUS_LABELS = { completed: 'Terminé', pending: 'En attente', active: 'En cours', confirmed: 'Confirmé', cancelled: 'Annulé' };
 
 const TOPUP_BANNERS = {
-  success:  { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'Paiement confirmé — votre solde a été rechargé.' },
-  canceled: { cls: 'bg-amber-50 text-amber-700 border-amber-200',      text: 'Paiement annulé — aucun montant n\'a été débité.' },
-  pending:  { cls: 'bg-blue-50 text-blue-700 border-blue-200',          text: 'Paiement en cours de traitement — votre solde sera mis à jour automatiquement.' },
-  error:    { cls: 'bg-red-50 text-red-700 border-red-200',             text: 'Le paiement n\'a pas abouti. Réessayez ou choisissez un autre moyen.' },
+  success: { cls: 'bg-primary-fixed/40 text-on-primary-fixed-variant', icon: 'check_circle', text: 'Paiement confirmé — votre solde a été rechargé.' },
+  canceled: { cls: 'bg-tertiary-fixed text-on-tertiary-fixed-variant', icon: 'cancel', text: "Paiement annulé — aucun montant n'a été débité." },
+  pending: { cls: 'bg-secondary-fixed text-on-secondary-fixed-variant', icon: 'hourglass_top', text: 'Paiement en cours de traitement — votre solde sera mis à jour automatiquement.' },
+  error: { cls: 'bg-error-container text-on-error-container', icon: 'error', text: "Le paiement n'a pas abouti. Réessayez ou choisissez un autre moyen." },
 };
+
+const FORMULA_ICONS = { urban_3h: 'timer', urban_8h: 'schedule', urban_day: 'calendar_month', intercity: 'alt_route', long_haul: 'date_range' };
+
+const txSign = (tx) => (tx.kind === 'refund' || tx.kind === 'topup' ? '+' : '−');
+const txIcon = (tx) => (/-DEP$|^DEPOSIT-/.test(tx.reference || '') ? (tx.kind === 'refund' ? 'lock_open' : 'lock') : tx.kind === 'topup' ? 'add_card' : tx.kind === 'refund' ? 'undo' : 'key');
 
 export default function ClientDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [balance, setBalance] = useState(user?.balance ?? null);
+  const [wallet, setWallet] = useState(null);
   const [showTopUp, setShowTopUp] = useState(false);
-  const [recentBookings, setRecentBookings] = useState([]);
-  const [featuredVehicles, setFeaturedVehicles] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [featured, setFeatured] = useState([]);
+  const [stats, setStats] = useState({ average_rating: 0, distinct_vehicles: 0, bookings_total: 0, total_spent: 0 });
+  const [quick, setQuick] = useState({ city: '', type: 'urban_day', start: new Date().toISOString().slice(0, 10) });
   const topupResult = searchParams.get('topup');
-  const totalSpent = recentBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
+
+  const loadWallet = () => walletAPI.get().then(({ data }) => setWallet(data)).catch(() => {});
 
   useEffect(() => {
-    walletAPI.get()
-      .then(res => setBalance(Number(res.data.balance)))
-      .catch(() => {});
-    // Réservations récentes (vraies données API)
-    bookingsAPI.getAll()
-      .then(res => {
-        const list = (res.data.results || res.data || []);
-        setRecentBookings(list.slice(0, 3).map(b => ({
-          id: b.id,
-          vehicle: b.vehicle_name || 'Véhicule',
-          driver: b.driver_name || 'Sans chauffeur',
-          date: b.start_date,
-          type: `${b.days || 1} jour(s)`,
-          amount: Number(b.subtotal || 0),
-          status: b.status,
-        })));
-      })
-      .catch(() => {});
-    // Véhicules disponibles (vraies données API)
-    vehiclesAPI.getAll()
-      .then(res => {
-        const list = (res.data.results || res.data || []);
-        setFeaturedVehicles(list.slice(0, 3).map(v => ({
-          id: v.id,
-          name: `${v.brand} ${v.model} ${v.year}`,
-          category: v.tier_label || v.category || v.tier,
-          price: Number(v.daily_rate || 0),
-          rating: Number(v.rating) || 5.0,
-          image: v.image_url,
-        })));
-      })
-      .catch(() => {});
-    // Retour Stripe/PayPal : message + nettoyage de l'URL
-    if (topupResult) {
-      const t = setTimeout(() => setSearchParams({}, { replace: true }), 8000);
-      return () => clearTimeout(t);
+    loadWallet();
+    bookingsAPI.clientStats().then(({ data }) => setStats(data)).catch(() => {});
+    bookingsAPI.getAll({ page_size: 50, ordering: '-start_date' }).then(({ data }) => setBookings(data.results || data || [])).catch(() => {});
+    vehiclesAPI.getAll({ status: 'approved', ordering: '-rating', page_size: 2 }).then(({ data }) => setFeatured((data.results || data || []).slice(0, 2))).catch(() => {});
+    // Retour Stripe/PayPal : message puis nettoyage de l'URL
+    if (topupResult && topupResult !== 'orange') {
+      const timer = setTimeout(() => setSearchParams({}, { replace: true }), 8000);
+      return () => clearTimeout(timer);
     }
-  }, [topupResult]);
+    return undefined;
+  }, [topupResult, setSearchParams]);
+
+  useEffect(() => {
+    const reference = searchParams.get('ref');
+    if (topupResult !== 'orange' || !reference) return;
+    walletAPI.status(reference).then(({ data }) => {
+      if (data.status === 'completed') loadWallet();
+      setSearchParams({ topup: data.status === 'completed' ? 'success' : 'pending' }, { replace: true });
+    }).catch(() => setSearchParams({ topup: 'error' }, { replace: true }));
+  }, [topupResult, searchParams, setSearchParams]);
+
+  const upcoming = useMemo(() => bookings
+    .filter((b) => ['confirmed', 'active', 'pending'].includes(b.status))
+    .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))[0], [bookings]);
+
+  const monthly = useMemo(() => {
+    const months = [];
+    const cursor = new Date(); cursor.setDate(1);
+    for (let i = 3; i >= 0; i -= 1) {
+      const date = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const total = bookings.filter((b) => b.status !== 'cancelled').filter((b) => {
+        const start = new Date(b.start_date);
+        return `${start.getFullYear()}-${start.getMonth()}` === key;
+      }).reduce((sum, b) => sum + Number(b.subtotal || 0), 0);
+      months.push({ label: formatDate(date, { month: 'short' }), total });
+    }
+    return months;
+  }, [bookings]);
+  const maxMonth = Math.max(1, ...monthly.map((m) => m.total));
+
+  const balance = Number(wallet?.balance ?? user?.balance ?? 0);
+  const held = Number(wallet?.held_deposit || 0);
+  const kycStatus = user?.kyc_status || 'none';
+  const transactions = (wallet?.transactions || []).slice(0, 4);
+
+  const quickSearch = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams({ type: quick.type, start: quick.start });
+    if (quick.city) params.set('city', quick.city);
+    navigate(`/catalog?${params}`);
+  };
 
   return (
-    <DashboardLayout title="Tableau de bord">
-      <div className="max-w-6xl mx-auto space-y-6">
-
-        {/* Retour de paiement externe (Stripe/PayPal) */}
+    <DashboardLayout title={t('Tableau de bord')}>
+      <div className="flex flex-col gap-8">
         {topupResult && TOPUP_BANNERS[topupResult] && (
-          <div className={`rounded-xl border px-4 py-3 text-sm font-semibold flex items-center gap-2 ${TOPUP_BANNERS[topupResult].cls}`}>
-            {topupResult === 'success' ? <CheckCircle size={16} /> : <X size={16} className="opacity-60" />}
-            {TOPUP_BANNERS[topupResult].text}
+          <div className={`rounded-xl px-4 py-3 flex items-center gap-2 font-label-lg text-label-lg ${TOPUP_BANNERS[topupResult].cls}`}><Icon name={TOPUP_BANNERS[topupResult].icon} />{t(TOPUP_BANNERS[topupResult].text)}</div>
+        )}
+
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="page-title">{t('Bonjour, {{name}}', { name: user?.firstName || '' })} 👋</h2>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm"><span className="w-2 h-2 rounded-full bg-primary animate-pulse" />{t('Compte actif')}</span>
+            </div>
+            <p className="page-subtitle mt-1">{t('Ravi de vous revoir sur votre espace AutoLink Pro.')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => navigate('/client/search')} className="btn-primary py-2.5 px-4"><Icon name="directions_car" size={20} />{t('Rechercher un véhicule')}</button>
+            <button onClick={() => setShowTopUp(true)} className="btn-secondary py-2.5 px-4"><Icon name="add_card" size={20} className="text-primary" />{t('Recharger mon portefeuille')}</button>
+            <button onClick={() => navigate('/client/bookings')} className="btn-secondary py-2.5 px-4"><Icon name="download" size={20} className="text-secondary" />{t('Factures')}</button>
+          </div>
+        </div>
+
+        {(kycStatus !== 'approved' || upcoming?.status === 'confirmed') && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {kycStatus !== 'approved' && (
+              <div className={`flex items-start justify-between gap-4 p-4 rounded-xl shadow-sm ${kycStatus === 'pending' ? 'bg-secondary-fixed text-on-secondary-fixed-variant' : 'bg-error-container text-on-error-container'}`}>
+                <div className="flex items-start gap-2">
+                  <Icon name={kycStatus === 'pending' ? 'hourglass_top' : 'warning'} className={kycStatus === 'pending' ? '' : 'text-error'} />
+                  <div>
+                    <div className={`font-label-md text-label-md uppercase tracking-wider font-bold ${kycStatus === 'pending' ? '' : 'text-error'}`}>{kycStatus === 'pending' ? t('Documents en vérification') : t('Pièce justificative requise')}</div>
+                    <p className="font-body-md text-body-md">{kycStatus === 'pending' ? t('Notre équipe vérifie vos documents. Vous serez notifié dès leur validation.') : kycStatus === 'rejected' ? (user?.kyc_note || t('Vos documents ont été refusés. Déposez de nouvelles pièces.')) : t("Déposez votre pièce d'identité et votre permis pour accélérer vos prochaines réservations.")}</p>
+                  </div>
+                </div>
+                {kycStatus !== 'pending' && <Link to="/profile" className="shrink-0 px-4 py-1.5 rounded-lg bg-surface-container-lowest text-error font-label-md text-label-md shadow-sm">{t('Mettre à jour')}</Link>}
+              </div>
+            )}
+            {upcoming?.status === 'confirmed' && (
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed shadow-sm">
+                <div className="flex items-start gap-2">
+                  <Icon name="assignment_turned_in" className="text-tertiary" />
+                  <div>
+                    <div className="font-label-md text-label-md uppercase tracking-wider font-bold text-tertiary">{t('Prochaine prise en charge')}</div>
+                    <p className="font-body-md text-body-md">{t('{{vehicle}} le {{date}}. Préparez vos documents pour l’état des lieux.', { vehicle: upcoming.vehicle_name, date: formatDate(upcoming.start_date) })}</p>
+                  </div>
+                </div>
+                <Link to={`/client/bookings/${upcoming.id}`} className="shrink-0 px-4 py-1.5 rounded-lg bg-tertiary text-on-tertiary font-label-md text-label-md">{t('Ouvrir')}</Link>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Welcome banner */}
-        <div className="relative rounded-2xl overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=80"
-            alt="AutoLink Pro"
-            className="w-full h-44 object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-center px-6">
-            <p className="text-white/70 text-sm mb-1">Bienvenue,</p>
-            <h2 className="text-2xl font-black text-white mb-4">{user?.firstName} {user?.lastName}</h2>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => navigate('/client/search')} className="flex items-center gap-2 bg-white text-slate-900 font-semibold py-2 px-4 rounded-xl hover:bg-slate-100 transition-all shadow-lg text-sm">
-                <Search size={16} /> Réserver un véhicule
-              </button>
-              <button onClick={() => navigate('/client/bookings')} className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold py-2 px-4 rounded-xl transition-all text-sm">
-                <FileText size={16} /> Mes réservations
-              </button>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 card-dark flex flex-col justify-between gap-6">
+            <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+            <div className="relative flex items-center justify-between">
+              <span className="flex items-center gap-2 font-label-lg text-label-lg uppercase tracking-wide text-surface-variant"><Icon name="account_balance_wallet" className="text-primary-fixed-dim" />{t('Portefeuille mobilité sécurisé')}</span>
             </div>
-          </div>
-        </div>
-
-        {/* Solde AutoLink */}
-        <div className="card bg-gradient-to-r from-primary-700 to-primary-900 border-0">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center">
-                <Wallet size={24} className="text-white" />
-              </div>
+            <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <p className="text-primary-200 text-xs font-medium">Mon solde AutoLink</p>
-                <p className="text-3xl font-black text-white">
-                  {balance === null ? '—' : `${Number(balance).toLocaleString()} FCFA`}
-                </p>
+                <span className="font-label-md text-label-md text-surface-variant">{t('Solde disponible')}</span>
+                <div className={`${String(Math.round(balance)).length > 8 ? 'font-headline-lg text-headline-lg-mobile' : 'font-headline-xl text-headline-xl'} text-surface-bright tracking-tight leading-none mt-1 break-words`}>{wallet ? formatNumber(balance) : '—'} <span className="font-label-lg text-label-lg text-primary-fixed-dim">FCFA</span></div>
+                <span className="font-body-sm text-body-sm text-surface-variant/80">{t('Immédiatement utilisable pour vos trajets')}</span>
+              </div>
+              <div className="sm:pl-4 sm:border-l sm:border-surface-variant/20">
+                <span className="flex items-center gap-1 font-label-md text-label-md text-surface-variant">{t('Caution séquestrée bloquée')}<Icon name="lock" size={16} className="text-tertiary-fixed-dim" /></span>
+                <div className="font-headline-lg text-headline-lg text-surface-bright mt-1">{formatNumber(held)} <span className="font-label-lg text-label-lg text-surface-variant">FCFA</span></div>
+                <span className="font-body-sm text-body-sm text-surface-variant/80">{t('Débloquée automatiquement à la fin de la location sans litige.')}</span>
               </div>
             </div>
-            <button onClick={() => setShowTopUp(true)}
-              className="flex items-center gap-2 bg-white text-primary-800 font-bold py-2.5 px-5 rounded-xl hover:bg-primary-50 transition-all text-sm shadow">
-              <Plus size={16} /> Recharger
-            </button>
+            <div className="relative pt-4 border-t border-surface-variant/15 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {[['bg-primary-fixed', 'MTN MoMo'], ['bg-tertiary-fixed-dim', 'Orange Money']].map(([dot, label]) => <span key={label} className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-container-highest/20 font-label-sm text-label-sm text-surface-bright"><span className={`w-2.5 h-2.5 rounded-full ${dot}`} />{label}</span>)}
+                <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-container-highest/20 font-label-sm text-label-sm text-surface-bright"><Icon name="credit_card" size={14} />{t('Carte bancaire')}</span>
+              </div>
+              <button onClick={() => setShowTopUp(true)} className="btn-primary py-2.5">{t('Recharger via MoMo / OM / Carte')}</button>
+            </div>
           </div>
-          <p className="text-primary-200/80 text-xs mt-3">MTN MoMo · Orange Money · SenBid · PayBid · PayPal · Stripe</p>
+
+          <div className="lg:col-span-5 card flex flex-col gap-5">
+            <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white">{t('Activité mobilité')}</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: stats.bookings_total, label: 'Locations', sub: t('{{n}} véhicule(s)', { n: stats.distinct_vehicles }) },
+                { value: `${formatNumber(Number(stats.total_spent || 0))}`, label: 'FCFA dépensés', sub: t('au total') },
+                { value: Number(stats.average_rating || 0).toFixed(1), label: 'Note donnée', sub: t('{{n}} avis', { n: stats.rated_count || 0 }) },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl bg-surface-container-low dark:bg-slate-900 p-3 text-center">
+                  <div className="font-headline-sm text-headline-sm text-on-surface dark:text-white truncate">{item.value}</div>
+                  <div className="font-label-sm text-label-sm text-on-surface-variant">{t(item.label)}</div>
+                  <div className="text-[10px] text-outline">{item.sub}</div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="flex justify-between font-label-md text-label-md text-on-surface-variant mb-2"><span>{t('Dépenses mensuelles de mobilité')}</span><span>{formatNumber(monthly.reduce((s, m) => s + m.total, 0))} FCFA</span></div>
+              <div className="flex items-end gap-3 h-28">
+                {monthly.map((month, index) => (
+                  <div key={month.label} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                    <div title={`${formatNumber(month.total)} FCFA`} className={`w-full rounded-t-lg ${index === monthly.length - 1 ? 'bg-primary' : 'bg-secondary-container'}`} style={{ height: `${Math.max(6, (month.total / maxMonth) * 100)}%` }} />
+                    <span className={`font-label-sm text-label-sm ${index === monthly.length - 1 ? 'text-primary' : 'text-on-surface-variant'}`}>{month.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Rental type quick access */}
-        <div>
-          <h3 className="font-bold text-slate-800 dark:text-white mb-3">Choisir un type de location</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {RENTAL_QUICK.map(({ id, label, icon: Icon, desc, color }) => (
-              <button
-                key={id}
-                onClick={() => navigate(`/client/search?type=${id}`)}
-                className="flex flex-col items-start gap-2 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-primary-300 hover:shadow-md transition-all text-left group"
-              >
-                <div className={`w-9 h-9 ${color} rounded-lg flex items-center justify-center`}>
-                  <Icon size={18} className="text-white" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-white text-sm">{label}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{desc}</div>
-                </div>
+        <form onSubmit={quickSearch} className="card flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Icon name="bolt" className="text-primary" />
+            <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white">{t("Besoin d'un véhicule rapidement ?")}</h3>
+            <span className="font-body-sm text-body-sm text-on-surface-variant">{t('Réservation confirmée dès le paiement')}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3">
+            <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-low dark:bg-slate-900"><Icon name="location_on" className="text-primary" />
+              <span className="flex flex-col flex-1"><span className="overline">{t('Ville')}</span><input value={quick.city} onChange={(e) => setQuick({ ...quick, city: e.target.value })} placeholder={t('Douala, Yaoundé…')} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white" /></span></label>
+            <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-low dark:bg-slate-900"><Icon name="calendar_today" className="text-primary" />
+              <span className="flex flex-col flex-1"><span className="overline">{t('Date de début')}</span><input type="date" min={new Date().toISOString().slice(0, 10)} value={quick.start} onChange={(e) => setQuick({ ...quick, start: e.target.value })} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white" /></span></label>
+            <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-low dark:bg-slate-900"><Icon name="schedule" className="text-primary" />
+              <span className="flex flex-col flex-1"><span className="overline">{t('Formule')}</span><select value={quick.type} onChange={(e) => setQuick({ ...quick, type: e.target.value })} className="bg-transparent font-label-lg text-label-lg focus:outline-none dark:text-white">{RENTAL_TYPES.map((type) => <option key={type.id} value={type.id}>{t(type.label)}</option>)}</select></span></label>
+            <button type="submit" className="btn-primary"><Icon name="search" size={20} />{t('Trouver un véhicule')}</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {RENTAL_TYPES.map((type) => (
+              <button type="button" key={type.id} onClick={() => navigate(`/client/search?type=${type.id}${type.id === 'long_haul' ? '&days=4' : ''}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container dark:bg-slate-900 font-label-md text-label-md text-on-surface-variant dark:text-slate-300">
+                <Icon name={FORMULA_ICONS[type.id]} size={16} className="text-primary" />{t(type.label)}
               </button>
             ))}
           </div>
-        </div>
+        </form>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: FileText,  label: 'Réservations totales', value: recentBookings.length,             color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { icon: CreditCard,label: 'Total dépensé',        value: `${totalSpent.toLocaleString()} F`, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
-            { icon: Star,      label: 'Note moyenne donnée',  value: '4.7 / 5',                          color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
-            { icon: Car,       label: 'Véhicules essayés',    value: 3,                                   color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="card">
-              <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-3`}>
-                <Icon size={20} />
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-headline-lg text-headline-lg text-on-surface dark:text-white flex items-center gap-2"><Icon name="event_upcoming" />{t('Réservation à venir')}</h3>
+            {upcoming && <span className={STATUS[upcoming.status]?.cls}>{t(STATUS[upcoming.status]?.label)}</span>}
+          </div>
+          {upcoming ? (
+            <div className="card grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-6">
+              <div className="relative rounded-xl overflow-hidden bg-surface-container h-56 md:h-full min-h-[14rem]">
+                {upcoming.vehicle_image && <img src={upcoming.vehicle_image} alt="" className="w-full h-full object-cover" />}
+                <span className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-inverse-surface/90 text-surface-bright font-headline-sm text-headline-sm">{formatNumber(upcoming.daily_rate)} <span className="text-[11px]">FCFA / jour</span></span>
               </div>
-              <div className="text-xl font-bold text-slate-900 dark:text-white">{value}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Recent Bookings */}
-          <div className="lg:col-span-2 card">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-slate-900 dark:text-white">Réservations récentes</h3>
-              <button onClick={() => navigate('/client/bookings')} className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
-                Voir tout <ArrowRight size={14} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {recentBookings.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Aucune réservation pour le moment.</p>
-              )}
-              {recentBookings.map(b => (
-                <div key={b.id} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                  <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/40 rounded-xl flex items-center justify-center shrink-0">
-                    <Car size={20} className="text-primary-600" />
+              <div className="flex flex-col gap-3">
+                <span className="overline text-primary">{upcoming.vehicle_city} · BK-{String(upcoming.id).padStart(4, '0')}</span>
+                <h4 className="font-headline-lg text-headline-lg text-on-surface dark:text-white">{upcoming.vehicle_name}</h4>
+                <div className="p-4 rounded-xl bg-surface-container-low dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3"><Icon name="schedule" className="text-on-surface-variant" />
+                    <div><div className="overline">{t('Période réservée')}</div><div className="font-label-lg text-label-lg text-on-surface dark:text-white">{formatDate(upcoming.start_date)} → {formatDate(upcoming.end_date)} ({t('{{n}} j', { n: upcoming.days })})</div></div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-slate-900 dark:text-white text-sm">{b.vehicle}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {b.driver} · {b.date} · {b.type}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="font-bold text-slate-900 dark:text-white text-sm">{b.amount.toLocaleString()} F</div>
-                    <span className={STATUS_STYLES[b.status]}>{STATUS_LABELS[b.status] || b.status}</span>
-                  </div>
+                  {upcoming.driver_name && <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container-lowest dark:bg-slate-800 font-label-md text-label-md"><Icon name="badge" size={18} />{t('Chauffeur : {{name}}', { name: upcoming.driver_name })}</span>}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Featured vehicles */}
-          <div className="card">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-4">Véhicules disponibles</h3>
-            <div className="space-y-3">
-              {featuredVehicles.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Chargement du catalogue…</p>
-              )}
-              {featuredVehicles.map(v => (
-                <div key={v.name} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary-300 transition-colors">
-                  <img src={v.image} alt={v.name} className="w-16 h-12 rounded-lg object-cover shrink-0" onError={e => { e.target.style.display='none'; }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 dark:text-white text-xs leading-snug">{v.name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Star size={10} className="text-amber-400 fill-amber-400" /> {v.rating} · {v.category}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-bold text-primary-600">{v.price.toLocaleString()}</div>
-                    <div className="text-xs text-slate-400">F/jour</div>
-                  </div>
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  <Link to={`/client/bookings/${upcoming.id}`} className="btn-primary py-2.5 px-4"><Icon name="receipt_long" size={18} />{t('Détail & état des lieux')}</Link>
+                  <Link to={`/messages?booking=${upcoming.id}`} className="btn-secondary py-2.5 px-4"><Icon name="chat" size={18} />{t('Contacter le propriétaire')}</Link>
+                  {upcoming.driver_phone && <a href={`tel:${upcoming.driver_phone}`} className="btn-secondary py-2.5 px-4"><Icon name="call" size={18} />{t('Chauffeur ({{phone}})', { phone: upcoming.driver_phone })}</a>}
                 </div>
-              ))}
+              </div>
             </div>
-            <button onClick={() => navigate('/client/search')} className="btn-primary w-full mt-4 py-2.5 text-sm flex items-center justify-center gap-2">
-              <Search size={16} /> Voir tout le catalogue
-            </button>
-          </div>
+          ) : (
+            <div className="card text-center py-10">
+              <Icon name="event_available" size={40} className="text-outline" />
+              <p className="font-body-lg text-body-lg text-on-surface-variant mt-2">{t('Aucune réservation à venir.')}</p>
+              <button onClick={() => navigate('/client/search')} className="btn-primary mt-4">{t('Réserver un véhicule')}</button>
+            </div>
+          )}
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <section className="lg:col-span-7 card flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white flex items-center gap-2"><Icon name="receipt_long" />{t('Dernières transactions portefeuille')}</h3>
+              <Link to="/client/wallet" className="font-label-md text-label-md text-primary">{t('Voir tout le relevé')}</Link>
+            </div>
+            {!transactions.length && <p className="font-body-md text-body-md text-on-surface-variant py-4">{t('Aucune transaction pour le moment.')}</p>}
+            {transactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${txSign(tx) === '+' ? 'bg-primary-fixed/50 text-primary' : 'bg-tertiary-fixed text-tertiary'}`}><Icon name={txIcon(tx)} /></span>
+                  <div className="min-w-0"><div className="font-label-lg text-label-lg text-on-surface dark:text-white truncate">{tx.note || tx.reference}</div><div className="font-body-sm text-body-sm text-on-surface-variant">{formatDate(tx.created_at)} · {tx.reference}</div></div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`font-label-lg text-label-lg ${txSign(tx) === '+' ? 'text-primary' : 'text-on-surface dark:text-white'}`}>{txSign(tx)}{formatNumber(tx.amount)} FCFA</div>
+                  <div className="font-label-sm text-label-sm text-on-surface-variant">{tx.status === 'completed' ? t('Réussi') : tx.status === 'failed' ? t('Échoué') : t('En attente')}</div>
+                </div>
+              </div>
+            ))}
+            <div className="pt-3 border-t border-outline-variant/30">
+              <div className="overline mb-2">{t('Réservations récentes')}</div>
+              {bookings.slice(0, 3).map((b) => (
+                <Link key={b.id} to={`/client/bookings/${b.id}`} className="flex items-center justify-between py-2 hover:text-primary">
+                  <span className="font-label-md text-label-md">{b.vehicle_name} · {formatDate(b.start_date)}</span>
+                  <span className={STATUS[b.status]?.cls}>{t(STATUS[b.status]?.label || b.status)}</span>
+                </Link>
+              ))}
+              {!bookings.length && <p className="font-body-sm text-body-sm text-on-surface-variant">{t('Aucune réservation pour le moment.')}</p>}
+            </div>
+          </section>
+
+          <section className="lg:col-span-5 card flex flex-col gap-4">
+            <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white flex items-center gap-2"><Icon name="auto_awesome" className="text-tertiary" />{t('Recommandations')}</h3>
+            {featured.map((vehicle) => (
+              <div key={vehicle.id} className="flex gap-3 p-3 rounded-xl bg-surface-container-low dark:bg-slate-900">
+                <img src={vehicleImage(vehicle)} alt="" className="w-28 h-20 rounded-lg object-cover" />
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <span className="flex justify-between font-label-sm text-label-sm"><span className="text-primary">{vehicle.city}</span><span className="flex items-center"><Icon name="star" size={14} fill className="text-tertiary-container" />{Number(vehicle.rating || 0).toFixed(1)}</span></span>
+                  <span className="font-label-lg text-label-lg text-on-surface dark:text-white truncate">{vehicleName(vehicle)}</span>
+                  <span className="flex items-end justify-between mt-auto"><span className="font-headline-sm text-headline-sm text-primary">{formatNumber(vehicleRate(vehicle))} <span className="text-[11px]">FCFA/j</span></span>
+                    <Link to={`/client/search?vehicle=${vehicle.id}`} className="font-label-md text-label-md text-primary underline">{t('Réserver')}</Link></span>
+                </div>
+              </div>
+            ))}
+            {!featured.length && <p className="font-body-md text-body-md text-on-surface-variant">{t('Aucun véhicule à recommander pour le moment.')}</p>}
+            <Link to="/client/favorites" className="flex items-center gap-2 p-3 rounded-xl bg-secondary-fixed/40 dark:bg-slate-900 font-body-sm text-body-sm text-on-secondary-fixed-variant dark:text-slate-300"><Icon name="favorite" size={18} />{t('Retrouvez vos véhicules favoris')}</Link>
+          </section>
         </div>
       </div>
-      {showTopUp && <TopUpModal onClose={() => setShowTopUp(false)} onDone={(b) => setBalance(Number(b))} />}
+      {showTopUp && <TopUpModal onClose={() => { setShowTopUp(false); loadWallet(); }} onDone={loadWallet} />}
     </DashboardLayout>
   );
 }

@@ -11,32 +11,75 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = {
-  CLIENT: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/client/dashboard' },
-    { icon: Search, label: 'Chercher un véhicule', path: '/client/search' },
-    { icon: FileText, label: 'Mes réservations', path: '/client/bookings' },
-  ],
-  OWNER: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/owner/dashboard' },
-    { icon: Car, label: 'Mes véhicules', path: '/owner/vehicles' },
-    { icon: PlusCircle, label: 'Ajouter un véhicule', path: '/owner/add-vehicle' },
-  ],
-  DRIVER: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/driver/dashboard' },
-  ],
-  ADMIN: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin/dashboard' },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
-    { icon: Car, label: 'Véhicules', path: '/admin/inspections' },
-    { icon: UserCheck, label: 'Chauffeurs', path: '/admin/drivers' },
-    { icon: DollarSign, label: 'Finance', path: '/admin/finance' },
-    { icon: Tag, label: 'Agents affiliés', path: '/admin/agents' },
-    { icon: ClipboardList, label: 'Inspections', path: '/admin/inspections' },
-  ],
-  CONTROLLER: [
-    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/controller/dashboard' },
-    { icon: ClipboardList, label: 'Inspections', path: '/admin/inspections' },
-  ],
+  CLIENT: {
+    space: 'Espace Client',
+    items: [
+      { icon: 'LayoutDashboard', label: 'Tableau de bord', path: '/client/dashboard' },
+      { icon: 'Car', label: 'Mes Réservations', path: '/client/bookings' },
+      { icon: 'DollarSign', label: 'Portefeuille & Caution', path: '/client/wallet' },
+      { icon: 'Heart', label: 'Favoris', path: '/client/favorites' },
+      { icon: 'User', label: 'Documents & Profil', path: '/profile' },
+      { icon: 'MessageSquare', label: 'Messages', path: '/messages', badge: 'messages' },
+      { icon: 'Tag', label: 'Parrainage & Réductions', path: '/client/referrals' },
+      { icon: 'Settings', label: 'Paramètres', path: '/settings' },
+      { icon: 'HelpCircle', label: 'Aide', path: '/help' },
+      { icon: 'Search', label: 'Catalogue', path: '/client/search' },
+    ],
+  },
+  OWNER: {
+    space: 'Espace Propriétaire',
+    items: [
+      { icon: 'LayoutDashboard', label: 'Tableau de bord', path: '/owner/dashboard' },
+      { icon: 'Car', label: 'Mes véhicules', path: '/owner/vehicles' },
+      { icon: 'PlusCircle', label: 'Ajouter un véhicule', path: '/owner/add-vehicle' },
+      { icon: 'ClipboardList', label: 'Demandes de location', path: '/owner/requests', badge: 'requests' },
+      { icon: 'DollarSign', label: 'Revenus & Finances', path: '/owner/revenue' },
+      { icon: 'MessageSquare', label: 'Messages', path: '/messages', badge: 'messages' },
+      { icon: 'Bell', label: 'Notifications', path: '/notifications', badge: 'notifications' },
+      { icon: 'UserCheck', label: 'Profil & Documents', path: '/profile' },
+      { icon: 'Settings', label: 'Paramètres', path: '/settings' },
+    ],
+  },
+  DRIVER: {
+    space: 'Espace Chauffeur',
+    items: [
+      { icon: 'LayoutDashboard', label: 'Tableau de bord', path: '/driver/dashboard' },
+      { icon: 'DollarSign', label: 'Revenus & Retraits', path: '/driver/revenue' },
+      { icon: 'MessageSquare', label: 'Messages', path: '/messages', badge: 'messages' },
+      { icon: 'Bell', label: 'Notifications', path: '/notifications', badge: 'notifications' },
+      { icon: 'UserCheck', label: 'Profil & Documents', path: '/profile' },
+      { icon: 'Settings', label: 'Paramètres', path: '/settings' },
+    ],
+  },
+  ADMIN: {
+    space: 'Admin Ops',
+    items: [
+      { icon: 'LayoutDashboard', label: 'Tableau de bord', path: '/admin/dashboard' },
+      { icon: 'Calendar', label: 'Réservations', path: '/admin/bookings' },
+      { icon: 'Car', label: 'Véhicules', path: '/admin/catalog', badge: 'vehicles_pending' },
+      { icon: 'Key', label: 'Propriétaires & Retraits', path: '/admin/owners', badge: 'withdrawals_pending' },
+      { icon: 'Users', label: 'Clients & KYC', path: '/admin/users', badge: 'kyc_pending' },
+      { icon: 'Badge', label: 'Chauffeurs', path: '/admin/drivers' },
+      { icon: 'CreditCard', label: 'Finance', path: '/admin/finance' },
+      { icon: 'Gavel', label: 'Litiges', path: '/admin/disputes', badge: 'disputes_open' },
+      { icon: 'Wrench', label: 'Inspections', path: '/admin/inspections' },
+      { icon: 'Tag', label: 'Agents affiliés', path: '/admin/agents' },
+      { icon: 'MessageSquare', label: 'Messagerie', path: '/messages', badge: 'messages' },
+      { icon: 'Mail', label: 'Messages de contact', path: '/admin/messages', badge: 'contact_unhandled' },
+      { icon: 'Inbox', label: 'Newsletter', path: '/admin/newsletter' },
+      { icon: 'Settings', label: 'Paramètres plateforme', path: '/admin/settings' },
+    ],
+  },
+  CONTROLLER: {
+    space: 'Espace Contrôleur',
+    items: [
+      { icon: 'LayoutDashboard', label: 'Tableau de bord', path: '/controller/dashboard' },
+      { icon: 'ClipboardList', label: 'Inspections', path: '/admin/inspections' },
+      { icon: 'MessageSquare', label: 'Messages', path: '/messages', badge: 'messages' },
+      { icon: 'Bell', label: 'Notifications', path: '/notifications', badge: 'notifications' },
+      { icon: 'Settings', label: 'Paramètres', path: '/settings' },
+    ],
+  },
 };
 
 const ROLE_COLORS = {
@@ -160,7 +203,8 @@ export default function DashboardLayout({ children, title }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  const navItems = NAV_ITEMS[user?.role] || [];
+  const navConfig = NAV_ITEMS[user?.role] || { space: '', items: [] };
+  const navItems = navConfig.items;
 
   // Fermer le menu profil au clic extérieur
   useEffect(() => {
@@ -177,7 +221,7 @@ export default function DashboardLayout({ children, title }) {
 
   const Sidebar = ({ mobile = false }) => (
     <div className={`flex flex-col h-full bg-slate-900 ${mobile ? 'w-full' : 'w-64'}`}>
-      <div className="p-4 border-b border-slate-800 flex items-center justify-center">
+      <div className="px-4 pt-2 pb-3 border-b border-slate-800 flex items-center justify-center">
         <Link to="/">
           <AutoLinkLogo size="md" />
         </Link>
@@ -196,7 +240,7 @@ export default function DashboardLayout({ children, title }) {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ icon: Icon, label, path }) => {
+        {navItems.map(({ icon: IconComponent, label, path, badge }) => {
           const active = location.pathname === path;
           return (
             <Link
@@ -204,7 +248,7 @@ export default function DashboardLayout({ children, title }) {
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
             >
-              <Icon size={18} />
+              <IconComponent size={18} />
               {label}
             </Link>
           );
@@ -246,7 +290,7 @@ export default function DashboardLayout({ children, title }) {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
               <Menu size={20} />
             </button>
-            <h1 className="text-lg font-bold text-slate-800 dark:text-white">{title}</h1>
+            <h1 className="text-lg font-bold text-slate-800 dark:text-white truncate">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={toggleTheme} className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title={isDark ? 'Mode clair' : 'Mode sombre'}>

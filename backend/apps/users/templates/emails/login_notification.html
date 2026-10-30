@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if language == 'en' %}New sign-in to your AutoLink Pro account{% else %}Nouvelle connexion à votre compte AutoLink Pro{% endif %}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+        }
+        .logo-text {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .content {
+            padding: 30px;
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .alert {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-text">🚗 AutoLink Pro</div>
+        </div>
+        <div class="content">
+            {% if language == 'en' %}
+            <h1>New Sign-in Detected 🔐</h1>
+            <p>Hello <strong>{{ first_name }}</strong>,</p>
+            <p>A new sign-in to your AutoLink Pro account has just been detected.</p>
+            <div class="alert">
+                <strong>Security Notice:</strong><br>
+                If you did not sign in to your account recently, please contact our support team immediately.
+            </div>
+            <p>For your security, we recommend:</p>
+            <ul>
+                <li>Changing your password regularly</li>
+                <li>Enabling two-factor authentication when available</li>
+                <li>Never sharing your login credentials</li>
+            </ul>
+            <p>Thank you for choosing AutoLink Pro.</p>
+            {% else %}
+            <h1>Nouvelle connexion détectée 🔐</h1>
+            <p>Bonjour <strong>{{ first_name }}</strong>,</p>
+            <p>Une nouvelle connexion à votre compte AutoLink Pro vient d'être détectée.</p>
+            <div class="alert">
+                <strong>Attention sécurité :</strong><br>
+                Si vous n'êtes pas à l'origine de cette connexion, veuillez contacter notre équipe de support immédiatement.
+            </div>
+            <p>Pour votre sécurité, nous recommandons :</p>
+            <ul>
+                <li>De changer votre mot de passe régulièrement</li>
+                <li>D'activer l'authentification à deux facteurs lorsque disponible</li>
+                <li>De ne jamais partager vos identifiants de connexion</li>
+            </ul>
+            <p>Merci de faire confiance à AutoLink Pro.</p>
+            {% endif %}
+        </div>
+        <div class="footer">
+            <p>&copy; {% now "Y" %} AutoLink Pro. All rights reserved.</p>
+            <p>Location des voitures par excellence</p>
+        </div>
+    </div>
+</body>
+</html>
