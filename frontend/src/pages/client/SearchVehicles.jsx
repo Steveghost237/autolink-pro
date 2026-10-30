@@ -449,8 +449,9 @@ export default function SearchVehicles() {
 
   return (
     <DesignShell role="client">
-      <div className="mb-4"><h1 className="font-headline-lg text-headline-lg text-on-surface">{t('Catalogue de véhicules')}</h1><p className="text-body-md text-on-surface-variant">{t('Choisissez votre véhicule, votre formule et réservez en quelques clics.')}</p></div>
-      <div className="flex flex-col gap-6">
+      <div className="pt-4 px-4 sm:px-6 lg:px-8">
+        <div className="mb-4"><h1 className="font-headline-lg text-headline-lg text-on-surface">{t('Catalogue de véhicules')}</h1><p className="text-body-md text-on-surface-variant">{t('Choisissez votre véhicule, votre formule et réservez en quelques clics.')}</p></div>
+        <div className="flex flex-col gap-6">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {[{ id: '', label: 'Toutes les formules' }, ...RENTAL_TYPES].map((rt) => (
             <button key={rt.id} onClick={() => setType(rt.id)}
@@ -517,6 +518,7 @@ export default function SearchVehicles() {
           </div>
         )}
         {loadingList && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-96 rounded-xl bg-surface-container animate-pulse" />)}</div>}
+        </div>
       </div>
       {selectedVehicle && <BookingFunnel vehicle={selectedVehicle} onClose={closeFunnel} />}
     </DesignShell>
