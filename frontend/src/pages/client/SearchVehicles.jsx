@@ -505,7 +505,7 @@ export default function SearchVehicles() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filtered.map((v) => (
-            <VehicleCard key={v.id} vehicle={v} unavailable={!v.available} onReserve={() => navigate('/client/booking/recap')}
+            <VehicleCard key={v.id} vehicle={v} unavailable={!v.available} onClick={() => navigate(`/vehicles/${v.id}`)}
               favorite={favorites.ids.includes(v.id)} onToggleFavorite={favorites.toggle} />
           ))}
         </div>
