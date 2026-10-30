@@ -55,6 +55,7 @@ import ClientDashboard from './pages/client/ClientDashboard';
 import MyBookings from './pages/client/MyBookings';
 import Wallet from './pages/client/Wallet';
 import Favorites from './pages/client/Favorites';
+import VehicleDetailClient from './pages/client/VehicleDetailClient';
 import D8 from './design/c8_notifications';
 import DD from './design/driver_dashboard';
 import DP from './design/driver_profile';
@@ -126,7 +127,8 @@ function AppRoutes() {
       <Route path="/client/bookings/:id/edit" element={<Guard roles={['CLIENT']}><D4mod /></Guard>} />
       <Route path="/client/favorites" element={<Guard roles={['CLIENT']}><D6 /></Guard>} />
       <Route path="/client/wallet" element={<Guard roles={['CLIENT']}><D5 /></Guard>} />
-      <Route path="/vehicles/:id" element={<Guard roles={['CLIENT']}><VehicleDetail /></Guard>} />
+      <Route path="/client/vehicle/:id" element={<Guard roles={['CLIENT']}><VehicleDetailClient /></Guard>} />
+      <Route path="/vehicles/:id" element={<Guard roles={['CLIENT']}><VehicleDetailClient /></Guard>} />
 
       <Route path="/owner/dashboard" element={<Guard roles={['OWNER']}><OwnerDashboard /></Guard>} />
       <Route path="/owner/vehicles" element={<Guard roles={['OWNER']}><MyVehicles /></Guard>} />

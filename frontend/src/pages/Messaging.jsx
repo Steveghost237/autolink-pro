@@ -10,7 +10,9 @@ const t = (text, options) => uiText('pages.Messaging', text, options);
 
 const FILTERS = [
   { value: '', label: 'Tous' },
-  { value: 'booking', label: 'Réservations' },
+  { value: 'CLIENT', label: 'Clients' },
+  { value: 'DRIVER', label: 'Chauffeurs' },
+  { value: 'OWNER', label: 'Propriétaires' },
   { value: 'support', label: 'Support' },
 ];
 
@@ -109,9 +111,14 @@ export default function Messaging() {
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return conversations.filter((c) => (!filter || c.kind === filter) && (!query || [
-      conversationTitle(c), c.subject, c.booking_label, c.last_message?.content,
-    ].some((v) => String(v || '').toLowerCase().includes(query))));
+    return conversations.filter((c) => {
+      if (filter === 'support' && c.kind !== 'support') return false;
+      if (filter && filter !== 'support' && !c.participants?.some((p) => p.role === filter)) return false;
+      if (!query) return true;
+      return [
+        conversationTitle(c), c.subject, c.booking_label, c.last_message?.content,
+      ].some((v) => String(v || '').toLowerCase().includes(query));
+    });
   }, [conversations, filter, search]);
 
   const active = conversations.find((c) => c.id === activeId);
@@ -184,6 +191,7 @@ export default function Messaging() {
                 </button>
               ))}
             </div>
+
           </div>
           <div className="flex-1 overflow-y-auto px-2 pb-2">
             {loaded && !visible.length && (

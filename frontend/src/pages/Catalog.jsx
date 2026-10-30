@@ -10,6 +10,7 @@ import FiltersSidebar, { GAMMES, FORMULE_OPTS, matchCategory, PRICE_MAX } from '
 import { CATALOG_VEHICLES, getVehicleImage } from '../utils/carImages';
 import { normalizeVehicle, vehicleBrand } from '../utils/vehicleMeta';
 import { vehiclesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const CITIES = ['Douala', 'Yaoundé'];
 const SERVICES = [
@@ -48,6 +49,7 @@ const mapApiVehicle = (v) => normalizeVehicle({
 });
 
 export default function Catalog() {
+  const { isAuthenticated } = useAuth();
   const [params, setParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
